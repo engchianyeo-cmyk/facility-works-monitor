@@ -91,7 +91,17 @@ export default function NewWorkOrderForm({ categories }: { categories: Category[
         <label className="block text-sm font-medium mb-1">Your name</label>
         <input name="submitted_by" className={inputClass} placeholder="e.g. Jane Tan" />
       </div>
+<div>
+      <label className="block text-sm font-medium mb-1">
+        Contact Number
+      </label>
 
+      <input
+        name="contact_number"
+        className={inputClass}
+        placeholder="e.g. +65 91234567"
+      />
+    </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button

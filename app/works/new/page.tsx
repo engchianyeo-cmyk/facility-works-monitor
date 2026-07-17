@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import NewWorkOrderForm from "./form";
+import WorkOrderForm from "@/components/work-order-form";
 
 export default async function NewWorkOrderPage() {
   const supabase = await createClient();
@@ -8,7 +8,7 @@ export default async function NewWorkOrderPage() {
   return (
     <main className="max-w-xl mx-auto p-8">
       <h1 className="text-2xl font-bold tracking-tight mb-6">Submit Work Order</h1>
-      <NewWorkOrderForm categories={categories ?? []} />
+      <WorkOrderForm categories={categories ?? []} />
     </main>
   );
 }

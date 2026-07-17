@@ -62,6 +62,12 @@ export default function ActionButtons({ id, status }: { id: string; status: Work
 
   return (
     <div className="space-y-2">
+        <button
+          onClick={() => router.push(`/works/${id}/edit`)}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-white hover:bg-neutral-800"
+          >
+      Edit
+    </button>
       <div className="flex gap-2">
         {actions.map((a) => (
           <button
