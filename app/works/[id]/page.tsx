@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, PriorityBadge } from "@/components/badges";
 import ActionButtons from "@/components/action-buttons";
 import { WorkOrderStatus } from "@/lib/status";
+import DeleteWorkOrderButton from "@/components/delete-work-order-button";
 
 export const revalidate = 0;
 
@@ -94,6 +95,22 @@ export default async function WorkOrderDetailPage({
             ))}
           </ul>
         )}
+      </div>
+      
+      <div className="border-t border-red-200 pt-6">
+        <h2 className="mb-2 text-sm font-semibold text-red-700">
+          Administrator
+        </h2>
+
+        <p className="mb-4 text-sm text-neutral-500">
+          Permanently remove this work order. Use this only for test,
+          duplicate or invalid records.
+        </p>
+
+        <DeleteWorkOrderButton
+          id={order.id}
+          title={order.title}
+        />
       </div>
     </main>
   );

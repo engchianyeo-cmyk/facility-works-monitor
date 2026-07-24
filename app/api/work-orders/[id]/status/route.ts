@@ -9,39 +9,18 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    let newStatus: string;
-
-    switch (body.action) {
-      case "approve":
-        newStatus = "approved";
-        break;
-
-      case "reject":
-        newStatus = "rejected";
-        break;
-
-      case "start":
-        newStatus = "in_progress";
-        break;
-
-      case "complete":
-        newStatus = "done";
-        break;
-
-      default:
-        return NextResponse.json(
-          { error: "Invalid action" },
-          { status: 400 }
-        );
-    }
-
     const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("work_orders")
       .update({
-        status: newStatus,
-        updated_at: new Date().toISOString(),
+        title: body.title,
+        location: body.location,
+        category_id: body.category_id || null,
+        priority: body.priority,
+        description: body.description,
+        submitted_by: body.submitted_by,
+        contact_number: body.contact_number,
       })
       .eq("id", id)
       .select()
@@ -57,10 +36,8 @@ export async function PATCH(
     return NextResponse.json({ data });
 
   } catch (err) {
-    console.error(err);
-
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal Server Error" },
       { status: 500 }
     );
   }

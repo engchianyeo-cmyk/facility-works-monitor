@@ -3,42 +3,85 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Category = { id: string; name: string };
+type Category = {
+  id: string;
+  name: string;
+};
 
-export default function NewWorkOrderForm({ categories }: { categories: Category[] }) {
+type WorkOrder = {
+  id: string;
+  title: string;
+  location: string;
+  category_id: string | null;
+  priority: string | null;
+  description: string | null;
+  submitted_by: string | null;
+  contact_number: string | null;
+};
+
+type WorkOrderFormProps = {
+  categories: Category[];
+  mode?: "create" | "edit";
+  workOrder?: WorkOrder;
+};
+
+export default function WorkOrderForm({
+  categories,
+  mode = "create",
+  workOrder,
+}: WorkOrderFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const isEdit = mode === "edit" && Boolean(workOrder);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
     setSubmitting(true);
 
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(event.currentTarget);
+
     const body = {
-      title: form.get("title"),
-      location: form.get("location"),
-      category_id: form.get("category_id") || null,
-      priority: form.get("priority"),
-      description: form.get("description"),
-      submitted_by: form.get("submitted_by"),
+      title: String(form.get("title") ?? "").trim(),
+      location: String(form.get("location") ?? "").trim(),
+      category_id: form.get("category_id")
+        ? String(form.get("category_id"))
+        : null,
+      priority: String(form.get("priority") ?? "medium"),
+      description: String(form.get("description") ?? "").trim() || null,
+      submitted_by: String(form.get("submitted_by") ?? "").trim() || null,
+      contact_number:
+        String(form.get("contact_number") ?? "").trim() || null,
     };
 
     try {
-      const res = await fetch("/api/work-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const url = isEdit
+        ? `/api/work-orders/${workOrder!.id}`
+        : "/api/work-orders";
+
+      const response = await fetch(url, {
+        method: isEdit ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error || "Something went wrong");
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        setError(json.error || "Unable to save the work order.");
         return;
       }
-      router.push(`/works/${json.data.id}`);
+
+      const savedId = isEdit ? workOrder!.id : json.data.id;
+
+      router.push(`/works/${savedId}`);
+      router.refresh();
     } catch {
-      setError("Network error — is the server running?");
+      setError("Network error — please check that the server is running.");
     } finally {
       setSubmitting(false);
     }
@@ -50,30 +93,52 @@ export default function NewWorkOrderForm({ categories }: { categories: Category[
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Title *</label>
-        <input name="title" required className={inputClass} placeholder="e.g. Broken light in corridor" />
+        <label className="mb-1 block text-sm font-medium">Title *</label>
+        <input
+          name="title"
+          required
+          className={inputClass}
+          placeholder="e.g. Broken light in corridor"
+          defaultValue={workOrder?.title ?? ""}
+        />
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Location *</label>
-        <input name="location" required className={inputClass} placeholder="e.g. Block A – Corridor 2" />
+        <label className="mb-1 block text-sm font-medium">Location *</label>
+        <input
+          name="location"
+          required
+          className={inputClass}
+          placeholder="e.g. Block A – Corridor 2"
+          defaultValue={workOrder?.location ?? ""}
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium mb-1">Category</label>
-          <select name="category_id" className={inputClass} defaultValue="">
+          <label className="mb-1 block text-sm font-medium">Category</label>
+          <select
+            name="category_id"
+            className={inputClass}
+            defaultValue={workOrder?.category_id ?? ""}
+          >
             <option value="">— None —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
         </div>
+
         <div>
-          <label className="block text-sm font-medium mb-1">Priority</label>
-          <select name="priority" className={inputClass} defaultValue="medium">
+          <label className="mb-1 block text-sm font-medium">Priority</label>
+          <select
+            name="priority"
+            className={inputClass}
+            defaultValue={workOrder?.priority ?? "medium"}
+          >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
             <option value="high">High</option>
@@ -83,33 +148,57 @@ export default function NewWorkOrderForm({ categories }: { categories: Category[
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Description</label>
-        <textarea name="description" rows={4} className={inputClass} placeholder="Describe the issue..." />
+        <label className="mb-1 block text-sm font-medium">
+          Description
+        </label>
+        <textarea
+          name="description"
+          rows={4}
+          className={inputClass}
+          placeholder="Describe the issue..."
+          defaultValue={workOrder?.description ?? ""}
+        />
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Your name</label>
-        <input name="submitted_by" className={inputClass} placeholder="e.g. Jane Tan" />
+        <label className="mb-1 block text-sm font-medium">
+          Submitted by
+        </label>
+        <input
+          name="submitted_by"
+          className={inputClass}
+          placeholder="e.g. Jane Tan"
+          defaultValue={workOrder?.submitted_by ?? ""}
+        />
       </div>
-<div>
-      <label className="block text-sm font-medium mb-1">
-        Contact Number
-      </label>
 
-      <input
-        name="contact_number"
-        className={inputClass}
-        placeholder="e.g. +65 91234567"
-      />
-    </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">
+          Contact Number
+        </label>
+        <input
+          name="contact_number"
+          type="tel"
+          className={inputClass}
+          placeholder="e.g. +65 9123 4567"
+          defaultValue={workOrder?.contact_number ?? ""}
+        />
+      </div>
+
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-neutral-900 text-white px-4 py-2 text-sm font-medium hover:bg-neutral-700 disabled:opacity-50"
+        className="w-full rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
       >
-        {submitting ? "Submitting…" : "Submit Work Order"}
+        {submitting
+          ? isEdit
+            ? "Updating…"
+            : "Submitting…"
+          : isEdit
+            ? "Update Work Order"
+            : "Submit Work Order"}
       </button>
     </form>
   );

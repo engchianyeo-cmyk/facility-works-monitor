@@ -16,6 +16,7 @@ export async function POST(request: Request) {
         priority: body.priority,
         description: body.description,
         submitted_by: body.submitted_by,
+        contact_number: body.contact_number || null,
         status: "submitted",
       })
       .select()

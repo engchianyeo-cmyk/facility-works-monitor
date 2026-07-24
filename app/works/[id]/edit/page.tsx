@@ -1,5 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import WorkOrderForm from "@/components/work-order-form";
+
+type Category = {
+  id: string;
+  name: string;
+};
 
 export default async function EditWorkOrderPage({
   params,
@@ -10,11 +16,18 @@ export default async function EditWorkOrderPage({
 
   const supabase = await createClient();
 
-  const { data: workOrder } = await supabase
-    .from("work_orders")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [{ data: workOrder }, { data: categories }] = await Promise.all([
+    supabase
+      .from("work_orders")
+      .select("*")
+      .eq("id", id)
+      .single(),
+
+    supabase
+      .from("categories")
+      .select("id, name")
+      .order("name"),
+  ]);
 
   if (!workOrder) {
     notFound();
@@ -26,9 +39,11 @@ export default async function EditWorkOrderPage({
         Edit Work Order
       </h1>
 
-      <pre className="rounded-lg bg-neutral-100 p-4 overflow-auto">
-        {JSON.stringify(workOrder, null, 2)}
-      </pre>
+      <WorkOrderForm
+        mode="edit"
+        workOrder={workOrder}
+        categories={categories ?? []}
+      />
     </main>
   );
 }
