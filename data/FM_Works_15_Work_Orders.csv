@@ -1,0 +1,16 @@
+﻿Work Order No.,Title,Description,Floor / Building,Location,Category,Priority,Status
+WO-2026-0010,Smoke detected from electrical distribution board,Burning smell and light smoke observed from DB-02. Area isolated pending electrician inspection.,Basement,Main Electrical Room,Electrical,Critical,In Progress
+WO-2026-0011,Passenger trapped inside Lift No. 2,Passenger reported trapped in lift. Lift maintenance contractor requested to attend immediately.,Block A,Passenger Lift 2,Lift,Critical,Approved
+WO-2026-0012,Fire alarm panel showing system fault,Fire alarm control panel displaying system fault indication. Inspection required immediately.,Ground Floor,Fire Command Centre,Fire Protection,Critical,Submitted
+WO-2026-0013,Chilled water pipe leaking above ceiling,Water leakage detected from chilled water pipe above corridor ceiling. Area secured for repair.,Level 3,Main Corridor,HVAC / Plumbing,Critical,Done
+WO-2026-0014,Server Room temperature above 30°C,Server room temperature exceeded 30°C. Check precision cooling and restore normal operating temperature.,Basement,Server Room,HVAC,Critical,In Progress
+WO-2026-0015,Automatic entrance door fails to close properly,Automatic entrance door remains partially open after operation. Inspect sensor and door mechanism.,Ground Floor,Main Entrance,Access Control,High,Approved
+WO-2026-0016,Water leaking from ceiling after heavy rain,Water stains and active leakage observed following heavy rain. Inspect roof and waterproofing system.,Level 4,Meeting Room 4A,Building / Roofing,High,Submitted
+WO-2026-0017,Emergency exit light not illuminated,"Emergency exit light is not illuminated during inspection. Check fitting, battery and power supply.",Level 2,Emergency Staircase B,Electrical,High,In Progress
+WO-2026-0018,Toilet flush valve continuously running,"Flush valve continues running after use, causing water wastage. Inspect and repair valve assembly.",Level 3,Male Restroom,Plumbing,Medium,Approved
+WO-2026-0019,Access card reader intermittently not responding,Access card reader intermittently fails to recognize authorized cards. Check reader and access control connection.,Level 2,Restricted Office,Security / Access,Medium,Submitted
+WO-2026-0020,Air-conditioning diffuser producing unusual noise,Rattling noise reported from ceiling air diffuser during normal HVAC operation.,Level 1,Training Room,HVAC,Medium,Done
+WO-2026-0021,Loose floor tile creating trip hazard,Loose floor tile identified along pedestrian route. Barricade affected area and arrange repair.,Ground Floor,Main Lobby,Flooring,High,Approved
+WO-2026-0022,Replace damaged waste bin in pantry,Pantry waste bin is cracked and lid is damaged. Replace with serviceable unit.,Level 2,Staff Pantry,General Facilities,Low,Done
+WO-2026-0023,Request to repaint office wall for preferred colour,Occupant requested wall repainting for cosmetic colour preference. Request is outside corrective maintenance scope.,Level 3,Administration Office,Painting,Low,Rejected
+WO-2026-0024,Routine cleaning requested outside contracted scope,Additional cleaning requested for storage room outside the contracted cleaning scope.,Level 1,Storage Room,Cleaning,Low,Rejected

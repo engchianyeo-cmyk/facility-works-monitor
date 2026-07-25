@@ -11,11 +11,9 @@ const ACTIONS_BY_STATUS: Record<WorkOrderStatus, { action: WorkOrderAction; labe
   ],
   approved: [
     { action: "start", label: "Start", style: "bg-amber-500 hover:bg-amber-600 text-white" },
-    { action: "reject", label: "Reject", style: "bg-white border border-red-300 text-red-700 hover:bg-red-50" },
   ],
   in_progress: [
     { action: "complete", label: "Complete", style: "bg-green-600 hover:bg-green-700 text-white" },
-    { action: "reject", label: "Reject", style: "bg-white border border-red-300 text-red-700 hover:bg-red-50" },
   ],
   done: [],
   rejected: [],
@@ -32,8 +30,16 @@ export default function ActionButtons({ id, status }: { id: string; status: Work
     setError(null);
     let note: string | undefined;
     if (action === "reject") {
-      note = window.prompt("Reason for rejecting (required):") ?? undefined;
-      if (!note) return;
+      const response = window.prompt("Reason for rejecting (required):");
+      if (response === null) {
+        return;
+      }
+      const trimmed = response.trim();
+      if (!trimmed) {
+        setError("Rejection reason is required.");
+        return;
+      }
+      note = trimmed;
     }
 
     setLoading(action);

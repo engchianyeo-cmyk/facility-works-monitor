@@ -11,7 +11,7 @@ const TRANSITIONS: Record<WorkOrderAction, { from: WorkOrderStatus[]; to: WorkOr
   approve: { from: ["submitted"], to: "approved" },
   start: { from: ["approved"], to: "in_progress" },
   complete: { from: ["in_progress"], to: "done" },
-  reject: { from: ["submitted", "approved", "in_progress"], to: "rejected" },
+  reject: { from: ["submitted"], to: "rejected" },
 };
 
 export function nextStatus(
