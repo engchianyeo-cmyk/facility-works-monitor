@@ -21,6 +21,23 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
   rejected: "Rejected",
 };
 
+const PRIORITY_RANK: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+function formatLoggedAt(value: string | null): string {
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return new Intl.DateTimeFormat("en-SG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default async function WorksPage({
   searchParams,
 }: {
@@ -54,13 +71,22 @@ export default async function WorksPage({
     query = query.eq("status", status);
   }
 
-  if (sort === "priority") {
-    query = query.order("priority", { ascending: false });
-  } else {
-    query = query.order("created_at", { ascending: false });
-  }
+  query = query.order("created_at", { ascending: false });
 
   const { data: orders, error } = await query;
+
+  if (sort === "priority" && orders) {
+    orders.sort((first, second) => {
+      const priorityDifference =
+        (PRIORITY_RANK[first.priority] ?? Number.MAX_SAFE_INTEGER) -
+        (PRIORITY_RANK[second.priority] ?? Number.MAX_SAFE_INTEGER);
+      if (priorityDifference !== 0) return priorityDifference;
+      return (
+        new Date(second.created_at).getTime() -
+        new Date(first.created_at).getTime()
+      );
+    });
+  }
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8">
@@ -147,6 +173,10 @@ export default async function WorksPage({
                   <div className="mt-1 text-sm text-slate-500">
                     {o.location}
                     {o.categories?.name ? ` · ${o.categories.name}` : ""}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Logged by {o.submitted_by?.trim() || "Unknown"} ·{" "}
+                    {formatLoggedAt(o.created_at)}
                   </div>
                 </div>
 

@@ -12,7 +12,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-slate-50 text-slate-600 border-slate-200",
   medium: "bg-sky-50 text-sky-700 border-sky-200",
   high: "bg-orange-50 text-orange-700 border-orange-200",
-  critical: "bg-red-50 text-red-700 border-red-300",
+  critical: "bg-red-800 text-white border-red-900",
 };
 
 export function StatusBadge({ status }: { status: WorkOrderStatus }) {
