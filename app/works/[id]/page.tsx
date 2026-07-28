@@ -12,6 +12,8 @@ import {
   canPerformWorkOrderAction,
 } from "@/lib/permissions";
 import { WorkOrderAction } from "@/lib/status";
+import WorkOrderDrawings from "@/components/work-order-drawings";
+import { getWorkOrderReference } from "@/lib/work-order-reference";
 
 export const revalidate = 0;
 
@@ -66,6 +68,7 @@ export default async function WorkOrderDetailPage({
     .single();
 
   if (!order) notFound();
+  const workOrderReference = getWorkOrderReference(order);
 
   const { data: activity } = await supabase
     .from("activity_logs")
@@ -104,11 +107,9 @@ export default async function WorkOrderDetailPage({
       </Link>
 
       <div className="space-y-3">
-        {order.work_order_no && (
-          <p className="text-sm font-semibold tracking-wide text-blue-700">
-            {order.work_order_no}
-          </p>
-        )}
+        <p className="text-sm font-semibold tracking-wide text-blue-700">
+          {workOrderReference ?? "Reference pending"}
+        </p>
         <div className="flex items-center gap-2">
           <StatusBadge status={order.status as WorkOrderStatus} />
           <PriorityBadge priority={order.priority} />
@@ -202,6 +203,8 @@ export default async function WorkOrderDetailPage({
           </ul>
         )}
       </section>
+
+      <WorkOrderDrawings />
 
       {identity && canDeleteWorkOrder(identity.role) && (
       <div className="border-t border-red-200 pt-6">

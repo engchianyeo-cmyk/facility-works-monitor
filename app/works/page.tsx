@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, PriorityBadge } from "@/components/badges";
 import FacilityLayout from "@/components/facility-layout";
 import { WorkOrderStatus } from "@/lib/status";
+import { getWorkOrderReference } from "@/lib/work-order-reference";
 
 export const revalidate = 0;
 
@@ -195,9 +196,9 @@ export default async function WorksPage({
                 className="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-50"
               >
                 <div className="min-w-0">
-                  {o.work_order_no && (
+                  {getWorkOrderReference(o) && (
                     <div className="text-xs font-semibold tracking-wide text-blue-700">
-                      {o.work_order_no}
+                      {getWorkOrderReference(o)}
                     </div>
                   )}
                   <div className="font-medium text-slate-900">{o.title}</div>
