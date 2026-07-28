@@ -1,14 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import WorkOrderForm from "@/components/work-order-form";
+import { getCurrentIdentity } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function NewWorkOrderPage() {
+  const identity = await getCurrentIdentity();
+  if (!identity) redirect("/login?next=/works/new");
+
   const supabase = await createClient();
   const { data: categories } = await supabase.from("categories").select("id, name").order("name");
 
   return (
     <main className="max-w-xl mx-auto p-8">
       <h1 className="text-2xl font-bold tracking-tight mb-6">Submit Work Order</h1>
-      <WorkOrderForm categories={categories ?? []} />
+      <WorkOrderForm
+        categories={categories ?? []}
+        loggedBy={identity.displayName}
+      />
     </main>
   );
 }

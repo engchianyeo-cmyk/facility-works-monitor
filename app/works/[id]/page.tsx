@@ -5,6 +5,13 @@ import { StatusBadge, PriorityBadge } from "@/components/badges";
 import ActionButtons from "@/components/action-buttons";
 import { WorkOrderStatus } from "@/lib/status";
 import DeleteWorkOrderButton from "@/components/delete-work-order-button";
+import { getCurrentIdentity } from "@/lib/auth";
+import {
+  canDeleteWorkOrder,
+  canEditWorkOrder,
+  canPerformWorkOrderAction,
+} from "@/lib/permissions";
+import { WorkOrderAction } from "@/lib/status";
 
 export const revalidate = 0;
 
@@ -22,6 +29,27 @@ function displayValue(value: string | null): string {
   return value?.trim() || "—";
 }
 
+function activityAction(value: string | null): string {
+  return value === "field_changed" ? "Field changed" : displayValue(value);
+}
+
+function activityNote(action: string | null, note: string | null): string | null {
+  if (!note) return null;
+  if (action !== "field_changed") return note;
+
+  try {
+    const change = JSON.parse(note) as {
+      label?: string;
+      previous_value?: string | null;
+      new_value?: string | null;
+    };
+    if (!change.label) return note;
+    return `${change.label}: ${displayValue(change.previous_value ?? null)} → ${displayValue(change.new_value ?? null)}`;
+  } catch {
+    return note;
+  }
+}
+
 export default async function WorkOrderDetailPage({
   params,
 }: {
@@ -29,6 +57,7 @@ export default async function WorkOrderDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const identity = await getCurrentIdentity();
 
   const { data: order } = await supabase
     .from("work_orders")
@@ -44,6 +73,30 @@ export default async function WorkOrderDetailPage({
     .eq("work_order_id", id)
     .order("created_at", { ascending: false });
 
+  const permissionContext = identity
+    ? {
+        role: identity.role,
+        userId: identity.userId,
+        ownerId: order.user_id,
+        assignedTechnicianId: order.assigned_technician_id,
+        status: order.status as WorkOrderStatus,
+      }
+    : null;
+  const possibleActions: WorkOrderAction[] = [
+    "approve",
+    "reject",
+    "start",
+    "complete",
+  ];
+  const allowedActions = permissionContext
+    ? possibleActions.filter((action) =>
+        canPerformWorkOrderAction(action, permissionContext),
+      )
+    : [];
+  const canEdit = permissionContext
+    ? canEditWorkOrder(permissionContext)
+    : false;
+
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-8">
       <Link href="/works" className="text-sm text-neutral-500 hover:underline">
@@ -51,6 +104,11 @@ export default async function WorkOrderDetailPage({
       </Link>
 
       <div className="space-y-3">
+        {order.work_order_no && (
+          <p className="text-sm font-semibold tracking-wide text-blue-700">
+            {order.work_order_no}
+          </p>
+        )}
         <div className="flex items-center gap-2">
           <StatusBadge status={order.status as WorkOrderStatus} />
           <PriorityBadge priority={order.priority} />
@@ -85,7 +143,12 @@ export default async function WorkOrderDetailPage({
 
       <div className="border-t border-neutral-200 pt-6">
         <h2 className="mb-3 text-sm font-semibold text-neutral-500">Actions</h2>
-        <ActionButtons id={order.id} status={order.status as WorkOrderStatus} />
+        <ActionButtons
+          id={order.id}
+          status={order.status as WorkOrderStatus}
+          allowedActions={allowedActions}
+          canEdit={canEdit}
+        />
       </div>
 
       <section className="border-t border-neutral-200 pt-6">
@@ -114,7 +177,7 @@ export default async function WorkOrderDetailPage({
                     <dt className="text-xs uppercase tracking-wide text-neutral-400">
                       Action
                     </dt>
-                    <dd>{displayValue(entry.action)}</dd>
+                    <dd>{activityAction(entry.action)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs uppercase tracking-wide text-neutral-400">
@@ -129,9 +192,9 @@ export default async function WorkOrderDetailPage({
                     <dd>{displayValue(entry.to_status)}</dd>
                   </div>
                 </dl>
-                {entry.note && (
+                {activityNote(entry.action, entry.note) && (
                   <p className="mt-2 rounded-md bg-neutral-50 px-3 py-2 text-neutral-600">
-                    {entry.note}
+                    {activityNote(entry.action, entry.note)}
                   </p>
                 )}
               </li>
@@ -140,6 +203,7 @@ export default async function WorkOrderDetailPage({
         )}
       </section>
 
+      {identity && canDeleteWorkOrder(identity.role) && (
       <div className="border-t border-red-200 pt-6">
         <h2 className="mb-2 text-sm font-semibold text-red-700">
           Administrator
@@ -152,6 +216,7 @@ export default async function WorkOrderDetailPage({
 
         <DeleteWorkOrderButton id={order.id} title={order.title} />
       </div>
+      )}
     </main>
   );
 }

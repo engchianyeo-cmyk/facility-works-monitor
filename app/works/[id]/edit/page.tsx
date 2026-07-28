@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WorkOrderForm from "@/components/work-order-form";
+import { getCurrentIdentity } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 type Category = {
   id: string;
@@ -13,6 +15,8 @@ export default async function EditWorkOrderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const identity = await getCurrentIdentity();
+  if (!identity) redirect(`/login?next=/works/${id}/edit`);
 
   const supabase = await createClient();
 
@@ -43,6 +47,7 @@ export default async function EditWorkOrderPage({
         mode="edit"
         workOrder={workOrder}
         categories={categories ?? []}
+        loggedBy={identity.displayName}
       />
     </main>
   );

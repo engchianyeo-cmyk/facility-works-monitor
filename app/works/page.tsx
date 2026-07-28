@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, PriorityBadge } from "@/components/badges";
+import FacilityLayout from "@/components/facility-layout";
 import { WorkOrderStatus } from "@/lib/status";
 
 export const revalidate = 0;
@@ -21,12 +22,12 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
   rejected: "Rejected",
 };
 
-const PRIORITY_RANK: Record<string, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-};
+const PRIORITY_ORDER = ["critical", "high", "medium", "low"] as const;
+
+function timestamp(value: string | null): number {
+  const parsed = value ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
 
 function formatLoggedAt(value: string | null): string {
   if (!value) return "Date unavailable";
@@ -74,19 +75,27 @@ export default async function WorksPage({
   query = query.order("created_at", { ascending: false });
 
   const { data: orders, error } = await query;
-
-  if (sort === "priority" && orders) {
-    orders.sort((first, second) => {
-      const priorityDifference =
-        (PRIORITY_RANK[first.priority] ?? Number.MAX_SAFE_INTEGER) -
-        (PRIORITY_RANK[second.priority] ?? Number.MAX_SAFE_INTEGER);
-      if (priorityDifference !== 0) return priorityDifference;
-      return (
-        new Date(second.created_at).getTime() -
-        new Date(first.created_at).getTime()
-      );
-    });
-  }
+  const newestOrders = [...(orders ?? [])].sort(
+    (first, second) =>
+      timestamp(second.created_at) - timestamp(first.created_at),
+  );
+  const displayedOrders =
+    sort === "priority"
+      ? PRIORITY_ORDER.flatMap((priority) =>
+          newestOrders.filter(
+            (order) => order.priority?.trim().toLowerCase() === priority,
+          ),
+        ).concat(
+          newestOrders.filter(
+            (order) =>
+              !PRIORITY_ORDER.includes(
+                order.priority
+                  ?.trim()
+                  .toLowerCase() as (typeof PRIORITY_ORDER)[number],
+              ),
+          ),
+        )
+      : newestOrders;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8">
@@ -127,25 +136,37 @@ export default async function WorksPage({
 
         <span className="mx-2 hidden text-slate-300 sm:inline">|</span>
 
-        <Link
-          href={`/works${status ? `?status=${status}&` : "?"}sort=priority`}
-          className={`rounded-full border px-3 py-1.5 font-medium transition ${
-            sort === "priority"
-              ? "border-blue-600 bg-blue-50 text-blue-700"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
-        >
-          Priority
-        </Link>
-
-        {sort === "priority" && (
-          <Link
-            href={`/works${status ? `?status=${status}` : ""}`}
-            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50"
+        <form action="/works" method="get" className="flex items-center gap-2">
+          {status && <input type="hidden" name="status" value={status} />}
+          <button
+            type="submit"
+            name="sort"
+            value="priority"
+            aria-pressed={sort === "priority"}
+            data-sort-control="priority"
+            className={`rounded-full border px-3 py-1.5 font-medium transition ${
+              sort === "priority"
+                ? "border-blue-600 bg-blue-50 text-blue-700"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            Priority
+          </button>
+          <button
+            type="submit"
+            name="sort"
+            value="newest"
+            aria-pressed={sort !== "priority"}
+            data-sort-control="newest"
+            className={`rounded-full border px-3 py-1.5 font-medium transition ${
+              sort !== "priority"
+                ? "border-blue-600 bg-blue-50 text-blue-700"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
           >
             Newest
-          </Link>
-        )}
+          </button>
+        </form>
       </div>
 
       {(error || countError) && (
@@ -154,21 +175,31 @@ export default async function WorksPage({
         </div>
       )}
 
-      {!error && orders?.length === 0 && (
+      {!error && displayedOrders.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
           No work orders {status ? `with status "${STATUS_LABELS[status as WorkOrderStatus]}"` : "yet"}.
         </div>
       )}
 
-      {!error && orders && orders.length > 0 && (
+      {!error && displayedOrders.length > 0 && (
         <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {orders.map((o) => (
-            <li key={o.id}>
+          {displayedOrders.map((o) => (
+            <li
+              key={o.id}
+              data-work-order-card
+              data-priority={o.priority?.trim().toLowerCase()}
+              data-created-at={o.created_at}
+            >
               <Link
                 href={`/works/${o.id}`}
                 className="flex items-center justify-between gap-4 p-4 transition hover:bg-slate-50"
               >
                 <div className="min-w-0">
+                  {o.work_order_no && (
+                    <div className="text-xs font-semibold tracking-wide text-blue-700">
+                      {o.work_order_no}
+                    </div>
+                  )}
                   <div className="font-medium text-slate-900">{o.title}</div>
                   <div className="mt-1 text-sm text-slate-500">
                     {o.location}
@@ -189,6 +220,8 @@ export default async function WorksPage({
           ))}
         </ul>
       )}
+
+      <FacilityLayout />
     </main>
   );
 }

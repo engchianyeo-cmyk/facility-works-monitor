@@ -1,10 +1,12 @@
-﻿import Link from "next/link";
+import Link from "next/link";
+import { getCurrentIdentity } from "@/lib/auth";
 
-export default function SiteHeader() {
+export default async function SiteHeader() {
+  const identity = await getCurrentIdentity();
+
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
-        
         <div>
           <Link
             href="/"
@@ -36,12 +38,42 @@ export default function SiteHeader() {
             Work Orders
           </Link>
 
-          <Link
-            href="/works/new"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            + New Work Order
-          </Link>
+          {identity ? (
+            <>
+              <Link
+                href="/works/new"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                + New Work Order
+              </Link>
+              <span className="px-2 text-sm text-slate-600">
+                {identity.displayName}
+              </span>
+              <form action="/auth/logout" method="post">
+                <button
+                  type="submit"
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Log out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                Register
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

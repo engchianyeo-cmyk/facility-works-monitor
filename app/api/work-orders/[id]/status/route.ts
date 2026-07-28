@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentIdentity } from "@/lib/auth";
+import { canPerformWorkOrderAction } from "@/lib/permissions";
 import { nextStatus, WorkOrderAction, WorkOrderStatus } from "@/lib/status";
 
 type RouteContext = {
@@ -18,6 +20,14 @@ export async function PATCH(
   { params }: RouteContext,
 ) {
   try {
+    const identity = await getCurrentIdentity();
+    if (!identity) {
+      return NextResponse.json(
+        { error: "Authentication is required." },
+        { status: 401 },
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const action = String(body.action ?? "").trim() as WorkOrderAction;
@@ -34,7 +44,7 @@ export async function PATCH(
 
     const { data: existingOrder, error: fetchError } = await supabase
       .from("work_orders")
-      .select("status")
+      .select("status, user_id, assigned_technician_id")
       .eq("id", id)
       .single();
 
@@ -46,6 +56,21 @@ export async function PATCH(
     }
 
     const currentStatus = existingOrder.status as WorkOrderStatus;
+    if (
+      !canPerformWorkOrderAction(action, {
+        role: identity.role,
+        userId: identity.userId,
+        ownerId: existingOrder.user_id,
+        assignedTechnicianId: existingOrder.assigned_technician_id,
+        status: currentStatus,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Your role cannot perform this action." },
+        { status: 403 },
+      );
+    }
+
     const transition = nextStatus(currentStatus, action);
 
     if (!transition.ok) {
@@ -80,11 +105,12 @@ export async function PATCH(
     }
 
     const activityLog = {
+      user_id: identity.userId,
       work_order_id: id,
       action: "status_change",
       from_status: currentStatus,
       to_status: transition.to,
-      actor: "Practitioner Preview User",
+      actor: identity.displayName,
       note: action === "reject" ? note : note || null,
     };
 

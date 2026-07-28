@@ -23,12 +23,14 @@ type WorkOrderFormProps = {
   categories: Category[];
   mode?: "create" | "edit";
   workOrder?: WorkOrder;
+  loggedBy?: string;
 };
 
 export default function WorkOrderForm({
   categories,
   mode = "create",
   workOrder,
+  loggedBy,
 }: WorkOrderFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,6 @@ export default function WorkOrderForm({
         : null,
       priority: String(form.get("priority") ?? "medium"),
       description: String(form.get("description") ?? "").trim() || null,
-      submitted_by: String(form.get("submitted_by") ?? "").trim() || null,
       contact_number:
         String(form.get("contact_number") ?? "").trim() || null,
     };
@@ -161,15 +162,15 @@ export default function WorkOrderForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Submitted by
-        </label>
-        <input
-          name="submitted_by"
-          className={inputClass}
-          placeholder="e.g. Jane Tan"
-          defaultValue={workOrder?.submitted_by ?? ""}
-        />
+        <span className="mb-1 block text-sm font-medium">Logged by</span>
+        <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+          {isEdit
+            ? workOrder?.submitted_by || loggedBy || "Unknown user"
+            : loggedBy || "Authenticated user"}
+        </p>
+        <p className="mt-1 text-xs text-neutral-500">
+          Identity is taken from the signed-in account and cannot be edited.
+        </p>
       </div>
 
       <div>
