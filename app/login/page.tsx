@@ -28,12 +28,17 @@ export default async function LoginPage({
           </p>
         )}
         <AuthForm mode="login" nextPath={nextPath} />
-        <p className="mt-5 text-center text-sm text-slate-500">
-          Need an account?{" "}
-          <Link href="/register" className="font-medium text-blue-700 hover:underline">
-            Register as a Reviewer
+        <div className="mt-5 space-y-3 border-t border-slate-200 pt-5 text-center">
+          <Link
+            href="/first-time"
+            className="block w-full rounded-lg border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          >
+            First-time user
           </Link>
-        </p>
+          <p className="text-xs text-slate-500">
+            New Reviewer or Technician accounts begin here.
+          </p>
+        </div>
       </div>
     </main>
   );

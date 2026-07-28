@@ -7,9 +7,14 @@ import { useRouter } from "next/navigation";
 type AuthFormProps = {
   mode: "login" | "register";
   nextPath?: string;
+  registrationRole?: "reviewer" | "technician";
 };
 
-export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
+export default function AuthForm({
+  mode,
+  nextPath = "/works",
+  registrationRole = "reviewer",
+}: AuthFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -33,20 +38,47 @@ export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
           password,
         });
         if (signInError) {
-          setError(signInError.message);
+          const lowerMessage = signInError.message.toLowerCase();
+          setError(
+            lowerMessage.includes("email not confirmed")
+              ? "Confirm your email before signing in. Check your inbox for the confirmation link."
+              : lowerMessage.includes("rate limit")
+                ? "Too many attempts. Wait a few minutes before trying again."
+                : signInError.message,
+          );
           return;
         }
-        router.replace(nextPath);
+        const completeUrl = new URL("/auth/complete", window.location.origin);
+        completeUrl.searchParams.set("next", nextPath);
+        router.replace(`${completeUrl.pathname}${completeUrl.search}`);
         router.refresh();
         return;
       }
 
       const displayName = String(form.get("display_name") ?? "").trim();
       const department = String(form.get("department") ?? "").trim();
+      const tradeDiscipline = String(
+        form.get("trade_discipline") ?? "",
+      ).trim();
+      const contactNumber = String(form.get("contact_number") ?? "").trim();
       const confirmPassword = String(form.get("confirm_password") ?? "");
+      const responsibilitiesAccepted =
+        form.get("responsibilities_accepted") === "on";
 
       if (!displayName) {
         setError("Display name is required.");
+        return;
+      }
+      if (!department) {
+        setError(
+          registrationRole === "technician"
+            ? "Department or company is required."
+            : "Department is required.",
+        );
+        return;
+      }
+      if (registrationRole === "technician" && !tradeDiscipline) {
+        setError("Trade or technical discipline is required.");
         return;
       }
       if (password.length < 8) {
@@ -55,6 +87,12 @@ export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
       }
       if (password !== confirmPassword) {
         setError("Passwords do not match.");
+        return;
+      }
+      if (!responsibilitiesAccepted) {
+        setError(
+          "Accept the responsibilities and access limitations before registering.",
+        );
         return;
       }
 
@@ -68,21 +106,36 @@ export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
           emailRedirectTo: callbackUrl.toString(),
           data: {
             display_name: displayName,
-            department: department || null,
+            department,
+            public_signup_role: registrationRole,
+            trade_discipline:
+              registrationRole === "technician" ? tradeDiscipline : null,
+            contact_number:
+              registrationRole === "technician" && contactNumber
+                ? contactNumber
+                : null,
+            account_terms_accepted: true,
           },
         },
       });
       if (signUpError) {
-        setError(signUpError.message);
+        const lowerMessage = signUpError.message.toLowerCase();
+        setError(
+          lowerMessage.includes("rate limit")
+            ? "Too many registration attempts. Wait a few minutes before trying again."
+            : signUpError.message,
+        );
         return;
       }
 
       if (data.session) {
-        router.replace(nextPath);
+        const completeUrl = new URL("/auth/complete", window.location.origin);
+        completeUrl.searchParams.set("next", nextPath);
+        router.replace(`${completeUrl.pathname}${completeUrl.search}`);
         router.refresh();
       } else {
         setMessage(
-          "Registration received. Check your email to confirm your Reviewer account.",
+          `Registration received. Check your email to confirm your ${registrationRole === "technician" ? "Technician" : "Reviewer"} account.`,
         );
       }
     } finally {
@@ -111,15 +164,49 @@ export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
           </div>
           <div>
             <label htmlFor="department" className="text-sm font-medium">
-              Department <span className="text-slate-400">(optional)</span>
+              {registrationRole === "technician"
+                ? "Department or company"
+                : "Department"}
             </label>
             <input
               id="department"
               name="department"
               autoComplete="organization"
+              required
               className={inputClass}
             />
           </div>
+          {registrationRole === "technician" && (
+            <>
+              <div>
+                <label
+                  htmlFor="trade_discipline"
+                  className="text-sm font-medium"
+                >
+                  Trade or technical discipline
+                </label>
+                <input
+                  id="trade_discipline"
+                  name="trade_discipline"
+                  required
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact_number" className="text-sm font-medium">
+                  Contact number{" "}
+                  <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  id="contact_number"
+                  name="contact_number"
+                  type="tel"
+                  autoComplete="tel"
+                  className={inputClass}
+                />
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -153,20 +240,34 @@ export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
       </div>
 
       {mode === "register" && (
-        <div>
-          <label htmlFor="confirm_password" className="text-sm font-medium">
-            Confirm password
+        <>
+          <div>
+            <label htmlFor="confirm_password" className="text-sm font-medium">
+              Confirm password
+            </label>
+            <input
+              id="confirm_password"
+              name="confirm_password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              className={inputClass}
+            />
+          </div>
+          <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              name="responsibilities_accepted"
+              required
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>
+              I understand the responsibilities and access limitations of this
+              account.
+            </span>
           </label>
-          <input
-            id="confirm_password"
-            name="confirm_password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            className={inputClass}
-          />
-        </div>
+        </>
       )}
 
       {error && (
@@ -191,7 +292,9 @@ export default function AuthForm({ mode, nextPath = "/works" }: AuthFormProps) {
             : "Registering…"
           : mode === "login"
             ? "Sign in"
-            : "Register as a Reviewer"}
+            : `Register as a ${
+                registrationRole === "technician" ? "Technician" : "Reviewer"
+              }`}
       </button>
     </form>
   );

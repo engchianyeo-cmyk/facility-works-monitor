@@ -4,6 +4,7 @@ import { StatusBadge, PriorityBadge } from "@/components/badges";
 import FacilityLayout from "@/components/facility-layout";
 import { WorkOrderStatus } from "@/lib/status";
 import { getWorkOrderReference } from "@/lib/work-order-reference";
+import { getCurrentIdentity } from "@/lib/auth";
 
 export const revalidate = 0;
 
@@ -47,6 +48,7 @@ export default async function WorksPage({
 }) {
   const { status, sort } = await searchParams;
   const supabase = await createClient();
+  const identity = await getCurrentIdentity();
 
   const { data: allOrders, error: countError } = await supabase
     .from("work_orders")
@@ -178,7 +180,13 @@ export default async function WorksPage({
 
       {!error && displayedOrders.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
-          No work orders {status ? `with status "${STATUS_LABELS[status as WorkOrderStatus]}"` : "yet"}.
+          {identity?.role === "technician" && !status
+            ? "No work orders are currently assigned to you."
+            : `No work orders ${
+                status
+                  ? `with status "${STATUS_LABELS[status as WorkOrderStatus]}"`
+                  : "yet"
+              }.`}
         </div>
       )}
 

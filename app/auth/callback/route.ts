@@ -25,5 +25,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.redirect(new URL(nextPath, requestUrl.origin));
+  const completeUrl = new URL("/auth/complete", requestUrl.origin);
+  completeUrl.searchParams.set("next", nextPath);
+  return NextResponse.redirect(completeUrl);
 }
