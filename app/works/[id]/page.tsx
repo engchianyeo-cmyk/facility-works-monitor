@@ -7,6 +7,7 @@ import { WorkOrderStatus } from "@/lib/status";
 import DeleteWorkOrderButton from "@/components/delete-work-order-button";
 import { getCurrentIdentity } from "@/lib/auth";
 import {
+  canAssignWorkOrderPersonnel,
   canDeleteWorkOrder,
   canEditWorkOrder,
   canPerformWorkOrderAction,
@@ -14,6 +15,10 @@ import {
 import { WorkOrderAction } from "@/lib/status";
 import WorkOrderDrawings from "@/components/work-order-drawings";
 import { getWorkOrderReference } from "@/lib/work-order-reference";
+import PersonnelAssignment, {
+  AssignableTechnician,
+} from "@/components/personnel-assignment";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const revalidate = 0;
 
@@ -32,24 +37,41 @@ function displayValue(value: string | null): string {
 }
 
 function activityAction(value: string | null): string {
-  return value === "field_changed" ? "Field changed" : displayValue(value);
+  if (value === "field_changed") return "Field changed";
+  if (value === "personnel_assigned") return "Personnel assigned";
+  if (value === "personnel_reassigned") return "Personnel reassigned";
+  return displayValue(value);
 }
 
 function activityNote(action: string | null, note: string | null): string | null {
   if (!note) return null;
-  if (action !== "field_changed") return note;
 
   try {
-    const change = JSON.parse(note) as {
-      label?: string;
-      previous_value?: string | null;
-      new_value?: string | null;
-    };
-    if (!change.label) return note;
-    return `${change.label}: ${displayValue(change.previous_value ?? null)} → ${displayValue(change.new_value ?? null)}`;
+    if (action === "field_changed") {
+      const change = JSON.parse(note) as {
+        label?: string;
+        previous_value?: string | null;
+        new_value?: string | null;
+      };
+      if (!change.label) return note;
+      return `${change.label}: ${displayValue(change.previous_value ?? null)} → ${displayValue(change.new_value ?? null)}`;
+    }
+
+    if (action === "personnel_assigned" || action === "personnel_reassigned") {
+      const assignment = JSON.parse(note) as {
+        previous_technician_name?: string | null;
+        technician_name?: string | null;
+      };
+      if (!assignment.technician_name) return note;
+      return action === "personnel_reassigned"
+        ? `${displayValue(assignment.previous_technician_name ?? null)} → ${assignment.technician_name}`
+        : assignment.technician_name;
+    }
   } catch {
     return note;
   }
+
+  return note;
 }
 
 export default async function WorkOrderDetailPage({
@@ -99,6 +121,35 @@ export default async function WorkOrderDetailPage({
   const canEdit = permissionContext
     ? canEditWorkOrder(permissionContext)
     : false;
+  const canAssignPersonnel = identity
+    ? canAssignWorkOrderPersonnel(
+        identity.role,
+        order.status as WorkOrderStatus,
+      )
+    : false;
+  let technicians: AssignableTechnician[] = [];
+
+  if (canAssignPersonnel) {
+    const admin = createAdminClient();
+    const { data: technicianProfiles, error: technicianError } = await admin
+      .from("profiles")
+      .select("id, display_name, trade_discipline, department")
+      .eq("role", "technician")
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .order("display_name");
+
+    if (technicianError) {
+      console.error("Assignable personnel lookup error:", technicianError);
+    } else {
+      technicians = (technicianProfiles ?? []).map((profile) => ({
+        id: profile.id,
+        displayName: profile.display_name,
+        tradeDiscipline: profile.trade_discipline,
+        department: profile.department,
+      }));
+    }
+  }
 
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-8">
@@ -132,6 +183,14 @@ export default async function WorkOrderDetailPage({
             <dd>{order.assigned_to ?? "Unassigned"}</dd>
           </div>
           <div>
+            <dt className="text-neutral-400">Assigned by</dt>
+            <dd>{order.assigned_by ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-neutral-400">Assigned at</dt>
+            <dd>{order.assigned_at ? formatDateTime(order.assigned_at) : "—"}</dd>
+          </div>
+          <div>
             <dt className="text-neutral-400">Logged at</dt>
             <dd>{formatDateTime(order.created_at)}</dd>
           </div>
@@ -141,6 +200,23 @@ export default async function WorkOrderDetailPage({
           </div>
         </dl>
       </div>
+
+      {canAssignPersonnel && (
+        <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+          <h2 className="text-base font-semibold text-blue-950">
+            Work order personnel
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-blue-800">
+            Assign one active Technician. Only that technician can start and
+            complete this work order.
+          </p>
+          <PersonnelAssignment
+            workOrderId={order.id}
+            technicians={technicians}
+            assignedTechnicianId={order.assigned_technician_id}
+          />
+        </section>
+      )}
 
       <div className="border-t border-neutral-200 pt-6">
         <h2 className="mb-3 text-sm font-semibold text-neutral-500">Actions</h2>

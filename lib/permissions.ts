@@ -34,6 +34,16 @@ export function canDeleteWorkOrder(role: UserRole): boolean {
   return role === "administrator";
 }
 
+export function canAssignWorkOrderPersonnel(
+  role: UserRole,
+  status: WorkOrderStatus,
+): boolean {
+  return (
+    ["approver", "supervisor", "administrator"].includes(role) &&
+    status === "approved"
+  );
+}
+
 export function canPerformWorkOrderAction(
   action: WorkOrderAction,
   context: PermissionContext,
