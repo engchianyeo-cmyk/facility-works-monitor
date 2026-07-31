@@ -128,10 +128,10 @@ export async function PATCH(
 
     return NextResponse.json({ data });
 
-  } catch (err) {
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
+  } catch {
+  return NextResponse.json(
+    { error: "Internal Server Error" },
+    { status: 500 }
+  );
+}
 }

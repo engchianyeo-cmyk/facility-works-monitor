@@ -1,16 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import WorkOrderForm from "@/components/work-order-form";
 import { getCurrentIdentity } from "@/lib/auth";
 import { canEditWorkOrder } from "@/lib/permissions";
 import { WorkOrderStatus } from "@/lib/status";
-import { redirect } from "next/navigation";
 
-type Category = {
-  id: string;
-  name: string;
-};
 
 export default async function EditWorkOrderPage({
   params,
