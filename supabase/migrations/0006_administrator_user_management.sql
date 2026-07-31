@@ -1,3 +1,12 @@
+-- ============================================================================
+-- SUPERSEDED FOR THE EXISTING LEGACY LIVE DATABASE
+-- DO NOT EXECUTE THIS FILE AGAINST THAT DATABASE UNCHANGED.
+--
+-- Its safe intended effects are incorporated into
+-- 0007_live_auth_reconciliation.sql. Retain this file unchanged below this
+-- safety header for migration provenance.
+-- ============================================================================
+
 -- Administrator-only user management, invitation and account-safety controls.
 -- REVIEW ONLY: apply 0004 and 0005 first. Do not apply without a database
 -- backup and verification of the initial Administrator Auth identity.

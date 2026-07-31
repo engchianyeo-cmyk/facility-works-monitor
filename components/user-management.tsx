@@ -25,8 +25,12 @@ type ManagedUser = {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  last_active_at: string | null;
+  last_seen_route: string | null;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
+  presence_status: "online" | "idle" | "offline";
+  session_status: string;
 };
 
 type AuditEntry = {
@@ -92,12 +96,14 @@ export default function UserManagement({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [presenceFilter, setPresenceFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("last_activity");
   const [invite, setInvite] = useState<InviteForm>(EMPTY_INVITE);
   const [editing, setEditing] = useState<Record<string, ManagedUser>>({});
   const [activityUserId, setActivityUserId] = useState<string | null>(null);
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
+  const loadUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/admin/users", { cache: "no-store" });
@@ -105,17 +111,19 @@ export default function UserManagement({
       if (!response.ok) throw new Error(result.error ?? "Unable to load users.");
       setUsers(result.users);
       setAudit(result.audit);
-      setEditing(
-        Object.fromEntries(
-          (result.users as ManagedUser[]).map((user) => [user.id, user]),
-        ),
-      );
+      if (!silent) {
+        setEditing(
+          Object.fromEntries(
+            (result.users as ManagedUser[]).map((user) => [user.id, user]),
+          ),
+        );
+      }
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Unable to load users.",
       );
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -123,26 +131,57 @@ export default function UserManagement({
     void loadUsers();
   }, [loadUsers]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void loadUsers(true);
+    }, 30 * 1000);
+    return () => window.clearInterval(interval);
+  }, [loadUsers]);
+
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return users.filter((user) => {
-      const matchesSearch =
-        !term ||
-        user.display_name.toLowerCase().includes(term) ||
-        user.email?.toLowerCase().includes(term);
-      const matchesRole = roleFilter === "all" || user.role === roleFilter;
-      const status = user.deleted_at
-        ? "archived"
-        : user.is_active
-          ? "active"
-          : "inactive";
-      return (
-        matchesSearch &&
-        matchesRole &&
-        (statusFilter === "all" || statusFilter === status)
-      );
-    });
-  }, [roleFilter, search, statusFilter, users]);
+    return users
+      .filter((user) => {
+        const matchesSearch =
+          !term ||
+          user.display_name.toLowerCase().includes(term) ||
+          user.email?.toLowerCase().includes(term);
+        const matchesRole = roleFilter === "all" || user.role === roleFilter;
+        const matchesPresence =
+          presenceFilter === "all" ||
+          user.presence_status === presenceFilter;
+        const status = user.deleted_at
+          ? "archived"
+          : user.is_active
+            ? "active"
+            : "inactive";
+        return (
+          matchesSearch &&
+          matchesRole &&
+          matchesPresence &&
+          (statusFilter === "all" || statusFilter === status)
+        );
+      })
+      .sort((first, second) => {
+        if (sortOrder === "name") {
+          return first.display_name.localeCompare(second.display_name);
+        }
+        const firstActivity = first.last_active_at
+          ? Date.parse(first.last_active_at)
+          : 0;
+        const secondActivity = second.last_active_at
+          ? Date.parse(second.last_active_at)
+          : 0;
+        return secondActivity - firstActivity;
+      });
+  }, [
+    presenceFilter,
+    roleFilter,
+    search,
+    sortOrder,
+    statusFilter,
+    users,
+  ]);
 
   async function inviteUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -376,7 +415,7 @@ export default function UserManagement({
       )}
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-3">
+        <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-5">
           <input
             type="search"
             aria-label="Search users by name or email"
@@ -409,6 +448,26 @@ export default function UserManagement({
             <option value="inactive">Inactive</option>
             <option value="archived">Archived</option>
           </select>
+          <select
+            aria-label="Filter users by presence"
+            value={presenceFilter}
+            onChange={(event) => setPresenceFilter(event.target.value)}
+            className={inputClass}
+          >
+            <option value="all">All presence</option>
+            <option value="online">Online</option>
+            <option value="idle">Idle</option>
+            <option value="offline">Offline</option>
+          </select>
+          <select
+            aria-label="Sort users"
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value)}
+            className={inputClass}
+          >
+            <option value="last_activity">Last activity</option>
+            <option value="name">Display name</option>
+          </select>
         </div>
 
         {loading ? (
@@ -421,7 +480,7 @@ export default function UserManagement({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1200px] w-full text-left text-sm">
+            <table className="min-w-[1380px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-3">Display name / Email</th>
@@ -429,7 +488,9 @@ export default function UserManagement({
                   <th className="px-3 py-3">Department/company</th>
                   <th className="px-3 py-3">Trade/discipline</th>
                   <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Created / Last sign-in</th>
+                  <th className="px-3 py-3">Presence / Session</th>
+                  <th className="px-3 py-3">Activity / Sign-in</th>
+                  <th className="px-3 py-3">Created</th>
                   <th className="px-3 py-3">Actions</th>
                 </tr>
               </thead>
@@ -558,11 +619,39 @@ export default function UserManagement({
                             </p>
                           )}
                         </td>
+                        <td className="px-3 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              user.presence_status === "online"
+                                ? "bg-green-100 text-green-800"
+                                : user.presence_status === "idle"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {user.presence_status[0].toUpperCase() +
+                              user.presence_status.slice(1)}
+                          </span>
+                          <p className="mt-2 max-w-44 text-xs text-slate-500">
+                            {user.session_status}
+                          </p>
+                          {user.last_seen_route && (
+                            <p
+                              className="mt-1 max-w-44 truncate text-xs text-slate-400"
+                              title={user.last_seen_route}
+                            >
+                              Area: {user.last_seen_route}
+                            </p>
+                          )}
+                        </td>
                         <td className="px-3 py-4 text-xs text-slate-500">
-                          <p>Created: {formatDate(user.created_at)}</p>
+                          <p>Last active: {formatDate(user.last_active_at)}</p>
                           <p className="mt-1">
                             Last sign-in: {formatDate(user.last_sign_in_at)}
                           </p>
+                        </td>
+                        <td className="px-3 py-4 text-xs text-slate-500">
+                          {formatDate(user.created_at)}
                         </td>
                         <td className="space-y-2 px-3 py-4">
                           <button
@@ -608,7 +697,7 @@ export default function UserManagement({
                       </tr>
                       {activityUserId === user.id && (
                         <tr>
-                          <td colSpan={7} className="bg-slate-50 px-5 py-4">
+                          <td colSpan={9} className="bg-slate-50 px-5 py-4">
                             <h3 className="font-semibold text-slate-900">
                               Administrative activity
                             </h3>

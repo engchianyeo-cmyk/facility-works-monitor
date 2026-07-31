@@ -1,3 +1,12 @@
+-- ============================================================================
+-- SUPERSEDED FOR THE EXISTING LEGACY LIVE DATABASE
+-- DO NOT EXECUTE THIS FILE AGAINST THAT DATABASE UNCHANGED.
+--
+-- Its safe intended effects are incorporated into
+-- 0007_live_auth_reconciliation.sql. Retain this file unchanged below this
+-- safety header for migration provenance.
+-- ============================================================================
+
 -- Controlled first-time registration and Administrator-invitation foundation.
 -- REVIEW ONLY: apply 0004_auth_foundation.sql first, then review and apply this
 -- migration through the Supabase dashboard or CLI. The application must never

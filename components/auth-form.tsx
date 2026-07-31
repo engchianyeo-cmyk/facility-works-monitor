@@ -4,6 +4,23 @@ import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+function logSupabaseAuthError(
+  operation: "sign-in" | "sign-up",
+  error: {
+    status?: number;
+    code?: string;
+    message: string;
+    name?: string;
+  },
+) {
+  console.error(`Supabase ${operation} error`, {
+    status: error.status ?? null,
+    code: error.code ?? null,
+    message: error.message,
+    name: error.name ?? null,
+  });
+}
+
 type AuthFormProps = {
   mode: "login" | "register";
   nextPath?: string;
@@ -38,6 +55,7 @@ export default function AuthForm({
           password,
         });
         if (signInError) {
+          logSupabaseAuthError("sign-in", signInError);
           const lowerMessage = signInError.message.toLowerCase();
           setError(
             lowerMessage.includes("email not confirmed")
@@ -119,6 +137,7 @@ export default function AuthForm({
         },
       });
       if (signUpError) {
+        logSupabaseAuthError("sign-up", signUpError);
         const lowerMessage = signUpError.message.toLowerCase();
         setError(
           lowerMessage.includes("rate limit")

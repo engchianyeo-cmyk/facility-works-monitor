@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import WorkOrderForm from "@/components/work-order-form";
 import { getCurrentIdentity } from "@/lib/auth";
+import { canEditWorkOrder } from "@/lib/permissions";
+import { WorkOrderStatus } from "@/lib/status";
 import { redirect } from "next/navigation";
 
 type Category = {
@@ -35,6 +38,41 @@ export default async function EditWorkOrderPage({
 
   if (!workOrder) {
     notFound();
+  }
+
+  const canEdit = canEditWorkOrder({
+    role: identity.role,
+    userId: identity.userId,
+    ownerId: workOrder.user_id,
+    assignedTechnicianId: workOrder.assigned_technician_id,
+    status: workOrder.status as WorkOrderStatus,
+  });
+
+  if (!canEdit) {
+    const isReviewer = ["reviewer", "initiator"].includes(identity.role);
+    const reason =
+      isReviewer && workOrder.user_id !== identity.userId
+        ? "Only the Reviewer who originally submitted this work order can edit it."
+        : isReviewer && workOrder.status !== "submitted"
+          ? "Reviewer amendments are allowed only while the work order is Submitted."
+          : "Your role cannot edit this work order.";
+
+    return (
+      <main className="mx-auto max-w-3xl p-6">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <h1 className="text-xl font-semibold text-amber-950">
+            Editing is not permitted
+          </h1>
+          <p className="mt-2 text-sm text-amber-900">{reason}</p>
+          <Link
+            href={`/works/${id}`}
+            className="mt-4 inline-flex rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100"
+          >
+            Return to work order
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   return (

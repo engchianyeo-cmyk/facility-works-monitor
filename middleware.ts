@@ -1,8 +1,22 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 
+import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+  try {
+    const { updateSession } = await import("@/lib/supabase/middleware");
+    return await updateSession(request);
+  } catch (error) {
+    console.error("[middleware] stage=session-module-initialization", {
+      code:
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : null,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+    return NextResponse.next({ request });
+  }
 }
 
 export const config = {

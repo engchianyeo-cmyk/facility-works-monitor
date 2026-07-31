@@ -8,6 +8,14 @@ type ImageLightboxProps = {
   alt: string;
   title: string;
   code?: string;
+  crop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    sourceWidth: number;
+    sourceHeight: number;
+  };
   open: boolean;
   onClose: () => void;
 };
@@ -17,6 +25,7 @@ export default function ImageLightbox({
   alt,
   title,
   code,
+  crop,
   open,
   onClose,
 }: ImageLightboxProps) {
@@ -82,17 +91,45 @@ export default function ImageLightbox({
       </div>
 
       <div
-        className="relative min-h-0 flex-1"
+        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          sizes="100vw"
-          className="object-contain"
-          priority
-        />
+        {crop ? (
+          <div
+            className="relative max-h-full max-w-full overflow-hidden"
+            style={{
+              aspectRatio: `${crop.width} / ${crop.height}`,
+              width: `min(100%, calc((100vh - 5rem) * ${crop.width / crop.height}))`,
+            }}
+          >
+            <Image
+              src={src}
+              alt={alt}
+              width={crop.sourceWidth}
+              height={crop.sourceHeight}
+              sizes="100vw"
+              className="absolute max-w-none"
+              style={{
+                width: `${(crop.sourceWidth / crop.width) * 100}%`,
+                height: `${(crop.sourceHeight / crop.height) * 100}%`,
+                left: `${-(crop.x / crop.width) * 100}%`,
+                top: `${-(crop.y / crop.height) * 100}%`,
+              }}
+              priority
+            />
+          </div>
+        ) : (
+          <div className="relative h-full w-full">
+            <Image
+              src={src}
+              alt={alt}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              priority
+            />
+          </div>
+        )}
       </div>
     </div>
   );

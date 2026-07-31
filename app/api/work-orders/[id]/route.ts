@@ -97,8 +97,16 @@ export async function PATCH(
         status: existingOrder.status as WorkOrderStatus,
       })
     ) {
+      const isReviewer = ["reviewer", "initiator"].includes(identity.role);
+      const error =
+        isReviewer && existingOrder.user_id !== identity.userId
+          ? "Only the Reviewer who originally submitted this work order can edit it."
+          : isReviewer && existingOrder.status !== "submitted"
+            ? "Reviewer amendments are allowed only while the work order is Submitted."
+            : "Your role cannot edit this work order.";
+
       return NextResponse.json(
-        { error: "Your role cannot edit this work order." },
+        { error },
         { status: 403 },
       );
     }

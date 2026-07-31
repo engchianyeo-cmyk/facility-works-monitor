@@ -1,3 +1,12 @@
+-- ============================================================================
+-- SUPERSEDED FOR THE EXISTING LEGACY LIVE DATABASE
+-- DO NOT EXECUTE THIS FILE AGAINST THAT DATABASE UNCHANGED.
+--
+-- The live public.profiles table predates this migration and has a different
+-- schema. Use 0007_live_auth_reconciliation.sql for that database. Retain this
+-- file unchanged below this safety header for migration provenance.
+-- ============================================================================
+
 -- FM Works Phase 2B-2C authentication and reference-number foundation.
 -- REVIEW ONLY: do not apply until the application and rollout plan are approved.
 -- This migration intentionally preserves the five live work-order statuses.
