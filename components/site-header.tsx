@@ -41,12 +41,20 @@ export default async function SiteHeader() {
           {identity ? (
             <>
               {identity.role === "administrator" && (
-                <Link
-                  href="/administration/users"
-                  className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
-                >
-                  Administration
-                </Link>
+                <>
+                  <Link
+                    href="/administration/users"
+                    className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                  >
+                    Users
+                  </Link>
+                  <Link
+                    href="/administration/departments"
+                    className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                  >
+                    Departments
+                  </Link>
+                </>
               )}
               <Link
                 href="/works/new"
