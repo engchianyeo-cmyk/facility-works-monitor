@@ -1,3 +1,4 @@
+import DirectUserProvisioning from "@/components/direct-user-provisioning";
 import UserManagement from "@/components/user-management";
 import { getCurrentIdentity } from "@/lib/auth";
 
@@ -25,9 +26,13 @@ export default async function AdministrationUsersPage() {
           Users
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Invite users, maintain profiles and control account access.
+          Create active accounts, activate pending users, maintain profiles and
+          control access.
         </p>
       </div>
+
+      <DirectUserProvisioning />
+
       <UserManagement currentUserId={identity.userId} />
     </main>
   );

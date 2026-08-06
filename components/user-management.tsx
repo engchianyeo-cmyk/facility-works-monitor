@@ -41,26 +41,6 @@ type AuditEntry = {
   created_at: string;
 };
 
-type InviteForm = {
-  display_name: string;
-  email: string;
-  department: string;
-  trade_discipline: string;
-  contact_number: string;
-  role: Role;
-  is_active: boolean;
-};
-
-const EMPTY_INVITE: InviteForm = {
-  display_name: "",
-  email: "",
-  department: "",
-  trade_discipline: "",
-  contact_number: "",
-  role: "reviewer",
-  is_active: true,
-};
-
 function formatDate(value: string | null) {
   if (!value) return "Never";
   const date = new Date(value);
@@ -98,7 +78,6 @@ export default function UserManagement({
   const [statusFilter, setStatusFilter] = useState("all");
   const [presenceFilter, setPresenceFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("last_activity");
-  const [invite, setInvite] = useState<InviteForm>(EMPTY_INVITE);
   const [editing, setEditing] = useState<Record<string, ManagedUser>>({});
   const [activityUserId, setActivityUserId] = useState<string | null>(null);
 
@@ -183,32 +162,6 @@ export default function UserManagement({
     users,
   ]);
 
-  async function inviteUser(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(invite),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Invitation failed.");
-      setMessage(result.message);
-      setInvite(EMPTY_INVITE);
-      await loadUsers();
-    } catch (inviteError) {
-      setError(
-        inviteError instanceof Error
-          ? inviteError.message
-          : "Invitation failed.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   function updateDraft(
     userId: string,
@@ -291,115 +244,6 @@ export default function UserManagement({
 
   return (
     <>
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <details>
-          <summary className="cursor-pointer text-lg font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-            Add or invite user
-          </summary>
-          <form
-            onSubmit={inviteUser}
-            className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <label className="text-sm font-medium text-slate-700">
-              Display name
-              <input
-                required
-                value={invite.display_name}
-                onChange={(event) =>
-                  setInvite({ ...invite, display_name: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Unique email
-              <input
-                required
-                type="email"
-                value={invite.email}
-                onChange={(event) =>
-                  setInvite({ ...invite, email: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Department/company
-              <input
-                required
-                value={invite.department}
-                onChange={(event) =>
-                  setInvite({ ...invite, department: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Role
-              <select
-                value={invite.role}
-                onChange={(event) =>
-                  setInvite({ ...invite, role: event.target.value as Role })
-                }
-                className={`mt-1 ${inputClass}`}
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role[0].toUpperCase() + role.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {invite.role === "technician" && (
-              <label className="text-sm font-medium text-slate-700">
-                Trade/discipline
-                <input
-                  required
-                  value={invite.trade_discipline}
-                  onChange={(event) =>
-                    setInvite({
-                      ...invite,
-                      trade_discipline: event.target.value,
-                    })
-                  }
-                  className={`mt-1 ${inputClass}`}
-                />
-              </label>
-            )}
-            <label className="text-sm font-medium text-slate-700">
-              Contact number
-              <input
-                type="tel"
-                value={invite.contact_number}
-                onChange={(event) =>
-                  setInvite({ ...invite, contact_number: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <input
-                type="checkbox"
-                checked={invite.is_active}
-                onChange={(event) =>
-                  setInvite({ ...invite, is_active: event.target.checked })
-                }
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              Account active after invitation
-            </label>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {submitting ? "Sending invitation…" : "Send secure invitation"}
-              </button>
-            </div>
-          </form>
-        </details>
-      </section>
 
       {(message || error) && (
         <div
@@ -615,7 +459,7 @@ export default function UserManagement({
                           </label>
                           {!user.email_confirmed_at && (
                             <p className="mt-1 text-xs text-amber-700">
-                              Invitation pending
+                              Pending activation
                             </p>
                           )}
                         </td>
@@ -730,3 +574,4 @@ export default function UserManagement({
     </>
   );
 }
+
