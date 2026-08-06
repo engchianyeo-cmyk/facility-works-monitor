@@ -31,3 +31,16 @@
 ## Data Integrity
 19. Every status change: verify new row in `activity_logs` with correct `from_status`, `to_status`, `actor`, and `created_at`
 20. Reject action without a note — blocked with validation error; note required
+# Core Work Order Engine Verification (0013)
+
+Automated tests cover the complete transition matrix, invalid transitions,
+role mapping, self-approval, Administrator override reasons, completion
+evidence, terminal immutability, assignment modes, predictive ranges, API
+filtering/pagination, duplication provenance, and structured failures.
+
+`tests/sql/0013_core_work_order_engine.test.sql` runs after the repository-
+compatible prerequisite schema and migrations 0012/0013 in disposable
+PostgreSQL. It verifies legacy conversion, reference preservation, RPC grants,
+actual denied anon/direct-DML attempts, valid end-to-end workflow, inactive
+assignment rejection, unique numbering, and mutation rollback when audit
+insertion is forced to fail.

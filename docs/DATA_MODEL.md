@@ -52,3 +52,20 @@
 `submitted → approved → in_progress → done`  
 `submitted → rejected` (any step)  
 Enforced server-side in API route; invalid transitions return 400.
+# Core Work Order Engine Additions (0013)
+
+Migration 0013 preserves work-order IDs and migrates `work_order_no` to the
+unique canonical `work_order_number`. `requested_by` is the canonical requester
+while legacy `user_id` remains populated for compatibility.
+
+The work order records department, site/location, nullable asset identifier,
+source and source provenance, primary technician/vendor/team assignment, due
+date, estimated and actual labour, completion/cancellation notes, and all
+workflow timestamps. Sources are `manual`, `reactive`, `preventive`,
+`inspection`, `condition_based`, and `predictive`.
+
+Predictive integration fields are nullable and model-agnostic:
+`asset_id`, `source_reference`, `alert_id`, `prediction_reference`,
+`health_score_at_creation`, `failure_probability`, `predicted_failure_date`,
+`recommended_action`, and `confidence_score`. No ingestion or prediction model
+is introduced by this migration.

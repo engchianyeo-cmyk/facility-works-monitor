@@ -32,7 +32,7 @@ export default async function SiteHeader() {
           </Link>
 
           <Link
-            href="/works"
+            href="/work-orders"
             className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
           >
             Work Orders
@@ -57,7 +57,7 @@ export default async function SiteHeader() {
                 </>
               )}
               <Link
-                href="/works/new"
+                href="/work-orders/new"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
                 + New Work Order

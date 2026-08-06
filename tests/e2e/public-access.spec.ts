@@ -38,6 +38,10 @@ test.describe("Public access and protected-route smoke tests", () => {
     expect(response?.status()).toBeLessThan(500);
     await expect(page).toHaveURL(/\/works(?:\?|$)/);
     await expect(page.getByRole("heading", { name: "Work Orders" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in to manage" })).toBeVisible();
+    await expect(page.getByText("Internal notes", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Audit history", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Contact number", { exact: true })).toHaveCount(0);
   });
 
   test("unauthenticated visitor is redirected from new work-order page", async ({ page }) => {
