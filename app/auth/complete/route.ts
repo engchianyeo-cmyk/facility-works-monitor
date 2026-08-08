@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { USER_ROLES, type UserRole } from "@/lib/auth";
-
-function isUserRole(value: unknown): value is UserRole {
-  return USER_ROLES.includes(value as UserRole);
-}
+import { isUserRole } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -12,7 +8,7 @@ export async function GET(request: Request) {
   const safeNext =
     requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
       ? requestedNext
-      : "/works";
+      : "/";
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,13 +20,23 @@ export async function GET(request: Request) {
     );
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, is_active")
+    .select("role, is_active, deleted_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.is_active === false) {
+  if (profileError || !profile) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=Your%20account%20profile%20is%20not%20available.%20Contact%20an%20Administrator.",
+        requestUrl.origin,
+      ),
+    );
+  }
+
+  if (profile.is_active !== true || profile.deleted_at) {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       new URL(
@@ -40,10 +46,15 @@ export async function GET(request: Request) {
     );
   }
 
-  const role: UserRole = isUserRole(profile?.role)
-    ? profile.role
-    : "reviewer";
-  const destination = role === "technician" ? "/works" : safeNext;
+  if (!isUserRole(profile.role)) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=Your%20account%20role%20is%20not%20supported.%20Contact%20an%20Administrator.",
+        requestUrl.origin,
+      ),
+    );
+  }
 
-  return NextResponse.redirect(new URL(destination, requestUrl.origin));
+  return NextResponse.redirect(new URL(safeNext, requestUrl.origin));
 }

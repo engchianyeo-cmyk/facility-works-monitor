@@ -21,7 +21,10 @@ export async function GET(request: Request) {
 
   if (error) {
     const loginUrl = new URL("/login", requestUrl.origin);
-    loginUrl.searchParams.set("error", error.message);
+    loginUrl.searchParams.set(
+      "error",
+      "The confirmation link could not be completed. Request a new link or contact an Administrator.",
+    );
     return NextResponse.redirect(loginUrl);
   }
 

@@ -23,6 +23,7 @@ import { DELETE, PATCH } from "@/app/api/admin/users/[id]/route";
 
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const TARGET_ID = "22222222-2222-4222-8222-222222222222";
+const DEPARTMENT_ID = "33333333-3333-4333-8333-333333333333";
 
 const administrator = {
   userId: ADMIN_ID,
@@ -44,11 +45,32 @@ function routeContext(id = TARGET_ID) {
 }
 
 function createRequest(method: "PATCH" | "DELETE", body: unknown): Request {
+  const requestBody =
+    method === "PATCH" && body && typeof body === "object"
+      ? { department_id: DEPARTMENT_ID, ...body }
+      : body;
   return new Request(`http://localhost/api/admin/users/${TARGET_ID}`, {
     method,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(requestBody),
   });
+}
+
+function createDepartmentQuery(name = "Operations") {
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    is: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  query.is.mockReturnValue(query);
+  query.maybeSingle.mockResolvedValue({
+    data: { id: DEPARTMENT_ID, name },
+    error: null,
+  });
+  return query;
 }
 
 function createSingleQuery(result: { data: unknown; error: unknown }) {
@@ -104,13 +126,13 @@ describe("PATCH /api/admin/users/[id]", () => {
 
   test.each([
     { body: { department: "Facilities", role: "technician", trade_discipline: "Mechanical", is_active: true }, caseName: "missing name" },
-    { body: { display_name: "Technician One", role: "technician", trade_discipline: "Mechanical", is_active: true }, caseName: "missing department" },
+    { body: { display_name: "Technician One", department_id: "", role: "technician", trade_discipline: "Mechanical", is_active: true }, caseName: "missing department" },
     { body: { display_name: "Technician One", department: "Facilities", role: "invalid-role", is_active: true }, caseName: "invalid role" },
   ])("returns 400 for $caseName", async ({ body }) => {
     const response = await PATCH(createRequest("PATCH", body), routeContext());
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Name, department/company and a valid role are required.",
+      error: "Name, an active department and a valid role are required.",
     });
   });
 
@@ -148,8 +170,11 @@ describe("PATCH /api/admin/users/[id]", () => {
   });
 
   test("returns 404 when user profile is not found", async () => {
+    const department = createDepartmentQuery();
     const lookup = createSingleQuery({ data: null, error: { message: "No rows" } });
-    mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(lookup) });
+    mocks.createClient.mockResolvedValue({
+      from: vi.fn().mockReturnValueOnce(department).mockReturnValueOnce(lookup),
+    });
     mocks.createAdminClient.mockReturnValue({});
     const response = await PATCH(
       createRequest("PATCH", {
@@ -166,13 +191,17 @@ describe("PATCH /api/admin/users/[id]", () => {
   });
 
   test("prevents changing final active administrator", async () => {
+    const department = createDepartmentQuery("Facilities");
     const lookup = createSingleQuery({
       data: { ...targetProfile, role: "administrator" },
       error: null,
     });
     const countQuery = createCountQuery({ count: 1 });
     mocks.createClient.mockResolvedValue({
-      from: vi.fn().mockReturnValueOnce(lookup).mockReturnValueOnce(countQuery),
+      from: vi.fn()
+        .mockReturnValueOnce(department)
+        .mockReturnValueOnce(lookup)
+        .mockReturnValueOnce(countQuery),
     });
     mocks.createAdminClient.mockReturnValue({});
     const response = await PATCH(
@@ -191,10 +220,14 @@ describe("PATCH /api/admin/users/[id]", () => {
   });
 
   test("updates user profile and writes audit record", async () => {
+    const department = createDepartmentQuery();
     const lookup = createSingleQuery({ data: targetProfile, error: null });
     const update = createUpdateQuery({ error: null });
     mocks.createClient.mockResolvedValue({
-      from: vi.fn().mockReturnValueOnce(lookup).mockReturnValueOnce(update),
+      from: vi.fn()
+        .mockReturnValueOnce(department)
+        .mockReturnValueOnce(lookup)
+        .mockReturnValueOnce(update),
     });
     const auditInsert = vi.fn().mockResolvedValue({ error: null });
     mocks.createAdminClient.mockReturnValue({
@@ -218,6 +251,7 @@ describe("PATCH /api/admin/users/[id]", () => {
     expect(update.update).toHaveBeenCalledWith({
       display_name: "Technician Updated",
       department: "Operations",
+      department_id: DEPARTMENT_ID,
       trade_discipline: "Electrical",
       contact_number: "61234567",
       role: "technician",
@@ -233,11 +267,15 @@ describe("PATCH /api/admin/users/[id]", () => {
     );
   });
 
-  test("returns 400 when profile update fails", async () => {
+  test("returns a safe error when profile update fails", async () => {
+    const department = createDepartmentQuery("Facilities");
     const lookup = createSingleQuery({ data: targetProfile, error: null });
     const update = createUpdateQuery({ error: { message: "Profile update failed" } });
     mocks.createClient.mockResolvedValue({
-      from: vi.fn().mockReturnValueOnce(lookup).mockReturnValueOnce(update),
+      from: vi.fn()
+        .mockReturnValueOnce(department)
+        .mockReturnValueOnce(lookup)
+        .mockReturnValueOnce(update),
     });
     mocks.createAdminClient.mockReturnValue({});
     const response = await PATCH(
@@ -250,15 +288,21 @@ describe("PATCH /api/admin/users/[id]", () => {
       }),
       routeContext(),
     );
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: "Profile update failed" });
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "The user profile could not be updated.",
+    });
   });
 
   test("returns 500 when audit insertion fails", async () => {
+    const department = createDepartmentQuery("Facilities");
     const lookup = createSingleQuery({ data: targetProfile, error: null });
     const update = createUpdateQuery({ error: null });
     mocks.createClient.mockResolvedValue({
-      from: vi.fn().mockReturnValueOnce(lookup).mockReturnValueOnce(update),
+      from: vi.fn()
+        .mockReturnValueOnce(department)
+        .mockReturnValueOnce(lookup)
+        .mockReturnValueOnce(update),
     });
     mocks.createAdminClient.mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -444,7 +488,7 @@ describe("DELETE /api/admin/users/[id]", () => {
     });
   });
 
-  test("returns 400 when permanent Auth deletion fails", async () => {
+  test("returns a safe error when permanent Auth deletion fails", async () => {
     const lookup = createSingleQuery({ data: targetProfile, error: null });
     const assignmentCount = createCountQuery({ count: 0 });
     mocks.createClient.mockResolvedValue({
@@ -471,9 +515,9 @@ describe("DELETE /api/admin/users/[id]", () => {
       routeContext(),
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
-      error: "Auth deletion failed",
+      error: "The Auth user could not be deleted.",
     });
   });
 });

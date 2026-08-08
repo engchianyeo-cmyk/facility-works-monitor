@@ -18,6 +18,7 @@ type ManagedUser = {
   display_name: string;
   email: string | null;
   department: string | null;
+  department_id: string | null;
   trade_discipline: string | null;
   contact_number: string | null;
   role: Role;
@@ -32,6 +33,8 @@ type ManagedUser = {
   presence_status: "online" | "idle" | "offline";
   session_status: string;
 };
+
+type Department = { id: string; name: string };
 
 type AuditEntry = {
   id: string;
@@ -80,6 +83,9 @@ export default function UserManagement({
   const [sortOrder, setSortOrder] = useState("last_activity");
   const [editing, setEditing] = useState<Record<string, ManagedUser>>({});
   const [activityUserId, setActivityUserId] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [provisioningConfigured, setProvisioningConfigured] = useState(false);
+  const [authDirectoryAvailable, setAuthDirectoryAvailable] = useState(false);
 
   const loadUsers = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -90,6 +96,9 @@ export default function UserManagement({
       if (!response.ok) throw new Error(result.error ?? "Unable to load users.");
       setUsers(result.users);
       setAudit(result.audit);
+      setDepartments(result.departments ?? []);
+      setProvisioningConfigured(result.provisioning_configured === true);
+      setAuthDirectoryAvailable(result.auth_directory_available === true);
       if (!silent) {
         setEditing(
           Object.fromEntries(
@@ -244,7 +253,13 @@ export default function UserManagement({
 
   return (
     <>
-
+      {!loading && !provisioningConfigured && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          The profile directory remains available, but privileged Auth and
+          mutation operations are not configured for this deployment. Ask the deployment
+          Administrator to configure privileged server access.
+        </div>
+      )}
       {(message || error) && (
         <div
           role={error ? "alert" : "status"}
@@ -277,7 +292,9 @@ export default function UserManagement({
             <option value="all">All roles</option>
             {ROLES.map((role) => (
               <option key={role} value={role}>
-                {role[0].toUpperCase() + role.slice(1)}
+                {role === "initiator"
+                  ? "Initiator / requester"
+                  : role[0].toUpperCase() + role.slice(1)}
               </option>
             ))}
           </select>
@@ -329,7 +346,7 @@ export default function UserManagement({
                 <tr>
                   <th className="px-3 py-3">Display name / Email</th>
                   <th className="px-3 py-3">Role</th>
-                  <th className="px-3 py-3">Department/company</th>
+                  <th className="px-3 py-3">Department</th>
                   <th className="px-3 py-3">Trade/discipline</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Presence / Session</th>
@@ -387,24 +404,33 @@ export default function UserManagement({
                           >
                             {ROLES.map((role) => (
                               <option key={role} value={role}>
-                                {role}
+                                {role === "initiator"
+                                  ? "Initiator / requester"
+                                  : role}
                               </option>
                             ))}
                           </select>
                         </td>
                         <td className="px-3 py-4">
-                          <input
+                          <select
                             aria-label={`Department for ${user.display_name}`}
-                            value={draft.department ?? ""}
+                            value={draft.department_id ?? ""}
                             onChange={(event) =>
                               updateDraft(
                                 user.id,
-                                "department",
+                                "department_id",
                                 event.target.value,
                               )
                             }
                             className={inputClass}
-                          />
+                          >
+                            <option value="">Select an active department</option>
+                            {departments.map((department) => (
+                              <option key={department.id} value={department.id}>
+                                {department.name}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="space-y-2 px-3 py-4">
                           <input
@@ -457,7 +483,7 @@ export default function UserManagement({
                                   : "Inactive"}
                             </span>
                           </label>
-                          {!user.email_confirmed_at && (
+                          {authDirectoryAvailable && !user.email_confirmed_at && (
                             <p className="mt-1 text-xs text-amber-700">
                               Pending activation
                             </p>
@@ -491,7 +517,10 @@ export default function UserManagement({
                         <td className="px-3 py-4 text-xs text-slate-500">
                           <p>Last active: {formatDate(user.last_active_at)}</p>
                           <p className="mt-1">
-                            Last sign-in: {formatDate(user.last_sign_in_at)}
+                            Last sign-in:{" "}
+                            {authDirectoryAvailable
+                              ? formatDate(user.last_sign_in_at)
+                              : "Auth directory unavailable"}
                           </p>
                         </td>
                         <td className="px-3 py-4 text-xs text-slate-500">
@@ -500,7 +529,7 @@ export default function UserManagement({
                         <td className="space-y-2 px-3 py-4">
                           <button
                             type="button"
-                            disabled={submitting}
+                            disabled={submitting || !provisioningConfigured}
                             onClick={() => void saveUser(user.id)}
                             className="block w-full rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                           >
@@ -521,7 +550,7 @@ export default function UserManagement({
                             <>
                               <button
                                 type="button"
-                                disabled={submitting}
+                                disabled={submitting || !provisioningConfigured}
                                 onClick={() => void deleteUser(user, false)}
                                 className="block w-full rounded-md border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50"
                               >
@@ -529,7 +558,7 @@ export default function UserManagement({
                               </button>
                               <button
                                 type="button"
-                                disabled={submitting}
+                                disabled={submitting || !provisioningConfigured}
                                 onClick={() => void deleteUser(user, true)}
                                 className="block w-full rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
                               >

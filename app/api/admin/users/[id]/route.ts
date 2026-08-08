@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { USER_ROLES, getCurrentIdentity, type UserRole } from "@/lib/auth";
+import { getCurrentIdentity, isUserRole, type UserRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-function isUserRole(value: unknown): value is UserRole {
-  return USER_ROLES.includes(value as UserRole);
-}
 
 async function requireAdministrator() {
   const identity = await getCurrentIdentity();
@@ -33,15 +29,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
     const displayName = String(body.display_name ?? "").trim();
-    const department = String(body.department ?? "").trim();
+    const departmentId = String(body.department_id ?? "").trim();
     const tradeDiscipline = String(body.trade_discipline ?? "").trim();
     const contactNumber = String(body.contact_number ?? "").trim();
     const role = String(body.role ?? "") as UserRole;
     const isActive = body.is_active === true;
 
-    if (!displayName || !department || !isUserRole(role)) {
+    if (!displayName || !departmentId || !isUserRole(role)) {
       return NextResponse.json(
-        { error: "Name, department/company and a valid role are required." },
+        { error: "Name, an active department and a valid role are required." },
         { status: 400 },
       );
     }
@@ -60,6 +56,25 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const supabase = await createClient();
     const admin = createAdminClient();
+    const { data: department, error: departmentError } = await supabase
+      .from("departments")
+      .select("id, name")
+      .eq("id", departmentId)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (departmentError) {
+      return NextResponse.json(
+        { error: "The selected department could not be verified." },
+        { status: 503 },
+      );
+    }
+    if (!department) {
+      return NextResponse.json(
+        { error: "Department is inactive." },
+        { status: 409 },
+      );
+    }
     const { data: existing, error: existingError } = await supabase
       .from("profiles")
       .select("display_name, email, role, is_active")
@@ -92,7 +107,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       .from("profiles")
       .update({
         display_name: displayName,
-        department,
+        department: department.name,
+        department_id: department.id,
         trade_discipline: role === "technician" ? tradeDiscipline : null,
         contact_number: contactNumber || null,
         role,
@@ -101,7 +117,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       })
       .eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: "The user profile could not be updated." },
+        { status: 500 },
+      );
     }
 
     const { error: auditError } = await admin.from("activity_logs").insert({
@@ -126,11 +145,14 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: "The request body must be valid JSON." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Unable to update user.",
-      },
+      { error: "Unable to update user." },
       { status: 500 },
     );
   }
@@ -182,7 +204,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       .in("status", ACTIVE_STATUSES);
     if (assignmentError) {
       return NextResponse.json(
-        { error: assignmentError.message },
+        { error: "Active assignments could not be checked." },
         { status: 500 },
       );
     }
@@ -235,7 +257,10 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (permanent) {
       const { error } = await admin.auth.admin.deleteUser(id);
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { error: "The Auth user could not be deleted." },
+          { status: 500 },
+        );
       }
     } else {
       const { error } = await supabase
@@ -246,17 +271,23 @@ export async function DELETE(request: Request, context: RouteContext) {
         })
         .eq("id", id);
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { error: "The user profile could not be archived." },
+          { status: 500 },
+        );
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: "The request body must be valid JSON." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Unable to delete user.",
-      },
+      { error: "Unable to delete user." },
       { status: 500 },
     );
   }

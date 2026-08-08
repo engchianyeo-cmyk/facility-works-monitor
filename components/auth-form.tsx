@@ -4,23 +4,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-function logSupabaseAuthError(
-  operation: "sign-in" | "sign-up",
-  error: {
-    status?: number;
-    code?: string;
-    message: string;
-    name?: string;
-  },
-) {
-  console.error(`Supabase ${operation} error`, {
-    status: error.status ?? null,
-    code: error.code ?? null,
-    message: error.message,
-    name: error.name ?? null,
-  });
-}
-
 type AuthFormProps = {
   mode: "login" | "register";
   nextPath?: string;
@@ -29,7 +12,7 @@ type AuthFormProps = {
 
 export default function AuthForm({
   mode,
-  nextPath = "/works",
+  nextPath = "/",
   registrationRole = "reviewer",
 }: AuthFormProps) {
   const router = useRouter();
@@ -55,14 +38,13 @@ export default function AuthForm({
           password,
         });
         if (signInError) {
-          logSupabaseAuthError("sign-in", signInError);
           const lowerMessage = signInError.message.toLowerCase();
           setError(
             lowerMessage.includes("email not confirmed")
               ? "Confirm your email before signing in. Check your inbox for the confirmation link."
               : lowerMessage.includes("rate limit")
                 ? "Too many attempts. Wait a few minutes before trying again."
-                : signInError.message,
+                : "Email or password is incorrect.",
           );
           return;
         }
@@ -137,12 +119,11 @@ export default function AuthForm({
         },
       });
       if (signUpError) {
-        logSupabaseAuthError("sign-up", signUpError);
         const lowerMessage = signUpError.message.toLowerCase();
         setError(
           lowerMessage.includes("rate limit")
             ? "Too many registration attempts. Wait a few minutes before trying again."
-            : signUpError.message,
+            : "Registration could not be completed. Check the details or contact an Administrator.",
         );
         return;
       }

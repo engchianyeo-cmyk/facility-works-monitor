@@ -15,27 +15,6 @@ function isUserRole(value: unknown): value is AdminUserRole {
   return ADMIN_USER_ROLES.includes(value as AdminUserRole);
 }
 
-function logSafeAdminError(
-  stage: string,
-  error: { code?: string; message?: string } | null | undefined,
-) {
-  console.error("Administrator user creation failed", {
-    stage,
-    code: error?.code ?? null,
-    message: error?.message ?? "Unknown error",
-  });
-}
-
-function sanitizedErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) return "Unknown server error.";
-
-  return error.message
-    .replace(/\beyJ[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){1,2}\b/g, "[redacted]")
-    .replace(/\bsb_(?:secret|publishable)_[A-Za-z0-9_-]+\b/g, "[redacted]")
-    .replace(/([?&](?:token|code)=)[^&\s]+/gi, "$1[redacted]")
-    .slice(0, 300);
-}
-
 async function requireAdministrator() {
   const { getCurrentIdentity } = await import("@/lib/auth");
   const identity = await getCurrentIdentity();
@@ -80,47 +59,56 @@ export async function GET() {
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 
-    const [{ createClient }, { createAdminClient }] = await Promise.all([
+    const [{ createClient }, adminModule] = await Promise.all([
       import("@/lib/supabase/server"),
       import("@/lib/supabase/admin"),
     ]);
     const supabase = await createClient();
-    const admin = createAdminClient();
+    const provisioningConfigured = adminModule.isAdminConfigured();
+    const admin = provisioningConfigured
+      ? adminModule.createAdminClient()
+      : null;
     const [
       { data: profiles, error: profileError },
       { data: authData, error: authError },
       { data: audit, error: auditError },
+      { data: departments, error: departmentError },
     ] = await Promise.all([
       supabase
         .from("profiles")
         .select(
-          "id, display_name, email, department, trade_discipline, contact_number, role, is_active, deleted_at, created_at, updated_at, last_active_at, last_seen_route",
+          "id, display_name, email, department, department_id, trade_discipline, contact_number, role, is_active, deleted_at, created_at, updated_at, last_active_at, last_seen_route",
         )
         .order("created_at", { ascending: false }),
-      admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      admin
+        ? admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+        : Promise.resolve({ data: { users: [] }, error: null }),
       supabase
         .from("activity_logs")
         .select("id, action, actor, note, created_at")
         .like("action", "user_admin_%")
         .order("created_at", { ascending: false })
         .limit(200),
+      supabase
+        .from("departments")
+        .select("id, name")
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("name"),
     ]);
 
-    if (profileError || authError || auditError) {
+    if (profileError || auditError || departmentError) {
       return NextResponse.json(
         {
-          error:
-            profileError?.message ??
-            authError?.message ??
-            auditError?.message ??
-            "Unable to load users.",
+          error: "User management data could not be loaded.",
+          code: "USER_MANAGEMENT_UNAVAILABLE",
         },
-        { status: 500 },
+        { status: 503 },
       );
     }
 
     const authUsers = new Map(
-      authData.users.map((user) => [
+      (authData?.users ?? []).map((user) => [
         user.id,
         {
           lastSignInAt: user.last_sign_in_at ?? null,
@@ -140,28 +128,31 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ users, audit: audit ?? [] });
-  } catch (error) {
+    return NextResponse.json({
+      users,
+      audit: audit ?? [],
+      departments: departments ?? [],
+      provisioning_configured: provisioningConfigured,
+      auth_directory_available: provisioningConfigured && !authError,
+    });
+  } catch {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Unable to load users.",
+        error: "User management data could not be loaded.",
+        code: "USER_MANAGEMENT_UNAVAILABLE",
       },
-      { status: 500 },
+      { status: 503 },
     );
   }
 }
 
 export async function POST(request: Request) {
-  console.info("[admin-users] stage=post-entry");
-  let currentStage = "administrator-check";
   try {
     const identity = await requireAdministrator();
     if (!identity) {
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 
-    currentStage = "request-validation";
     const body = await request.json();
     const displayName = String(body.display_name ?? "").trim();
     const email = String(body.email ?? "").trim().toLowerCase();
@@ -184,7 +175,6 @@ export async function POST(request: Request) {
       );
     }
 
-    currentStage = "supabase-client-initialization";
     const [{ createClient }, { createAdminClient }] = await Promise.all([
       import("@/lib/supabase/server"),
       import("@/lib/supabase/admin"),
@@ -192,11 +182,9 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const admin = createAdminClient();
 
-    currentStage = "existing-user-check";
     const { data: authUsers, error: authLookupError } =
       await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (authLookupError) {
-      logSafeAdminError(currentStage, authLookupError);
       return NextResponse.json(
         { error: "Unable to verify whether this Auth user already exists." },
         { status: 502 },
@@ -212,7 +200,6 @@ export async function POST(request: Request) {
       .ilike("email", email)
       .maybeSingle();
     if (existingProfileError) {
-      logSafeAdminError(currentStage, existingProfileError);
       return NextResponse.json(
         { error: "Unable to verify whether this user profile already exists." },
         { status: 500 },
@@ -238,13 +225,11 @@ export async function POST(request: Request) {
       );
     }
 
-    currentStage = "invitation-token-generation";
     const { createHash, randomBytes } = await import("crypto");
     const rawToken = randomBytes(32).toString("base64url");
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-    currentStage = "invitation-creation";
     const { data: invitation, error: invitationError } = await supabase
       .from("account_invitations")
       .insert({
@@ -261,38 +246,18 @@ export async function POST(request: Request) {
       .single();
 
     if (invitationError || !invitation) {
-      logSafeAdminError(currentStage, invitationError);
       const duplicate = invitationError?.code === "23505";
       return NextResponse.json(
         {
           error: duplicate
             ? "An active invitation or account already exists for this email."
-            : invitationError?.message ?? "Unable to create invitation.",
+            : "Unable to create invitation.",
         },
         { status: duplicate ? 409 : 400 },
       );
     }
 
-    currentStage = "auth-user-creation";
-    type AuthCreationError = Error & {
-      status?: number;
-      code?: string;
-      cause?: unknown;
-    };
-    const authErrorResponse = async (
-      error: AuthCreationError | null,
-    ) => {
-      console.error("[admin-users] Auth creation error", {
-        name: error?.name ?? null,
-        message: error?.message ?? null,
-        status: error?.status ?? null,
-        code: error?.code ?? null,
-        cause:
-          error?.cause instanceof Error
-            ? error.cause.message
-            : error?.cause ?? null,
-        stack: error?.stack ?? null,
-      });
+    const authErrorResponse = async () => {
       await admin
         .from("account_invitations")
         .delete()
@@ -301,17 +266,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "Supabase could not create the invited Auth user.",
-          ...(process.env.NODE_ENV === "development"
-            ? {
-                details: {
-                  message:
-                    error?.message ?? "Unknown Supabase Auth error",
-                  status: error?.status ?? null,
-                  code: error?.code ?? null,
-                  name: error?.name ?? null,
-                },
-              }
-            : {}),
         },
         { status: 400 },
       );
@@ -332,21 +286,18 @@ export async function POST(request: Request) {
         });
 
       if (error) {
-        return await authErrorResponse(error);
+        return await authErrorResponse();
       }
       invited = data;
-    } catch (error) {
-      return await authErrorResponse(
-        error instanceof Error ? (error as AuthCreationError) : null,
-      );
+    } catch {
+      return await authErrorResponse();
     }
 
     if (!invited?.user) {
-      return await authErrorResponse(null);
+      return await authErrorResponse();
     }
 
     const rollbackInvitation = async () => {
-      currentStage = "rollback";
       try {
         const [{ error: authDeleteError }, { error: invitationDeleteError }] =
           await Promise.all([
@@ -358,23 +309,14 @@ export async function POST(request: Request) {
           ]);
 
         if (authDeleteError || invitationDeleteError) {
-          logSafeAdminError(
-            currentStage,
-            authDeleteError ?? invitationDeleteError,
-          );
           return false;
         }
         return true;
-      } catch (rollbackError) {
-        logSafeAdminError(
-          currentStage,
-          rollbackError instanceof Error ? rollbackError : null,
-        );
+      } catch {
         return false;
       }
     };
 
-    currentStage = "profile-lookup";
     const profileValues = {
       id: invited.user.id,
       display_name: displayName,
@@ -393,7 +335,6 @@ export async function POST(request: Request) {
       .eq("id", invited.user.id)
       .maybeSingle();
 
-    currentStage = "profile-upsert";
     const profileWrite = profileLookupError
       ? { error: profileLookupError }
       : triggeredProfile
@@ -406,10 +347,6 @@ export async function POST(request: Request) {
             .upsert(profileValues, { onConflict: "id" });
 
     if (profileWrite.error) {
-      logSafeAdminError(
-        profileLookupError ? "profile-lookup" : currentStage,
-        profileWrite.error,
-      );
       const rolledBack = await rollbackInvitation();
       return NextResponse.json(
         {
@@ -421,7 +358,6 @@ export async function POST(request: Request) {
       );
     }
 
-    currentStage = "profile-verification";
     const {
       data: verifiedProfiles,
       error: profileVerificationError,
@@ -437,7 +373,6 @@ export async function POST(request: Request) {
       verifiedProfileCount !== 1 ||
       verifiedProfiles?.length !== 1
     ) {
-      logSafeAdminError(currentStage, profileVerificationError);
       const rolledBack = await rollbackInvitation();
       return NextResponse.json(
         {
@@ -449,7 +384,6 @@ export async function POST(request: Request) {
       );
     }
 
-    currentStage = "auth-metadata-update";
     const { error: metadataError } = await admin.auth.admin.updateUserById(
       invited.user.id,
       {
@@ -463,7 +397,6 @@ export async function POST(request: Request) {
     );
 
     if (metadataError) {
-      logSafeAdminError(currentStage, metadataError);
       const rolledBack = await rollbackInvitation();
       return NextResponse.json(
         {
@@ -475,7 +408,6 @@ export async function POST(request: Request) {
       );
     }
 
-    currentStage = "audit-creation";
     const { error: auditError } = await admin.from("activity_logs").insert({
       user_id: identity.userId,
       action: "user_admin_invited",
@@ -488,7 +420,6 @@ export async function POST(request: Request) {
       }),
     });
     if (auditError) {
-      logSafeAdminError(currentStage, auditError);
       const rolledBack = await rollbackInvitation();
       return NextResponse.json(
         {
@@ -507,16 +438,11 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
-  } catch (error) {
-    logSafeAdminError(
-      currentStage,
-      error instanceof Error ? error : null,
-    );
+  } catch {
     return NextResponse.json(
       {
         success: false,
-        stage: currentStage,
-        error: sanitizedErrorMessage(error),
+        error: "User invitation could not be completed.",
       },
       { status: 500 },
     );

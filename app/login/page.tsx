@@ -11,7 +11,7 @@ export default async function LoginPage({
   const identity = await getCurrentIdentity();
   const { next, error } = await searchParams;
   const nextPath =
-    next?.startsWith("/") && !next.startsWith("//") ? next : "/works";
+    next?.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   if (identity) redirect(nextPath);
 
