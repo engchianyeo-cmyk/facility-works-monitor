@@ -32,6 +32,7 @@ export default function WorkOrderActions({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const actions = ACTIONS[status].filter(({ action }) => allowedActions.includes(action));
 
   async function transition(action: WorkOrderAction) {
@@ -47,11 +48,12 @@ export default function WorkOrderActions({
       if (actualHours === null) return;
       payload.completion_notes = completionNotes.trim(); payload.actual_labour_hours = actualHours.trim();
     }
-    setBusy(action); setError(null);
+    setBusy(action); setError(null); setMessage(null);
     try {
       const response = await fetch(`/api/work-orders/${id}/transition`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
       if (!response.ok) { setError(result.message ?? result.error ?? "Transition failed."); return; }
+      if (action === "accept") setMessage("Assignment accepted. You can now start work when ready.");
       router.refresh();
     } catch { setError("Unable to reach the workflow service."); }
     finally { setBusy(null); }
@@ -90,6 +92,7 @@ export default function WorkOrderActions({
         {canDuplicate && <button disabled={busy !== null} onClick={duplicate} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{busy === "duplicate" ? "Duplicating…" : "Duplicate as draft"}</button>}
       </div>
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {message && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700" role="status">{message}</p>}
     </div>
   );
 }

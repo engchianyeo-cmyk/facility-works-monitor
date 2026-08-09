@@ -30,6 +30,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   const supabase = await createClient();
   const { data: departments } = await supabase.from("departments").select("id,code,name").eq("is_active", true).is("deleted_at", null).order("name");
   let query = supabase.from("work_orders").select("*, categories(name), departments(code,name,colour_tag)", { count: "exact" });
+  if (identity.role === "technician") query = query.eq("assigned_technician_id", identity.userId);
   if (values.search?.trim()) {
     const search = values.search.replaceAll(/[,%()]/g, " ").trim();
     if (search) query = query.or(`work_order_number.ilike.%${search}%,title.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
@@ -38,7 +39,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   if (isWorkOrderPriority(values.priority)) query = query.eq("priority", values.priority);
   if (isWorkOrderSource(values.source)) query = query.eq("source", values.source);
   if (values.department) query = query.eq("department_id", values.department);
-  if (values.assignment === "mine") query = query.eq("assigned_technician_id", identity.userId);
+  if (values.assignment === "mine" && identity.role !== "technician") query = query.eq("assigned_technician_id", identity.userId);
   else if (values.assignment === "unassigned") query = query.is("assigned_technician_id", null).is("assigned_vendor_id", null).is("assigned_team_id", null);
   else if (values.assignment === "technician") query = query.not("assigned_technician_id", "is", null);
   else if (values.assignment === "vendor") query = query.not("assigned_vendor_id", "is", null);

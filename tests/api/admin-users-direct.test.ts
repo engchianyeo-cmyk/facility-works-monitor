@@ -290,6 +290,32 @@ describe("administrator direct user provisioning", () => {
     expect(mocks.auditInsert).toHaveBeenCalledOnce();
   });
 
+  test.each(["initiator", "technician", "approver", "supervisor"])(
+    "creates an active canonical %s profile with the Auth user ID",
+    async (role) => {
+      const response = await POST(request({
+        ...validBody,
+        role,
+        trade_discipline: role === "technician" ? "Electrical" : "",
+      }));
+      expect(response.status).toBe(200);
+      expect(mocks.profileUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ id: USER_ID, role, is_active: true }),
+        { onConflict: "id" },
+      );
+    },
+  );
+
+  test("activates one existing pending Approver without creating a duplicate Auth user", async () => {
+    mocks.authUsers.push({ id: USER_ID, email: validBody.email, email_confirmed_at: null });
+    mocks.profileLookupResult.data = { id: USER_ID };
+    const response = await POST(request({ ...validBody, mode: "activate_pending", role: "approver" }));
+    expect(response.status).toBe(200);
+    expect(mocks.createUser).not.toHaveBeenCalled();
+    expect(mocks.updateUserById).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ email_confirm: true }));
+    expect(mocks.profileUpsert).toHaveBeenCalledWith(expect.objectContaining({ id: USER_ID, role: "approver", is_active: true }), { onConflict: "id" });
+  });
+
   test("can provision an initially inactive profile", async () => {
     const response = await POST(request({ ...validBody, is_active: false }));
     expect(response.status).toBe(200);

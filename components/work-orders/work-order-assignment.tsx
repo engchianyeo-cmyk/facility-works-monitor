@@ -22,15 +22,19 @@ export default function WorkOrderAssignment({
   const [id, setId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const options = type === "technician" ? technicians : type === "vendor" ? vendors : teams;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (!id) return;
-    setSaving(true); setError(null);
+    setSaving(true); setError(null); setMessage(null);
     try {
       const response = await fetch(`/api/work-orders/${workOrderId}/assign`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ assignment_type: type, assignee_id: id }) });
       const result = await response.json();
       if (!response.ok) { setError(result.message ?? result.error ?? "Assignment failed."); return; }
+      setMessage(type === "technician"
+        ? `Technician assigned. Their authenticated assignment link is ${result.assignment_path ?? `/work-orders/${workOrderId}`}.`
+        : `${type[0].toUpperCase() + type.slice(1)} assigned.`);
       router.refresh();
     } catch { setError("Unable to reach the assignment service."); }
     finally { setSaving(false); }
@@ -44,6 +48,7 @@ export default function WorkOrderAssignment({
       </div>
       {options.length === 0 && <p className="text-sm text-amber-700">No active {type} records are available.</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
+      {message && <p className="text-sm text-emerald-700" role="status">{message}</p>}
       <button disabled={saving || !id} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Assigning…" : "Assign work order"}</button>
     </form>
   );

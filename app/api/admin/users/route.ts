@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applicationCallbackUrl } from "@/lib/app-url";
 
 const ADMIN_USER_ROLES = [
   "reviewer",
@@ -282,7 +283,7 @@ export async function POST(request: Request) {
             trade_discipline: role === "technician" ? tradeDiscipline : null,
             contact_number: contactNumber || null,
           },
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin}/auth/callback`,
+          redirectTo: applicationCallbackUrl(request.url),
         });
 
       if (error) {

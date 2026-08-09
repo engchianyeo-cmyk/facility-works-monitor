@@ -40,4 +40,13 @@ describe("Supabase service-role boundary", () => {
     });
     expect(clientViolations).toEqual([]);
   });
+
+  test("does not hard-code localhost into client Auth redirect construction", () => {
+    const authForm = readFileSync(
+      path.join(root, "components", "auth-form.tsx"),
+      "utf8",
+    );
+    expect(authForm).toContain("window.location.origin");
+    expect(authForm).not.toContain("localhost:3000");
+  });
 });

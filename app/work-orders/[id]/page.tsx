@@ -73,11 +73,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   if (!identity) redirect(`/login?next=/work-orders/${id}`);
 
   const supabase = await createClient();
-  const { data: order, error: orderError } = await supabase
+  let orderQuery = supabase
     .from("work_orders")
     .select("*, categories(name), departments(code,name,colour_tag)")
-    .eq("id", id)
-    .maybeSingle();
+    .eq("id", id);
+  if (identity.role === "technician") {
+    orderQuery = orderQuery.eq("assigned_technician_id", identity.userId);
+  }
+  const { data: order, error: orderError } = await orderQuery.maybeSingle();
 
   if (orderError) {
     return (

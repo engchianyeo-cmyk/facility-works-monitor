@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("work_orders")
     .select("*, categories(name), departments(code,name,colour_tag)", { count: "exact" });
+  if (identity.role === "technician") {
+    query = query.eq("assigned_technician_id", identity.userId);
+  }
 
   const search = params.get("search")?.trim();
   if (search) {
@@ -59,7 +62,7 @@ export async function GET(request: NextRequest) {
   const assignment = params.get("assignment");
   if (assignment === "unassigned") {
     query = query.is("assigned_technician_id", null).is("assigned_vendor_id", null).is("assigned_team_id", null);
-  } else if (assignment === "mine") {
+  } else if (assignment === "mine" && identity.role !== "technician") {
     query = query.eq("assigned_technician_id", identity.userId);
   } else if (assignment === "technician") {
     query = query.not("assigned_technician_id", "is", null);

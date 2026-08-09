@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const nextPath =
     requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
       ? requestedNext
-      : "/works";
+      : "/";
 
   if (!code) {
     return NextResponse.redirect(

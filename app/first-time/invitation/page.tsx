@@ -16,9 +16,10 @@ export default function AdministratorInvitationPage() {
           from the secure invitation record; they cannot be selected here.
         </p>
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Invitation issuance and acceptance are not yet enabled in this
-          version. Contact your Facility Works Monitor Administrator if you
-          need an Initiator, Approver, Supervisor or Administrator account.
+          Open the invitation link sent by your FMWorks Administrator. After
+          authentication and profile validation, you will be directed to your
+          authenticated workspace. If the link has expired or is invalid,
+          contact your Administrator for a new invitation.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
