@@ -1,37 +1,24 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { GET } from "@/app/api/internal/preview-environment-check/route";
-import { classifyLegacySupabaseKey, classifySupabaseUrl, PREVIEW_PROJECT_REF, previewIdentityResponse } from "@/lib/preview-environment-identity";
+import { classifyLegacyRole, classifySupabaseUrl, PREVIEW_PROJECT_REF, PREVIEW_SUPABASE_URL, verifyPreviewIdentity } from "@/lib/preview-environment-identity";
 
 const originalEnvironment = process.env.VERCEL_ENV;
-afterEach(() => {
-  if (originalEnvironment === undefined) delete process.env.VERCEL_ENV;
-  else process.env.VERCEL_ENV = originalEnvironment;
-});
+afterEach(() => { if (originalEnvironment === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = originalEnvironment; });
+function jwt(role: string) { const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url"); return `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ role })}.signature`; }
+const accepted = vi.fn(async () => ({ ok: true }));
 
-function jwt(ref: string, role: string) {
-  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  return `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ ref, role })}.test-signature`;
-}
-
-describe("Preview runtime identity diagnostic", () => {
-  test("classifies the correct Preview URL", () => expect(classifySupabaseUrl(`https://${PREVIEW_PROJECT_REF}.supabase.co`)).toBe("PREVIEW_MATCH"));
-  test("rejects the Production URL", () => expect(classifySupabaseUrl("https://pyapukytcrsuowmgzqzh.supabase.co")).toBe("PRODUCTION_UNSAFE"));
-  test("rejects an unknown project URL", () => expect(classifySupabaseUrl("https://example.invalid")).toBe("UNRECOGNIZED"));
-  test("classifies the correct anon key", () => expect(classifyLegacySupabaseKey(jwt(PREVIEW_PROJECT_REF, "anon"), "anon")).toBe("KEY_MATCH"));
-  test("rejects an anon key for another project", () => expect(classifyLegacySupabaseKey(jwt("another-project", "anon"), "anon")).toBe("KEY_PROJECT_MISMATCH"));
-  test("rejects an anon key with the wrong role", () => expect(classifyLegacySupabaseKey(jwt(PREVIEW_PROJECT_REF, "service_role"), "anon")).toBe("KEY_ROLE_MISMATCH"));
-  test("classifies the correct service-role key", () => expect(classifyLegacySupabaseKey(jwt(PREVIEW_PROJECT_REF, "service_role"), "service_role")).toBe("KEY_MATCH"));
-  test("rejects a service key for another project", () => expect(classifyLegacySupabaseKey(jwt("another-project", "service_role"), "service_role")).toBe("KEY_PROJECT_MISMATCH"));
-  test("rejects a service key with the wrong role", () => expect(classifyLegacySupabaseKey(jwt(PREVIEW_PROJECT_REF, "anon"), "service_role")).toBe("KEY_ROLE_MISMATCH"));
-  test("rejects malformed tokens", () => expect(classifyLegacySupabaseKey("not-a-token", "anon")).toBe("INVALID_KEY_FORMAT"));
-  test("refuses requests outside Vercel Preview", async () => { process.env.VERCEL_ENV = "production"; expect((await GET()).status).toBe(404); });
-  test("returns classifications only and no secrets", () => {
-    const anon = jwt(PREVIEW_PROJECT_REF, "anon"), service = jwt(PREVIEW_PROJECT_REF, "service_role");
-    const result = previewIdentityResponse("preview", `https://${PREVIEW_PROJECT_REF}.supabase.co`, anon, service);
-    expect(result).toEqual({ environment: "preview", supabaseUrl: "PREVIEW_MATCH", anonKey: "KEY_MATCH", serviceRoleKey: "KEY_MATCH", overall: "PREVIEW_IDENTITY_CONFIRMED" });
-    const serialized = JSON.stringify(result);
-    expect(serialized).not.toContain(anon);
-    expect(serialized).not.toContain(service);
-    expect(serialized).not.toContain("https://");
-  });
+describe("Preview API-key acceptance diagnostic", () => {
+  test("accepts only the exact Preview URL", () => expect(classifySupabaseUrl(PREVIEW_SUPABASE_URL)).toBe("PREVIEW_MATCH"));
+  test("refuses the Production URL before any request", async () => { const request = vi.fn(); const result = await verifyPreviewIdentity("preview", "https://pyapukytcrsuowmgzqzh.supabase.co", jwt("anon"), jwt("service_role"), request); expect(result?.supabaseUrl).toBe("PRODUCTION_UNSAFE"); expect(request).not.toHaveBeenCalled(); });
+  test("refuses an unknown URL before any request", async () => { const request = vi.fn(); const result = await verifyPreviewIdentity("preview", "https://example.invalid", jwt("anon"), jwt("service_role"), request); expect(result?.supabaseUrl).toBe("UNRECOGNIZED"); expect(request).not.toHaveBeenCalled(); });
+  test("classifies an accepted anon key", async () => expect((await verifyPreviewIdentity("preview", PREVIEW_SUPABASE_URL, jwt("anon"), jwt("service_role"), accepted))!.anonAcceptance).toBe("ANON_KEY_ACCEPTED"));
+  test("classifies a rejected anon key", async () => { const request = vi.fn(async () => ({ ok: true })); request.mockResolvedValueOnce({ ok: false }); expect((await verifyPreviewIdentity("preview", PREVIEW_SUPABASE_URL, jwt("anon"), jwt("service_role"), request))!.anonAcceptance).toBe("ANON_KEY_REJECTED"); });
+  test("classifies an accepted service-role key", async () => expect((await verifyPreviewIdentity("preview", PREVIEW_SUPABASE_URL, jwt("anon"), jwt("service_role"), accepted))!.serviceRoleAcceptance).toBe("SERVICE_ROLE_KEY_ACCEPTED"));
+  test("classifies a rejected service-role key", async () => { const request = vi.fn(async () => ({ ok: true })); request.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false }); expect((await verifyPreviewIdentity("preview", PREVIEW_SUPABASE_URL, jwt("anon"), jwt("service_role"), request))!.serviceRoleAcceptance).toBe("SERVICE_ROLE_KEY_REJECTED"); });
+  test("validates the anon role structurally without requiring ref", () => expect(classifyLegacyRole(jwt("anon"), "anon")).toBe("ANON_ROLE_VALID"));
+  test("validates the service role structurally without requiring ref", () => expect(classifyLegacyRole(jwt("service_role"), "service_role")).toBe("SERVICE_ROLE_VALID"));
+  test("reports role mismatches", () => { expect(classifyLegacyRole(jwt("service_role"), "anon")).toBe("ANON_ROLE_MISMATCH"); expect(classifyLegacyRole(jwt("anon"), "service_role")).toBe("SERVICE_ROLE_MISMATCH"); });
+  test("uses only the approved Preview Auth settings endpoint", async () => { const calls: string[] = []; const request = async (input: string) => { calls.push(input); return { ok: true }; }; await verifyPreviewIdentity("preview", PREVIEW_SUPABASE_URL, jwt("anon"), jwt("service_role"), request); expect(calls).toHaveLength(2); for (const target of calls) expect(target).toBe(`https://${PREVIEW_PROJECT_REF}.supabase.co/auth/v1/settings`); expect(calls.join(" ")).not.toContain("pyapukytcrsuowmgzqzh"); });
+  test("refuses endpoint requests outside Vercel Preview", async () => { process.env.VERCEL_ENV = "production"; expect((await GET()).status).toBe(404); });
+  test("returns classifications only and no secrets", async () => { const anon = jwt("anon"), service = jwt("service_role"); const result = await verifyPreviewIdentity("preview", PREVIEW_SUPABASE_URL, anon, service, accepted); expect(result).toEqual({ environment: "preview", supabaseUrl: "PREVIEW_MATCH", anonAcceptance: "ANON_KEY_ACCEPTED", anonRole: "ANON_ROLE_VALID", serviceRoleAcceptance: "SERVICE_ROLE_KEY_ACCEPTED", serviceRole: "SERVICE_ROLE_VALID", overall: "PREVIEW_IDENTITY_CONFIRMED" }); const serialized = JSON.stringify(result); expect(serialized).not.toContain(anon); expect(serialized).not.toContain(service); expect(serialized).not.toContain("https://"); });
 });
