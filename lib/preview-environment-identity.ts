@@ -47,7 +47,7 @@ async function accepted(key: string | undefined, request: SafeFetch): Promise<Ac
       method: "GET",
       headers: { apikey: key },
       cache: "no-store",
-      redirect: "error",
+      redirect: "manual",
     });
     return { accepted: response.ok, status: response.status, statusClass: statusClass(response.status) };
   } catch { return { accepted: false, status: 0, statusClass: "NETWORK_ERROR" }; }
