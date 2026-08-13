@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { verifyPreviewIdentity } from "@/lib/preview-environment-identity";
+import { diagnosePreviewNetwork } from "@/lib/preview-environment-identity";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const result = await verifyPreviewIdentity(
+  const result = await diagnosePreviewNetwork(
     process.env.VERCEL_ENV,
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
