@@ -1,0 +1,20 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, test } from "vitest";
+import { incidentOperationsSummary, sortOperationsIncidents } from "@/lib/incidents/board";
+import { canActOnIncident } from "@/lib/incidents/permissions";
+import type { IncidentRecord } from "@/lib/incidents/types";
+
+const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const makeIncident = (overrides: Partial<IncidentRecord> = {}): IncidentRecord => ({ id: "incident", incident_number: "INC-2026-000001", incident_type: "fire", severity: "emergency", status: "reported", location: "Plant room", description: "Smoke", reported_by: "reporter", reported_at: "2026-08-10T00:00:00Z", incident_commander_id: null, assigned_technician_id: null, assigned_team_id: null, acknowledgement_deadline: "2026-08-10T00:05:00Z", acknowledged_at: null, mobilising_at: null, on_site_at: null, rescue_started_at: null, safe_at: null, recovery_started_at: null, closed_at: null, created_at: "2026-08-10T00:00:00Z", updated_at: "2026-08-10T00:00:00Z", ...overrides });
+
+describe("Incident Command Centre UI contract", () => {
+  test("incident board requires authenticated identity", () => { const page = source("app/incidents/page.tsx"); expect(page).toContain("getCurrentIdentity()"); expect(page).toContain('redirect("/login?next=/incidents")'); });
+  test("orders active emergencies before ordinary active and closed incidents", () => { const sorted = sortOperationsIncidents([makeIncident({ id: "closed", status: "closed" }), makeIncident({ id: "ordinary", severity: "high" }), makeIncident({ id: "emergency" })]); expect(sorted.map(item => item.id)).toEqual(["emergency", "ordinary", "closed"]); });
+  test("provides supervisor overview for unacknowledged, overdue and unassigned incidents", () => { expect(incidentOperationsSummary([makeIncident(), makeIncident({ id: "assigned", assigned_technician_id: "tech", acknowledged_at: "2026-08-10T00:02:00Z", status: "acknowledged" })], new Date("2026-08-10T00:10:00Z"))).toEqual({ active: 2, unacknowledged: 1, overdue: 1, unassigned: 1 }); const page = source("app/incidents/page.tsx"); expect(page).toContain('["supervisor","administrator"].includes(identity.role)'); });
+  test("board card exposes SLA, unassigned, notification and linked-work indicators", () => { const card = source("components/incidents/incident-card.tsx"); expect(card).toContain("SlaIndicator"); expect(card).toContain("Unassigned emergency"); expect(card).toContain("SMS:"); expect(card).toContain("WhatsApp:"); expect(card).toContain("linked Work Order"); });
+  test("technician action flow is touch-sized and one action at a time", () => { const actions = source("components/incidents/incident-actions.tsx"); expect(actions).toContain("Only the next authorized response step is available"); expect(actions).toContain("min-h-16 w-full"); expect(actions).toContain('endpoint = action === "acknowledge"'); expect(actions).toContain('endpoint === "phase"'); });
+  test("unrelated technician action is rejected by shared permissions", () => { expect(canActOnIncident("acknowledge", { role: "technician", actorId: "other", status: "reported", assignedTechnicianId: "assigned" })).toBe(false); });
+  test("detail includes timeline and notification delivery", () => { const detail = source("app/incidents/[id]/page.tsx"); expect(detail).toContain("Response timeline"); expect(detail).toContain("Notification delivery"); expect(detail).toContain("activity_logs"); });
+  test("corrective work is explicit and uses the incident work-order API", () => { const form = source("components/incidents/corrective-work-order-form.tsx"); const detail = source("app/incidents/[id]/page.tsx"); expect(form).toContain("Create Corrective Work Order"); expect(form).toContain("/work-orders"); expect(detail).toContain('["safe", "recovery"]'); });
+  test("detail keeps location and elapsed SLA visible with mobile-safe controls", () => { const detail = source("app/incidents/[id]/page.tsx"); expect(detail).toContain("incident.location"); expect(detail).toContain("Elapsed from report"); expect(detail).toContain("sticky bottom-3"); });
+});

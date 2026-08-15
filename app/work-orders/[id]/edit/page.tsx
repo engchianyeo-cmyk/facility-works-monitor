@@ -17,5 +17,5 @@ export default async function EditWorkOrderPage({ params }: { params: Promise<{ 
   ]);
   if (!order) notFound();
   if (!canEdit({ role: identity.role, actorId: identity.userId, requesterId: order.requested_by, assignedTechnicianId: order.assigned_technician_id, status: order.status as WorkOrderStatus })) redirect(`/work-orders/${id}`);
-  return <main className="mx-auto max-w-3xl space-y-6 p-6 lg:p-8"><Link className="text-sm text-blue-700 hover:underline" href={`/work-orders/${id}`}>← Back to work order</Link><h1 className="text-3xl font-bold">Edit {order.work_order_number}</h1><WorkOrderForm categories={categories ?? []} departments={departments ?? []} workOrder={order} /></main>;
+  return <main className="mx-auto max-w-3xl space-y-6 p-6 lg:p-8"><Link className="text-sm text-blue-700 hover:underline" href={`/work-orders/${id}`}>← Back to work order</Link><h1 className="text-3xl font-bold">Edit {order.work_order_number}</h1><WorkOrderForm categories={categories ?? []} departments={departments ?? []} assets={[]} workOrder={order} /></main>;
 }

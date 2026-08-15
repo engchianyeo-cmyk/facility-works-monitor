@@ -38,8 +38,11 @@ export function canAct(
       ) && context.actorId === context.requesterId
     );
   }
-  if (["approve", "review", "close"].includes(action)) {
+  if (["approve", "close"].includes(action)) {
     return context.role === "approver" && context.actorId !== context.requesterId;
+  }
+  if (["review", "return_for_rework"].includes(action)) {
+    return ["approver", "supervisor"].includes(context.role);
   }
   if (["accept", "start", "complete"].includes(action)) {
     return (

@@ -1,0 +1,10 @@
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { NextRequest } from "next/server";
+const mocks=vi.hoisted(()=>({getCurrentIdentity:vi.fn(),createClient:vi.fn()}));vi.mock("@/lib/auth",()=>({getCurrentIdentity:mocks.getCurrentIdentity}));vi.mock("@/lib/supabase/server",()=>({createClient:mocks.createClient}));
+import { POST } from "@/app/api/incidents/[id]/work-orders/route";
+const context={params:Promise.resolve({id:"22222222-2222-4222-8222-222222222222"})};
+beforeEach(()=>{vi.clearAllMocks();mocks.getCurrentIdentity.mockResolvedValue({userId:"admin",role:"administrator"});});
+describe("POST /api/incidents/[id]/work-orders",()=>{
+  test("links an existing corrective work order",async()=>{const rpc=vi.fn().mockResolvedValue({data:{ok:true,work_order:{id:"11111111-1111-4111-8111-111111111111"}},error:null});mocks.createClient.mockResolvedValue({rpc});const response=await POST(new NextRequest("http://localhost/link",{method:"POST",body:JSON.stringify({work_order_id:"11111111-1111-4111-8111-111111111111"})}),context);expect(response.status).toBe(200);expect(rpc).toHaveBeenCalledWith("link_work_order_to_incident",expect.objectContaining({p_incident_id:"22222222-2222-4222-8222-222222222222"}));});
+  test("creates corrective work only when explicitly requested then links it",async()=>{const rpc=vi.fn().mockResolvedValueOnce({data:{ok:true,work_order:{id:"11111111-1111-4111-8111-111111111111"}},error:null}).mockResolvedValueOnce({data:{ok:true,work_order:{id:"11111111-1111-4111-8111-111111111111"}},error:null});mocks.createClient.mockResolvedValue({rpc});const response=await POST(new NextRequest("http://localhost/link",{method:"POST",body:JSON.stringify({title:"Repair damage",location:"Plant",priority:"high"})}),context);expect(response.status).toBe(201);expect(rpc).toHaveBeenNthCalledWith(1,"create_work_order",expect.objectContaining({p_payload:expect.objectContaining({source:"reactive"})}));expect(rpc).toHaveBeenNthCalledWith(2,"link_work_order_to_incident",expect.anything());});
+});

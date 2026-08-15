@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { operationalLabel } from "@/lib/product-terminology";
 
 const ROLES = [
   "reviewer",
@@ -24,6 +25,7 @@ type ManagedUser = {
   role: Role;
   is_active: boolean;
   deleted_at: string | null;
+  password_change_required: boolean;
   created_at: string;
   updated_at: string;
   last_active_at: string | null;
@@ -208,11 +210,9 @@ export default function UserManagement({
     }
   }
 
-  async function deleteUser(user: ManagedUser, permanent: boolean) {
-    const action = permanent ? "permanently delete" : "archive";
-    const warning = permanent
-      ? `Permanently deleting ${user.display_name} cannot be undone. Historical work records will be retained. Continue?`
-      : `Archive ${user.display_name}? The account will be deactivated and blocked from new assignments.`;
+  async function archiveUser(user: ManagedUser) {
+    const action = "archive";
+    const warning = `Archive ${user.display_name}? The account will be deactivated and blocked from new assignments.`;
     if (!window.confirm(warning)) return;
 
     const confirmation = window.prompt(
@@ -227,21 +227,49 @@ export default function UserManagement({
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ permanent, confirmation }),
+        body: JSON.stringify({ confirmation }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? `${action} failed.`);
-      setMessage(
-        permanent
-          ? `${user.display_name} was permanently deleted.`
-          : `${user.display_name} was archived.`,
-      );
+      setMessage(`${user.display_name} was archived.`);
       await loadUsers();
     } catch (deleteError) {
       setError(
         deleteError instanceof Error
           ? deleteError.message
           : `${action} failed.`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function permanentlyDeleteUser(user: ManagedUser) {
+    const warning = `Permanently delete ${user.display_name} from Supabase Auth? This cannot be undone and is available only when retained operational records do not prevent profile removal. Archive is the normal account-retention action.`;
+    if (!window.confirm(warning)) return;
+    const confirmation = window.prompt(
+      `Type "${user.email ?? user.display_name}" to permanently delete this user.`,
+    );
+    if (confirmation === null) return;
+
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permanent: true, confirmation }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Permanent deletion failed.");
+      setMessage(`${user.display_name} was permanently deleted from Auth.`);
+      await loadUsers();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Permanent deletion failed.",
       );
     } finally {
       setSubmitting(false);
@@ -315,10 +343,10 @@ export default function UserManagement({
             onChange={(event) => setPresenceFilter(event.target.value)}
             className={inputClass}
           >
-            <option value="all">All presence</option>
-            <option value="online">Online</option>
-            <option value="idle">Idle</option>
-            <option value="offline">Offline</option>
+            <option value="all">All recorded activity</option>
+            <option value="online">Recent activity</option>
+            <option value="idle">Aging activity</option>
+            <option value="offline">No recent activity</option>
           </select>
           <select
             aria-label="Sort users"
@@ -349,7 +377,7 @@ export default function UserManagement({
                   <th className="px-3 py-3">Department</th>
                   <th className="px-3 py-3">Trade/discipline</th>
                   <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Presence / Session</th>
+                  <th className="px-3 py-3">Recorded activity</th>
                   <th className="px-3 py-3">Activity / Sign-in</th>
                   <th className="px-3 py-3">Created</th>
                   <th className="px-3 py-3">Actions</th>
@@ -488,6 +516,11 @@ export default function UserManagement({
                               Pending activation
                             </p>
                           )}
+                          {user.password_change_required && (
+                            <p className="mt-1 text-xs font-semibold text-blue-700">
+                              First password change required
+                            </p>
+                          )}
                         </td>
                         <td className="px-3 py-4">
                           <span
@@ -499,8 +532,11 @@ export default function UserManagement({
                                   : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {user.presence_status[0].toUpperCase() +
-                              user.presence_status.slice(1)}
+                            {user.presence_status === "online"
+                              ? "Recent activity"
+                              : user.presence_status === "idle"
+                                ? "Aging activity"
+                                : "No recent activity"}
                           </span>
                           <p className="mt-2 max-w-44 text-xs text-slate-500">
                             {user.session_status}
@@ -550,8 +586,8 @@ export default function UserManagement({
                             <>
                               <button
                                 type="button"
-                                disabled={submitting || !provisioningConfigured}
-                                onClick={() => void deleteUser(user, false)}
+                                disabled={submitting}
+                                onClick={() => void archiveUser(user)}
                                 className="block w-full rounded-md border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50"
                               >
                                 Archive
@@ -559,8 +595,9 @@ export default function UserManagement({
                               <button
                                 type="button"
                                 disabled={submitting || !provisioningConfigured}
-                                onClick={() => void deleteUser(user, true)}
-                                className="block w-full rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                onClick={() => void permanentlyDeleteUser(user)}
+                                className="block w-full rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                title="Requires privileged Auth access and no blocking retained references"
                               >
                                 Permanent delete
                               </button>
@@ -584,7 +621,7 @@ export default function UserManagement({
                                   <li key={entry.id}>
                                     {formatDate(entry.created_at)} ·{" "}
                                     {entry.actor ?? "Administrator"} ·{" "}
-                                    {entry.action.replaceAll("_", " ")}
+                                    {operationalLabel(entry.action)}
                                   </li>
                                 ))}
                               </ul>

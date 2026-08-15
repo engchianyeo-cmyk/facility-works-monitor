@@ -1,39 +1,27 @@
-# FMWorks 1.1 Stabilization Batch A
+# FMWorks 1.1 Stabilization Record
 
-## Deployment identity
+## Purpose
 
-Batch A UAT must use the Preview deployment produced from the Batch A commit.
-Do not use the older `m7ongy4n9` deployment. Confirm `/api/health` reports
-version `1.1`, the expected Git commit SHA, and environment `preview` before UAT.
+This historical release record preserves the operational decisions from Stabilization Batch A without serving as the primary architecture specification.
 
-## Required configuration
+## Delivered decisions
 
-| Target | Required settings |
-|---|---|
-| Vercel Preview | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, server-only `SUPABASE_SERVICE_ROLE_KEY`, and `NEXT_PUBLIC_APP_URL` set to the stable Preview origin |
-| Vercel Production | The same four variables, with `NEXT_PUBLIC_APP_URL` set to the canonical production origin |
-| Supabase Auth | Site URL set to the canonical production origin; Redirect URLs allow the production callback and the approved Preview callback |
+- UAT must verify version, commit SHA, and environment through `/api/health` and the authenticated footer.
+- Administrator provisioning requires `NEXT_PUBLIC_SUPABASE_URL` and server-only `SUPABASE_SERVICE_ROLE_KEY`.
+- Browser authentication requires `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- Stable application and callback origins use `NEXT_PUBLIC_APP_URL` plus restricted Supabase redirect configuration.
+- Profile creation preserves `profiles.id = auth.users.id` and canonical roles.
+- Missing, inactive, or unsupported profiles fail explicitly.
+- Technician assignment notification uses a stable authenticated record path.
+- No provider means `NOT_CONFIGURED`; assignment still succeeds.
 
-Recommended Supabase Auth values:
+## Deployment controls
 
-- Site URL: `https://<production-domain>`
-- Production redirect: `https://<production-domain>/auth/callback`
-- Preferred Preview redirect: `https://<stable-preview-domain>/auth/callback`
-- If ephemeral Vercel URLs must be tested: add Supabase's documented Vercel Preview wildcard `https://*-<team-or-account-slug>.vercel.app/**`, scoped as narrowly as the project permits.
+- Prefer stable Preview domains over broad ephemeral redirect wildcards.
+- Never configure deployed callback origins as localhost.
+- Invitation/confirmation templates must honor the supplied redirect target.
+- Confirm build identity before recording UAT evidence.
 
-Supabase invitation/confirmation templates must use `{{ .RedirectTo }}` for the
-confirmation target when the flow supplies `redirectTo`; otherwise a template
-that uses only `{{ .SiteURL }}` can ignore the application callback URL.
+## Superseded details
 
-A stable Preview domain is preferred because it reduces redirect allow-list
-scope and avoids coupling invitations to short-lived deployment URLs. Never set
-a deployed `NEXT_PUBLIC_APP_URL` to localhost. The server rejects localhost
-origins when `VERCEL_ENV` indicates Preview or Production.
-
-## Assignment notification dependency
-
-Technician assignment produces a stable authenticated application path:
-`/work-orders/<work-order-id>`. Existing users can sign in and open that path;
-first-time users must first complete the existing administrator provisioning or
-Supabase invitation flow. Transactional assignment email delivery is not
-implemented because no outbound email provider or credential is provisioned.
+Old deployment identifiers and one-off Preview URLs are intentionally omitted. Current environment configuration and security requirements are in [SECURITY.md](SECURITY.md) and [ADMIN_GUIDE.md](ADMIN_GUIDE.md).

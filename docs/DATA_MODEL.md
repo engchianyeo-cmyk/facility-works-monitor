@@ -1,71 +1,56 @@
-# Data Model — Facility Works Monitor
+# FMWorks Data Model
 
-## categories
-| Field | Type | Notes |
-|---|---|---|
-| id | uuid PK | gen_random_uuid() |
-| user_id | uuid nullable | owner scope (lock-down sprint) |
-| name | text | e.g. Electrical, Plumbing |
-| created_at | timestamptz | default now() |
+## Conventions
 
-## work_orders
-| Field | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| user_id | uuid nullable | |
-| title | text | required |
-| description | text | optional |
-| location | text | required |
-| category_id | uuid FK → categories | |
-| priority | text | low / medium / high / critical |
-| status | text | submitted → approved → in_progress → done / rejected |
-| submitted_by | text | free-text name (auth link later) |
-| assigned_to | text | optional |
-| photo_url | text | optional |
-| ai_priority_score | numeric | AI field: 1–5 urgency |
-| ai_priority_source | text | AI field: model used |
-| ai_priority_confidence | numeric | AI field: 0–1 |
-| ai_priority_review_status | text | AI field: unreviewed / accepted / overridden |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+- UUID primary keys and UTC `timestamptz` audit fields.
+- Human-readable work-order and incident numbers are unique and immutable.
+- Reference data uses active/deleted markers rather than destructive removal.
+- Role and lifecycle values are constrained to canonical enumerations.
+- Legacy compatibility columns may remain until a separately approved retirement migration.
 
-## activity_logs
-| Field | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| user_id | uuid nullable | |
-| work_order_id | uuid FK → work_orders | cascade delete |
-| action | text | e.g. status_change, comment |
-| from_status | text | |
-| to_status | text | |
-| actor | text | name or system |
-| note | text | optional |
-| ai_model | text | set when action is AI-driven |
-| ai_confidence | numeric | |
-| created_at | timestamptz | |
+## Identity and organization
 
-## RLS
-- v1: permissive open policies on all tables (demo-first)
-- Lock-down sprint: replace with `auth.uid() = user_id` policies
+`profiles.id` equals `auth.users.id`. Profiles contain display identity, email, department association, canonical role, activation/deletion state, contact number, and presence metadata. `departments` provide governed organizational references. Administrators manage users; department operations follow current role policies.
 
-## Status Machine
-`submitted → approved → in_progress → done`  
-`submitted → rejected` (any step)  
-Enforced server-side in API route; invalid transitions return 400.
-# Core Work Order Engine Additions (0013)
+## Core work orders
 
-Migration 0013 preserves work-order IDs and migrates `work_order_no` to the
-unique canonical `work_order_number`. `requested_by` is the canonical requester
-while legacy `user_id` remains populated for compatibility.
+`work_orders` stores the request, priority, canonical lifecycle status, source, requester/submitter, department, site/location, asset reference, primary assignment, schedule and labour values, completion/cancellation notes, predictive context, and workflow timestamps.
 
-The work order records department, site/location, nullable asset identifier,
-source and source provenance, primary technician/vendor/team assignment, due
-date, estimated and actual labour, completion/cancellation notes, and all
-workflow timestamps. Sources are `manual`, `reactive`, `preventive`,
-`inspection`, `condition_based`, and `predictive`.
+Canonical statuses are `draft`, `submitted`, `approved`, `assigned`, `in_progress`, `completed`, `reviewed`, `closed`, and `cancelled`. Priorities are `low`, `medium`, `high`, and `critical`. Sources are `manual`, `reactive`, `preventive`, `inspection`, `condition_based`, and `predictive`.
 
-Predictive integration fields are nullable and model-agnostic:
-`asset_id`, `source_reference`, `alert_id`, `prediction_reference`,
-`health_score_at_creation`, `failure_probability`, `predicted_failure_date`,
-`recommended_action`, and `confidence_score`. No ingestion or prediction model
-is introduced by this migration.
+Primary assignments are mutually exclusive: Technician, vendor, or maintenance team. `maintenance_team_members` connects active profiles to teams. `vendors` and teams are soft-deactivatable reference data.
+
+## Audit and completion
+
+`activity_logs` stores work-order or incident actions with actor, state change, note, and timestamp. Critical mutations write their domain record and audit entry in one transaction. `work_order_completions` and `work_order_evidence` support protected technician completion/evidence workflows. Storage access remains a protected server concern.
+
+## Notifications
+
+`notification_outbox` is the durable queue/history boundary. It stores event, recipient, channel, provider-safe result metadata, attempts, and references. It must never store credentials, tokens, service-role keys, or raw provider errors.
+
+## Emergency incidents
+
+The approved incident model is separate from work orders. `incidents` stores classification, severity, response status, location, description, reporter, commander, responder/team, acknowledgement deadline, and response timestamps. `emergency_response_roster` selects active response contacts and channel preferences. `work_orders.incident_id` provides optional many-work-orders-to-one-incident linkage.
+
+Incident statuses are `reported`, `acknowledged`, `mobilising`, `on_site`, `rescue_in_progress`, `safe`, `recovery`, `closed`, and `cancelled`. See [EMERGENCY_RESPONSE.md](EMERGENCY_RESPONSE.md).
+
+## Assets and preventive maintenance
+
+`asset_systems` and `assets` form the implemented canonical Asset Registry, including business identifiers, physical location, criticality, lifecycle state, department/team responsibility, and links to Work Orders and Incidents.
+
+`maintenance_requirements`, immutable `maintenance_requirement_revisions`, `pm_occurrences`, and `pm_occurrence_deferrals` form the implemented preventive-maintenance foundation. Occurrence materialization and Work Order generation are explicit governed operations. Compliance state is a derived operational outcome using the Singapore business-date policy; it is not a regulatory certification.
+
+## Planned domains
+
+The following are specifications, not assertions that tables exist:
+
+- Stock and transaction ledger: [INVENTORY.md](INVENTORY.md)
+- Handover and defects: [COMMISSIONING_MANAGER.md](COMMISSIONING_MANAGER.md)
+- Contracts, costs, and approvals: [COMMERCIAL.md](COMMERCIAL.md)
+
+## Integrity rules
+
+- Foreign keys use restrictive or explicit nulling/cascade behavior appropriate to audit retention.
+- Closed/cancelled operational records are not routinely deleted.
+- RLS scopes reads; RPCs enforce transitions, role checks, and transactional audit.
+- New schema changes require a new migration and disposable-database verification.

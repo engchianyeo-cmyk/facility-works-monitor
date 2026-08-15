@@ -42,6 +42,9 @@ async function updateWorkOrder(request: NextRequest, { params }: RouteContext) {
   if (contactError) return errorResponse("VALIDATION_ERROR", contactError);
   const rangeError = validatePredictiveRanges(body);
   if (rangeError) return errorResponse("VALIDATION_ERROR", rangeError);
+  // Asset relinking is intentionally excluded from the broad edit operation.
+  // It must use set_work_order_asset through /api/work-orders/{id}/asset.
+  delete body.asset_id;
   const { id } = await params;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("update_work_order", { p_work_order_id: id, p_payload: body });

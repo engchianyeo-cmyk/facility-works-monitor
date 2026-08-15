@@ -8,6 +8,7 @@ const valid: Array<[WorkOrderStatus, WorkOrderAction, WorkOrderStatus]> = [
   ["draft", "submit", "submitted"], ["submitted", "approve", "approved"],
   ["assigned", "accept", "assigned"], ["assigned", "start", "in_progress"],
   ["in_progress", "complete", "completed"], ["completed", "review", "reviewed"],
+  ["completed", "return_for_rework", "in_progress"],
   ["reviewed", "close", "closed"],
 ];
 
@@ -24,6 +25,16 @@ describe("canonical workflow authorization", () => {
   test("reviewer remains requestor-level", () => expect(canAct("approve", { ...base, role: "reviewer" })).toBe(false));
   test("approver can approve another requester's order", () => expect(canAct("approve", { ...base, role: "approver" })).toBe(true));
   test("approver cannot self-approve", () => expect(canAct("approve", { ...base, role: "approver", actorId: "requester" })).toBe(false));
+  test.each(["approver", "supervisor", "administrator"] as UserRole[])("%s can review and return completed work", (role) => {
+    const completed = { ...base, role, status: "completed" as WorkOrderStatus };
+    expect(canAct("review", completed)).toBe(true);
+    expect(canAct("return_for_rework", completed)).toBe(true);
+  });
+  test.each(["reviewer", "initiator", "technician"] as UserRole[])("%s cannot review or return completed work", (role) => {
+    const completed = { ...base, role, status: "completed" as WorkOrderStatus };
+    expect(canAct("review", completed)).toBe(false);
+    expect(canAct("return_for_rework", completed)).toBe(false);
+  });
   test("assigned technician can accept, start and complete", () => { for (const action of ["accept", "start", "complete"] as const) expect(canAct(action, { ...base, role: "technician", actorId: "technician", status: action === "complete" ? "in_progress" : "assigned" })).toBe(true); });
   test("only assignment authorities assign", () => { const roles: UserRole[] = ["reviewer", "initiator", "approver", "technician", "supervisor", "administrator"]; expect(roles.filter((role) => canAssign(role, "approved"))).toEqual(["approver", "supervisor", "administrator"]); });
   test("terminal states cannot be edited", () => { expect(canEdit({ ...base, role: "administrator", status: "closed" })).toBe(false); expect(canEdit({ ...base, role: "administrator", status: "cancelled" })).toBe(false); });

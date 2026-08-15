@@ -78,7 +78,7 @@ export async function GET() {
       supabase
         .from("profiles")
         .select(
-          "id, display_name, email, department, department_id, trade_discipline, contact_number, role, is_active, deleted_at, created_at, updated_at, last_active_at, last_seen_route",
+          "id, display_name, email, department, department_id, trade_discipline, contact_number, role, is_active, deleted_at, password_change_required, created_at, updated_at, last_active_at, last_seen_route",
         )
         .order("created_at", { ascending: false }),
       admin
@@ -183,6 +183,20 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const admin = createAdminClient();
 
+    const { data: departmentRecord, error: departmentError } = await supabase
+      .from("departments")
+      .select("id, name")
+      .ilike("name", department)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (departmentError || !departmentRecord) {
+      return NextResponse.json(
+        { error: "Select an active department." },
+        { status: departmentError ? 503 : 400 },
+      );
+    }
+
     const { data: authUsers, error: authLookupError } =
       await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (authLookupError) {
@@ -238,7 +252,9 @@ export async function POST(request: Request) {
         display_name: displayName,
         department,
         assigned_role: role,
-        is_active: isActive,
+        // Keep the invitation ticket usable even when the requested profile
+        // should begin inactive. Finalization owns the profile state.
+        is_active: true,
         token_hash: tokenHash,
         expires_at: expiresAt,
         created_by: identity.userId,
@@ -318,73 +334,6 @@ export async function POST(request: Request) {
       }
     };
 
-    const profileValues = {
-      id: invited.user.id,
-      display_name: displayName,
-      email,
-      department,
-      trade_discipline: role === "technician" ? tradeDiscipline : null,
-      contact_number: contactNumber || null,
-      role,
-      is_active: isActive,
-      deleted_at: null,
-      updated_at: new Date().toISOString(),
-    };
-    const { data: triggeredProfile, error: profileLookupError } = await admin
-      .from("profiles")
-      .select("id")
-      .eq("id", invited.user.id)
-      .maybeSingle();
-
-    const profileWrite = profileLookupError
-      ? { error: profileLookupError }
-      : triggeredProfile
-        ? await admin
-            .from("profiles")
-            .update(profileValues)
-            .eq("id", invited.user.id)
-        : await admin
-            .from("profiles")
-            .upsert(profileValues, { onConflict: "id" });
-
-    if (profileWrite.error) {
-      const rolledBack = await rollbackInvitation();
-      return NextResponse.json(
-        {
-          error: rolledBack
-            ? "The Auth invitation was cancelled because its user profile could not be created with the selected role."
-            : "The user profile could not be created and automatic cleanup was incomplete. Check Supabase Auth before retrying.",
-        },
-        { status: 500 },
-      );
-    }
-
-    const {
-      data: verifiedProfiles,
-      error: profileVerificationError,
-      count: verifiedProfileCount,
-    } = await admin
-      .from("profiles")
-      .select("id, role", { count: "exact" })
-      .eq("id", invited.user.id)
-      .eq("role", role);
-
-    if (
-      profileVerificationError ||
-      verifiedProfileCount !== 1 ||
-      verifiedProfiles?.length !== 1
-    ) {
-      const rolledBack = await rollbackInvitation();
-      return NextResponse.json(
-        {
-          error: rolledBack
-            ? "The Auth invitation was cancelled because exactly one matching user profile could not be verified."
-            : "Profile verification failed and automatic cleanup was incomplete. Check Supabase Auth before retrying.",
-        },
-        { status: 500 },
-      );
-    }
-
     const { error: metadataError } = await admin.auth.admin.updateUserById(
       invited.user.id,
       {
@@ -409,33 +358,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error: auditError } = await admin.from("activity_logs").insert({
-      user_id: identity.userId,
-      action: "user_admin_invited",
-      actor: identity.displayName,
-      note: JSON.stringify({
-        target_user_id: invited.user.id,
-        target_email: email,
-        assigned_role: role,
-        is_active: isActive,
-      }),
-    });
-    if (auditError) {
+    const { data: reconciledProfile, error: reconciliationError } = await supabase.rpc(
+      "admin_finalize_provisioned_profile",
+      {
+        p_target_id: invited.user.id,
+        p_payload: {
+          display_name: displayName,
+          department_id: departmentRecord.id,
+          trade_discipline: role === "technician" ? tradeDiscipline : null,
+          contact_number: contactNumber || null,
+          role,
+          is_active: isActive,
+        },
+        p_event: "user_admin_invited",
+      },
+    );
+    if (reconciliationError || !reconciledProfile) {
       const rolledBack = await rollbackInvitation();
       return NextResponse.json(
         {
           error: rolledBack
-            ? "The invitation was cancelled because its audit entry could not be created."
-            : "The audit entry failed and automatic cleanup was incomplete. Check Supabase Auth before retrying.",
+            ? "The invitation was cancelled because the profile and audit transaction could not be completed."
+            : "The Auth invitation exists, but its profile remains inactive because reconciliation failed. Administrator review is required.",
         },
-        { status: 500 },
+        { status: rolledBack ? 500 : 409 },
       );
     }
 
     return NextResponse.json(
       {
         success: true,
-        message: `Invitation sent to ${email}. It expires in 48 hours.`,
+        message: `Invitation requested for ${email}. The user must set a private password before operational access.`,
       },
       { status: 201 },
     );

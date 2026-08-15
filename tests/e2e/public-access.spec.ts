@@ -24,24 +24,17 @@ test.describe("Public access and protected-route smoke tests", () => {
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("reviewer registration page loads when a valid role is supplied", async ({ page }) => {
+  test("role query parameters cannot reopen public registration", async ({ page }) => {
     const response = await page.goto("/register?role=reviewer");
     expect(response).not.toBeNull();
     expect(response?.status()).toBeLessThan(500);
-    await expect(page).toHaveURL(/\/register\?role=reviewer$/);
-    await expect(page.getByRole("heading", { name: "Register as a Reviewer" })).toBeVisible();
+    await expect(page).toHaveURL(/\/first-time(?:\?|$)/);
+    await expect(page.getByRole("heading", { name: "Accounts are invitation-only" })).toBeVisible();
   });
 
-  test("unauthenticated visitor can load the work-order list shell", async ({ page }) => {
-    const response = await page.goto("/works");
-    expect(response).not.toBeNull();
-    expect(response?.status()).toBeLessThan(500);
-    await expect(page).toHaveURL(/\/works(?:\?|$)/);
-    await expect(page.getByRole("heading", { name: "Work Orders" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign in to manage" })).toBeVisible();
-    await expect(page.getByText("Internal notes", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Audit history", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Contact number", { exact: true })).toHaveCount(0);
+  test("unauthenticated visitor is redirected from the legacy work-order route", async ({ page }) => {
+    await page.goto("/works");
+    await expect(page).toHaveURL(/\/login\?next=(?:%2F|\/)work-orders$/);
   });
 
   test("unauthenticated visitor is redirected from new work-order page", async ({ page }) => {

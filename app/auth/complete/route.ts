@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, is_active, deleted_at")
+    .select("role, is_active, deleted_at, password_change_required")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -56,5 +56,13 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.redirect(new URL(safeNext, requestUrl.origin));
+  if (profile.password_change_required === true) {
+    const passwordUrl = new URL("/account/password", requestUrl.origin);
+    passwordUrl.searchParams.set("setup", "required");
+    passwordUrl.searchParams.set("next", safeNext);
+    return NextResponse.redirect(passwordUrl);
+  }
+
+  const roleDefault = profile.role === "technician" ? "/operations" : "/";
+  return NextResponse.redirect(new URL(safeNext === "/" ? roleDefault : safeNext, requestUrl.origin));
 }

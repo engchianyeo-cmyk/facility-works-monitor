@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WORK_ORDER_SOURCES } from "@/lib/work-orders/types";
+import { operationalLabel } from "@/lib/product-terminology";
+import AssetSelector from "@/components/assets/asset-selector";
+import type { AssetSummary } from "@/lib/assets/types";
 
 type Option = { id: string; name: string; code?: string };
 type ExistingOrder = Record<string, string | number | null | undefined>;
@@ -10,10 +13,12 @@ type ExistingOrder = Record<string, string | number | null | undefined>;
 export default function WorkOrderForm({
   categories,
   departments,
+  assets,
   workOrder,
 }: {
   categories: Option[];
   departments: Option[];
+  assets: AssetSummary[];
   workOrder?: ExistingOrder;
 }) {
   const router = useRouter();
@@ -56,12 +61,12 @@ export default function WorkOrderForm({
         <div><label className="mb-1 block text-sm font-medium">Category</label><select name="category_id" className={input} defaultValue={String(value("category_id"))}><option value="">None</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
         <div><label className="mb-1 block text-sm font-medium">Department</label><select name="department_id" className={input} defaultValue={String(value("department_id"))}><option value="">None</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.code ? `${item.code} — ` : ""}{item.name}</option>)}</select></div>
         <div><label className="mb-1 block text-sm font-medium">Priority</label><select name="priority" className={input} defaultValue={String(value("priority") || "medium")}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
-        <div><label className="mb-1 block text-sm font-medium">Source</label><select name="source" className={input} defaultValue={String(value("source") || "manual")}>{WORK_ORDER_SOURCES.map((source) => <option key={source} value={source}>{source.replaceAll("_", " ")}</option>)}</select></div>
+        <div><label className="mb-1 block text-sm font-medium">Source</label><select name="source" className={input} defaultValue={String(value("source") || "manual")}>{WORK_ORDER_SOURCES.map((source) => <option key={source} value={source}>{operationalLabel(source)}</option>)}</select></div>
         <div><label className="mb-1 block text-sm font-medium">Due date</label><input type="date" name="due_date" className={input} defaultValue={String(value("due_date"))} /></div>
         <div><label className="mb-1 block text-sm font-medium">Estimated hours</label><input type="number" min="0" step="0.25" name="estimated_hours" className={input} defaultValue={String(value("estimated_hours"))} /></div>
-        <div><label className="mb-1 block text-sm font-medium">Asset ID</label><input name="asset_id" className={input} placeholder="UUID from the future asset registry" defaultValue={String(value("asset_id"))} /></div>
+        {!isEdit && <AssetSelector assets={assets} />}
         <div><label className="mb-1 block text-sm font-medium">Source reference</label><input name="source_reference" className={input} defaultValue={String(value("source_reference"))} /></div>
-        <div><label className="mb-1 block text-sm font-medium">Alert ID</label><input name="alert_id" className={input} defaultValue={String(value("alert_id"))} /></div>
+        <div><label className="mb-1 block text-sm font-medium">Alert reference</label><input name="alert_id" className={input} defaultValue={String(value("alert_id"))} /></div>
         <div><label className="mb-1 block text-sm font-medium">Prediction reference</label><input name="prediction_reference" className={input} defaultValue={String(value("prediction_reference"))} /></div>
         <div><label className="mb-1 block text-sm font-medium">Health score (0–100)</label><input type="number" min="0" max="100" step="0.01" name="health_score_at_creation" className={input} defaultValue={String(value("health_score_at_creation"))} /></div>
         <div><label className="mb-1 block text-sm font-medium">Failure probability (0–1)</label><input type="number" min="0" max="1" step="0.001" name="failure_probability" className={input} defaultValue={String(value("failure_probability"))} /></div>

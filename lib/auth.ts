@@ -17,13 +17,14 @@ export type AuthIdentity = {
   displayName: string;
   department: string | null;
   role: UserRole;
+  passwordChangeRequired: boolean;
 };
 
 export function isUserRole(value: unknown): value is UserRole {
   return USER_ROLES.includes(value as UserRole);
 }
 
-async function loadCurrentIdentity(): Promise<AuthIdentity | null> {
+async function loadCurrentAccountIdentity(): Promise<AuthIdentity | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,7 +35,7 @@ async function loadCurrentIdentity(): Promise<AuthIdentity | null> {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("display_name, email, department, role, is_active, deleted_at")
+    .select("display_name, email, department, role, is_active, deleted_at, password_change_required")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -62,12 +63,22 @@ async function loadCurrentIdentity(): Promise<AuthIdentity | null> {
       profile.display_name?.trim() || metadataName || emailName || "Unknown user",
     department: profile.department,
     role: profile.role,
+    passwordChangeRequired: profile.password_change_required === true,
   };
+}
+
+export async function getCurrentAccountIdentity(): Promise<AuthIdentity | null> {
+  try {
+    return await loadCurrentAccountIdentity();
+  } catch {
+    return null;
+  }
 }
 
 export async function getCurrentIdentity(): Promise<AuthIdentity | null> {
   try {
-    return await loadCurrentIdentity();
+    const identity = await loadCurrentAccountIdentity();
+    return identity?.passwordChangeRequired ? null : identity;
   } catch {
     return null;
   }

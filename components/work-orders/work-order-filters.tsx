@@ -1,6 +1,7 @@
 import type { WorkOrderStatus } from "@/lib/work-orders/types";
 import { WORK_ORDER_SOURCES, WORK_ORDER_STATUSES } from "@/lib/work-orders/types";
 import { STATUS_LABELS } from "@/lib/work-orders/workflow";
+import { operationalLabel } from "@/lib/product-terminology";
 import Link from "next/link";
 
 type Department = { id: string; code: string; name: string };
@@ -29,7 +30,7 @@ export default function WorkOrderFilters({
       </select>
       <select className={input} name="source" defaultValue={values.source ?? ""}>
         <option value="">All sources</option>
-        {WORK_ORDER_SOURCES.map((source) => <option key={source} value={source}>{source.replaceAll("_", " ")}</option>)}
+        {WORK_ORDER_SOURCES.map((source) => <option key={source} value={source}>{operationalLabel(source)}</option>)}
       </select>
       <select className={input} name="assignment" defaultValue={values.assignment ?? ""}>
         <option value="">All assignments</option><option value="mine">Assigned to me</option><option value="unassigned">Unassigned</option><option value="technician">Technician</option><option value="vendor">Vendor</option><option value="team">Team</option>

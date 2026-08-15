@@ -9,9 +9,10 @@ export default async function NewWorkOrderPage() {
   if (!identity) redirect("/login?next=/work-orders/new");
   if (!canCreate(identity.role)) redirect("/work-orders");
   const supabase = await createClient();
-  const [{ data: categories }, { data: departments }] = await Promise.all([
+  const [{ data: categories }, { data: departments }, { data: assets }] = await Promise.all([
     supabase.from("categories").select("id,name").order("name"),
     supabase.from("departments").select("id,code,name").eq("is_active", true).is("deleted_at", null).order("name"),
+    supabase.from("assets").select("id,asset_tag,name,asset_type,criticality,lifecycle_status,site,location,system:asset_systems(name,system_code)").neq("lifecycle_status", "decommissioned").order("asset_tag"),
   ]);
-  return <main className="mx-auto max-w-3xl space-y-6 p-6 lg:p-8"><div><h1 className="text-3xl font-bold">New Work Order</h1><p className="mt-1 text-sm text-slate-500">Save a draft or submit it directly into the authorization workflow.</p></div><WorkOrderForm categories={categories ?? []} departments={departments ?? []} /></main>;
+  return <main className="mx-auto max-w-3xl space-y-6 p-6 lg:p-8"><div><h1 className="text-3xl font-bold">New Work Order</h1><p className="mt-1 text-sm text-slate-500">Save a draft or submit it directly into the authorization workflow.</p></div><WorkOrderForm categories={categories ?? []} departments={departments ?? []} assets={(assets ?? []) as never[]} /></main>;
 }

@@ -1,0 +1,2 @@
+import type{ReactNode}from"react";
+export default function SectionTitle({title,eyebrow,action}:{title:string;eyebrow?:string;action?:ReactNode}){return <div className="flex flex-wrap items-end justify-between gap-3"> <div>{eyebrow&&<p className="text-xs font-black uppercase tracking-[.18em] text-blue-700">{eyebrow}</p>}<h2 className="text-xl font-black tracking-tight text-slate-950">{title}</h2></div>{action}</div>}

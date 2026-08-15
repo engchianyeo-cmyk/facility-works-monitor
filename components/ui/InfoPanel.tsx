@@ -1,0 +1,2 @@
+import type{ReactNode}from"react";
+export default function InfoPanel({children,tone="neutral",role}:{children:ReactNode;tone?:"neutral"|"warning"|"danger"|"info";role?:"alert"|"status"}){const style={neutral:"border-slate-200 bg-white text-slate-700",warning:"border-amber-200 bg-amber-50 text-amber-900",danger:"border-red-200 bg-red-50 text-red-800",info:"border-blue-200 bg-blue-50 text-blue-800"}[tone];return <div role={role} className={`rounded-xl border p-4 text-sm ${style}`}>{children}</div>}

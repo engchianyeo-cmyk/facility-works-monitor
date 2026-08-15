@@ -1,0 +1,5 @@
+import type { IncidentRecord } from "@/lib/incidents/types";
+const TERMINAL = new Set(["closed", "cancelled"]);
+const rank = (incident: IncidentRecord) => TERMINAL.has(incident.status) ? 2 : incident.severity === "emergency" ? 0 : 1;
+export function sortOperationsIncidents<T extends IncidentRecord>(incidents: T[]): T[] { return [...incidents].sort((a, b) => rank(a) - rank(b) || Date.parse(b.reported_at) - Date.parse(a.reported_at)); }
+export function incidentOperationsSummary(incidents: IncidentRecord[], now = new Date()) { const activeIncidents = incidents.filter(incident => !TERMINAL.has(incident.status)); return { active: activeIncidents.length, unacknowledged: activeIncidents.filter(incident => !incident.acknowledged_at).length, overdue: activeIncidents.filter(incident => !incident.acknowledged_at && Date.parse(incident.acknowledgement_deadline) < now.getTime()).length, unassigned: activeIncidents.filter(incident => !incident.assigned_technician_id && !incident.assigned_team_id).length }; }

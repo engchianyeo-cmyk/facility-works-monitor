@@ -12,17 +12,13 @@ select pg_temp.assert_true(to_regprocedure('public.duplicate_work_order(uuid)') 
 select pg_temp.assert_true(to_regprocedure('public.admin_correct_work_order(uuid,jsonb,text)') is not null, 'correction RPC exists');
 
 select pg_temp.assert_true(not has_function_privilege('anon','public.create_work_order(jsonb)','EXECUTE'), 'anon create denied');
-select pg_temp.assert_true(has_function_privilege('anon','public.list_public_work_orders()','EXECUTE'), 'anon public read granted');
+select pg_temp.assert_true(not has_function_privilege('anon','public.list_public_work_orders()','EXECUTE'), 'anon public read retired by pilot hardening');
 select pg_temp.assert_true(not has_table_privilege('anon','public.work_orders','SELECT'), 'anon direct work-order read denied');
 select pg_temp.assert_true(has_function_privilege('authenticated','public.create_work_order(jsonb)','EXECUTE'), 'authenticated create granted');
 select pg_temp.assert_true(not has_function_privilege('service_role','public.create_work_order(jsonb)','EXECUTE'), 'service role create deliberately denied');
 select pg_temp.assert_true(not has_table_privilege('authenticated','public.work_orders','INSERT'), 'authenticated insert denied');
 select pg_temp.assert_true(not has_table_privilege('authenticated','public.work_orders','UPDATE'), 'authenticated update denied');
 select pg_temp.assert_true(not has_table_privilege('authenticated','public.work_orders','DELETE'), 'authenticated delete denied');
-
-set role anon;
-select pg_temp.assert_true(not exists (select 1 from public.list_public_work_orders() where status = 'draft'), 'public read excludes drafts');
-reset role;
 
 select pg_temp.assert_true((select status = 'completed' and work_order_number = 'FW-2025-0042' from public.work_orders where id='30000000-0000-4000-8000-000000000001'), 'legacy completed reference preserved');
 select pg_temp.assert_true((select status = 'submitted' from public.work_orders where id='30000000-0000-4000-8000-000000000002'), 'legacy reviewed converted to submitted');

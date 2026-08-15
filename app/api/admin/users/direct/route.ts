@@ -246,7 +246,9 @@ export async function POST(request: Request) {
           display_name: displayName,
           department: department.name,
           assigned_role: role,
-          is_active: isActive,
+          // This flag controls ticket validity, not the desired profile state.
+          // The authoritative finalization RPC applies the requested state.
+          is_active: true,
           token_hash: tokenHash,
           expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
           created_by: authorization.identity.userId,
@@ -323,24 +325,26 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error: profileError } = await admin.from("profiles").upsert(
+    const provisioningEvent = mode === "activate_pending"
+      ? "user_admin_pending_activated"
+      : "user_admin_direct_created";
+    const { data: reconciledProfile, error: profileError } = await supabase.rpc(
+      "admin_finalize_provisioned_profile",
       {
-        id: userId,
-        display_name: displayName,
-        email,
-        department: department.name,
-        department_id: department.id,
-        trade_discipline: role === "technician" ? tradeDiscipline : null,
-        contact_number: contactNumber || null,
-        role,
-        is_active: isActive,
-        deleted_at: null,
-        updated_at: new Date().toISOString(),
+        p_target_id: userId,
+        p_payload: {
+          display_name: displayName,
+          department_id: department.id,
+          trade_discipline: role === "technician" ? tradeDiscipline : null,
+          contact_number: contactNumber || null,
+          role,
+          is_active: isActive,
+        },
+        p_event: provisioningEvent,
       },
-      { onConflict: "id" },
     );
 
-    if (profileError) {
+    if (profileError || !reconciledProfile) {
       if (createdNewAuthUser) {
         const { error: cleanupError } =
           await admin.auth.admin.deleteUser(userId);
@@ -355,33 +359,9 @@ export async function POST(request: Request) {
         );
       }
       return apiError(
-        "PROFILE_ACTIVATION_FAILED",
-        "The Auth account changed, but its profile could not be updated. Administrator reconciliation is required.",
-        500,
-      );
-    }
-
-    const { error: auditError } = await admin.from("activity_logs").insert({
-      user_id: authorization.identity.userId,
-      action:
-        mode === "activate_pending"
-          ? "user_admin_pending_activated"
-          : "user_admin_direct_created",
-      actor: authorization.identity.displayName,
-      note: JSON.stringify({
-        target_user_id: userId,
-        email,
-        role,
-        department_id: department.id,
-        is_active: isActive,
-        email_confirmed_by_administrator: true,
-      }),
-    });
-    if (auditError) {
-      return apiError(
-        "AUDIT_FAILED_RECONCILIATION_REQUIRED",
-        "The account was provisioned, but its audit entry failed. Administrator review is required.",
-        500,
+        "PROFILE_ACTIVATION_FAILED_RECONCILIATION_REQUIRED",
+        "The Auth credential changed, but the inactive profile and audit transaction did not complete. The account remains operationally locked and requires Administrator reconciliation.",
+        409,
       );
     }
 
@@ -391,8 +371,8 @@ export async function POST(request: Request) {
       user_id: userId,
       message:
         mode === "activate_pending"
-          ? `Pending account activated and set ${state}.`
-          : `User created and set ${state}.`,
+          ? `Pending account reconciled and set ${state}. A first password change is required.`
+          : `User created and set ${state}. A first password change is required.`,
     });
   } catch {
     return apiError(

@@ -10,6 +10,7 @@ function authClient(options: {
   role?: string;
   active?: boolean;
   deletedAt?: string | null;
+  passwordChangeRequired?: boolean;
   missing?: boolean;
   profileError?: unknown;
   user?: boolean;
@@ -24,6 +25,7 @@ function authClient(options: {
             role: options.role ?? "reviewer",
             is_active: options.active ?? true,
             deleted_at: options.deletedAt ?? null,
+            password_change_required: options.passwordChangeRequired ?? false,
           },
       error: options.profileError ?? null,
     }),
@@ -73,7 +75,13 @@ describe("GET /auth/complete", () => {
   test("does not route an active Technician to the legacy public compatibility list", async () => {
     mocks.createClient.mockResolvedValue(authClient({ role: "technician" }));
     const response = await GET(new Request("http://localhost/auth/complete"));
-    expect(response.headers.get("location")).toBe("http://localhost/");
+    expect(response.headers.get("location")).toBe("http://localhost/operations");
+  });
+
+  test("routes a password-pending account to mandatory password setup", async () => {
+    mocks.createClient.mockResolvedValue(authClient({ role: "reviewer", passwordChangeRequired: true }));
+    const response = await GET(new Request("http://localhost/auth/complete?next=/work-orders"));
+    expect(response.headers.get("location")).toBe("http://localhost/account/password?setup=required&next=%2Fwork-orders");
   });
 
   test.each([

@@ -35,6 +35,7 @@ export const WORK_ORDER_ACTIONS = [
   "start",
   "complete",
   "review",
+  "return_for_rework",
   "close",
   "cancel",
 ] as const;

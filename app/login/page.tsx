@@ -29,6 +29,9 @@ export default async function LoginPage({
         )}
         <AuthForm mode="login" nextPath={nextPath} />
         <div className="mt-5 space-y-3 border-t border-slate-200 pt-5 text-center">
+          <Link href="/forgot-password" className="text-sm font-semibold text-blue-700 hover:underline">
+            Forgot your password?
+          </Link>
           <Link
             href="/first-time"
             className="block w-full rounded-lg border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
@@ -36,7 +39,7 @@ export default async function LoginPage({
             First-time user
           </Link>
           <p className="text-xs text-slate-500">
-            New Reviewer or Technician accounts begin here.
+            New accounts are created or invited by an Administrator.
           </p>
         </div>
       </div>

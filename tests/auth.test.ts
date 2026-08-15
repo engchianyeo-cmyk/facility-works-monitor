@@ -47,6 +47,7 @@ const activeProfile = {
   role: "reviewer",
   is_active: true,
   deleted_at: null,
+  password_change_required: false,
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -63,12 +64,20 @@ describe("getCurrentIdentity", () => {
       displayName: activeProfile.display_name,
       department: activeProfile.department,
       role,
+      passwordChangeRequired: false,
     });
   });
 
   test("rejects an inactive profile", async () => {
     mocks.createClient.mockResolvedValue(
       clientFor({ user, profile: { ...activeProfile, is_active: false } }),
+    );
+    await expect(getCurrentIdentity()).resolves.toBeNull();
+  });
+
+  test("rejects a password-pending profile from operational identity", async () => {
+    mocks.createClient.mockResolvedValue(
+      clientFor({ user, profile: { ...activeProfile, password_change_required: true } }),
     );
     await expect(getCurrentIdentity()).resolves.toBeNull();
   });

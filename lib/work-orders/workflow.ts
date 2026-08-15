@@ -1,4 +1,5 @@
 import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
+import { workOrderStatusLabel } from "@/lib/product-terminology";
 
 export const WORKFLOW_TRANSITIONS: Record<
   Exclude<WorkOrderAction, "accept" | "cancel">,
@@ -9,6 +10,7 @@ export const WORKFLOW_TRANSITIONS: Record<
   start: { from: ["assigned"], to: "in_progress" },
   complete: { from: ["in_progress"], to: "completed" },
   review: { from: ["completed"], to: "reviewed" },
+  return_for_rework: { from: ["completed"], to: "in_progress" },
   close: { from: ["reviewed"], to: "closed" },
 };
 
@@ -45,13 +47,13 @@ export function getTransition(
 }
 
 export const STATUS_LABELS: Record<WorkOrderStatus, string> = {
-  draft: "Draft",
-  submitted: "Submitted",
-  approved: "Approved",
-  assigned: "Assigned",
-  in_progress: "In Progress",
-  completed: "Completed",
-  reviewed: "Reviewed",
-  closed: "Closed",
-  cancelled: "Cancelled",
+  draft: workOrderStatusLabel("draft"),
+  submitted: workOrderStatusLabel("submitted"),
+  approved: workOrderStatusLabel("approved"),
+  assigned: workOrderStatusLabel("assigned"),
+  in_progress: workOrderStatusLabel("in_progress"),
+  completed: workOrderStatusLabel("completed"),
+  reviewed: workOrderStatusLabel("reviewed"),
+  closed: workOrderStatusLabel("closed"),
+  cancelled: workOrderStatusLabel("cancelled"),
 };
