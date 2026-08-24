@@ -3,7 +3,9 @@
 -- Purpose: establish the minimum application state required immediately before
 -- migration 0012 on a completely fresh Supabase database.
 -- Supported target: fresh Supabase managed schemas with no FMWorks application
--- objects and an empty Auth database.
+-- objects and, by default, an empty Auth database. The exceptional
+-- auth-preserving path requires an explicit session setting plus an exact
+-- pg_temp allowlist created by the controlled runner.
 --
 -- Historical migrations 0001-0011 are provenance only and are not replayed by
 -- this bootstrap. Migration 0011 is intentionally excluded. The required next
@@ -21,6 +23,10 @@ begin;
 do $bootstrap_preflight$
 declare
   object_name text;
+  preserve_auth boolean := coalesce(
+    pg_catalog.current_setting('fmworks.auth_preservation_mode', true) = 'on',
+    false
+  );
 begin
   if current_user <> 'postgres' then
     raise exception using
@@ -47,10 +53,39 @@ begin
       message = 'FMWorks bootstrap refused: required Supabase roles are unavailable';
   end if;
 
-  if exists (select 1 from auth.users) then
+  if exists (select 1 from auth.users) and not preserve_auth then
     raise exception using
       errcode = '55000',
       message = 'FMWorks bootstrap refused: auth.users must be empty';
+  end if;
+
+  if preserve_auth then
+    if pg_catalog.to_regclass('pg_temp.fmworks_preserved_auth_ids') is null then
+      raise exception using
+        errcode = '55000',
+        message = 'FMWorks bootstrap refused: auth-preserving allowlist is unavailable';
+    end if;
+
+    if not exists (select 1 from auth.users)
+      or not exists (select 1 from pg_temp.fmworks_preserved_auth_ids) then
+      raise exception using
+        errcode = '55000',
+        message = 'FMWorks bootstrap refused: auth-preserving identity set must be non-empty';
+    end if;
+
+    if exists (
+      select existing.id from auth.users as existing
+      except
+      select allowed.id from pg_temp.fmworks_preserved_auth_ids as allowed
+    ) or exists (
+      select allowed.id from pg_temp.fmworks_preserved_auth_ids as allowed
+      except
+      select existing.id from auth.users as existing
+    ) then
+      raise exception using
+        errcode = '55000',
+        message = 'FMWorks bootstrap refused: auth-preserving identity set does not exactly match auth.users';
+    end if;
   end if;
 
   foreach object_name in array array[
