@@ -47,6 +47,13 @@ describe("POST /api/auth/password/change", () => {
     expect(mocks.rpc).toHaveBeenCalledWith("complete_password_change_trusted", { p_user_id: "user-1" });
   });
 
+  test("returns success when trusted reconciliation reports an already-ready profile", async () => {
+    mocks.rpc.mockResolvedValue({ data: { ok: true, was_required: false }, error: null });
+    const response = await POST(request({ password: "long-enough-password", confirmation: "long-enough-password" }));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ ok: true });
+  });
+
   test("reports a locked reconciliation state without claiming failure to change Auth", async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "database unavailable" } });
     const response = await POST(request({ password: "long-enough-password", confirmation: "long-enough-password" }));

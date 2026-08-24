@@ -32,8 +32,18 @@ export async function POST(request: Request) {
   const { error: authError } = await admin.auth.admin.updateUserById(user.id, {
     password: validation.password,
   });
-  if (authError) return NextResponse.json({ error: "The password could not be changed." }, { status: 422 });
+  if (authError) {
+    console.warn("[password-change] Supabase password update failed", {
+      status: authError.status,
+      code: authError.code,
+      name: authError.name,
+    });
 
+    return NextResponse.json(
+      { error: "The password could not be changed." },
+      { status: 422 },
+    );
+  }
   const { error: reconciliationError } = await admin.rpc("complete_password_change_trusted", {
     p_user_id: user.id,
   });

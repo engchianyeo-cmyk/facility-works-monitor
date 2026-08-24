@@ -17,6 +17,17 @@ const related = (row: Row, key: string): Row => {
   const candidate = Array.isArray(item) ? item[0] : item;
   return candidate && typeof candidate === "object" ? candidate as Row : {};
 };
+const workOrderAssignmentType = (row: Row): CsvValue => {
+  if (value(row, "assigned_technician_id")) return "technician";
+  if (value(row, "assigned_vendor_id")) return "vendor";
+  if (value(row, "assigned_team_id")) return "team";
+  return null;
+};
+const incidentAssignmentType = (technician: Row, team: Row): CsvValue => {
+  if (value(technician, "display_name")) return "technician";
+  if (value(team, "name")) return "team";
+  return null;
+};
 
 function csvResponse(register: string, headers: string[], rows: CsvValue[][]) {
   return new NextResponse(createCsv(headers, rows), {
@@ -41,7 +52,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const asOf = singaporeTimestamp();
 
   if (register === "work-orders") {
-    const { data, error } = await supabase.from("work_orders").select("id,work_order_number,title,site,location,priority,status,source,source_reference,due_date,created_at,updated_at,completed_at,reviewed_at,closed_at,cancelled_at,assigned_type,assigned_to,asset:assets(asset_tag,name)").order("work_order_number");
+    const { data, error } = await supabase.from("work_orders").select("id,work_order_number,title,site,location,priority,status,source,source_reference,due_date,created_at,updated_at,completed_at,reviewed_at,closed_at,cancelled_at,assigned_technician_id,assigned_vendor_id,assigned_team_id,assigned_to,asset:assets(asset_tag,name)").order("work_order_number");
     if (error) return NextResponse.json({ error: "Work Order export is unavailable." }, { status: 503 });
     const records = (data ?? []) as unknown as Row[];
     const ids = records.map((row) => String(row.id));
@@ -55,7 +66,7 @@ export async function GET(_request: Request, context: RouteContext) {
       rework.set(id, (rework.get(id) ?? 0) + 1);
     }
     const headers = ["as_of_asia_singapore","work_order_number","title","site","location","asset_tag","asset_name","priority","status","source","source_reference","assigned_type","assignee_name","due_date","created_at","updated_at","completed_at","reviewed_at","closed_at","cancelled_at","rework_count"];
-    return csvResponse(register, headers, records.map((row) => { const asset = related(row, "asset"); return [asOf,value(row,"work_order_number"),value(row,"title"),value(row,"site"),value(row,"location"),value(asset,"asset_tag"),value(asset,"name"),value(row,"priority"),value(row,"status"),value(row,"source"),value(row,"source_reference"),value(row,"assigned_type"),exportDisplayValue(value(row,"assigned_to")),value(row,"due_date"),value(row,"created_at"),value(row,"updated_at"),value(row,"completed_at"),value(row,"reviewed_at"),value(row,"closed_at"),value(row,"cancelled_at"),rework.get(String(row.id)) ?? 0]; }));
+    return csvResponse(register, headers, records.map((row) => { const asset = related(row, "asset"); return [asOf,value(row,"work_order_number"),value(row,"title"),value(row,"site"),value(row,"location"),value(asset,"asset_tag"),value(asset,"name"),value(row,"priority"),value(row,"status"),value(row,"source"),value(row,"source_reference"),workOrderAssignmentType(row),exportDisplayValue(value(row,"assigned_to")),value(row,"due_date"),value(row,"created_at"),value(row,"updated_at"),value(row,"completed_at"),value(row,"reviewed_at"),value(row,"closed_at"),value(row,"cancelled_at"),rework.get(String(row.id)) ?? 0]; }));
   }
 
   if (register === "assets") {
@@ -66,10 +77,10 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (register === "incidents") {
-    const { data, error } = await supabase.from("incidents").select("incident_number,incident_type,severity,status,location,description,reported_at,acknowledgement_deadline,acknowledged_at,rescue_started_at,safe_at,recovery_started_at,closed_at,assignment_type,asset:assets(asset_tag,name),assigned_technician:profiles!incidents_assigned_technician_id_fkey(display_name),assigned_team:maintenance_teams(name),incident_commander:profiles!incidents_incident_commander_id_fkey(display_name)").order("reported_at");
+    const { data, error } = await supabase.from("incidents").select("incident_number,incident_type,severity,status,location,description,reported_at,acknowledgement_deadline,acknowledged_at,rescue_started_at,safe_at,recovery_started_at,closed_at,asset:assets(asset_tag,name),assigned_technician:profiles!incidents_assigned_technician_id_fkey(display_name),assigned_team:maintenance_teams(name),incident_commander:profiles!incidents_incident_commander_id_fkey(display_name)").order("reported_at");
     if (error) return NextResponse.json({ error: "Incident export is unavailable." }, { status: 503 });
     const headers = ["as_of_asia_singapore","incident_number","incident_type","severity","status","site_location","description","asset_tag","asset_name","assignment_type","assigned_technician","assigned_team","incident_commander","reported_at","acknowledgement_deadline","acknowledged_at","rescue_started_at","safe_at","recovery_started_at","closed_at"];
-    return csvResponse(register, headers, ((data ?? []) as unknown as Row[]).map((row) => { const asset=related(row,"asset"), technician=related(row,"assigned_technician"), team=related(row,"assigned_team"), commander=related(row,"incident_commander"); return [asOf,value(row,"incident_number"),value(row,"incident_type"),value(row,"severity"),value(row,"status"),value(row,"location"),value(row,"description"),value(asset,"asset_tag"),value(asset,"name"),value(row,"assignment_type"),value(technician,"display_name"),value(team,"name"),value(commander,"display_name"),value(row,"reported_at"),value(row,"acknowledgement_deadline"),value(row,"acknowledged_at"),value(row,"rescue_started_at"),value(row,"safe_at"),value(row,"recovery_started_at"),value(row,"closed_at")]; }));
+    return csvResponse(register, headers, ((data ?? []) as unknown as Row[]).map((row) => { const asset=related(row,"asset"), technician=related(row,"assigned_technician"), team=related(row,"assigned_team"), commander=related(row,"incident_commander"); return [asOf,value(row,"incident_number"),value(row,"incident_type"),value(row,"severity"),value(row,"status"),value(row,"location"),value(row,"description"),value(asset,"asset_tag"),value(asset,"name"),incidentAssignmentType(technician,team),value(technician,"display_name"),value(team,"name"),value(commander,"display_name"),value(row,"reported_at"),value(row,"acknowledgement_deadline"),value(row,"acknowledged_at"),value(row,"rescue_started_at"),value(row,"safe_at"),value(row,"recovery_started_at"),value(row,"closed_at")]; }));
   }
 
   const [{ data, error }, complianceResult] = await Promise.all([

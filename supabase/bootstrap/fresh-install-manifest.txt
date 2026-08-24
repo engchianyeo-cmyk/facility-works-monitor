@@ -10,3 +10,5 @@ supabase/migrations/0017_work_order_completion_rework.sql
 supabase/migrations/0018_asset_registry_foundation.sql
 supabase/migrations/0019_preventive_maintenance_foundation.sql
 supabase/migrations/0020_pilot_identity_trust_hardening.sql
+supabase/migrations/0021_fresh_install_trust_contract_repair.sql
+supabase/migrations/0022_uat_material_defect_remediation.sql

@@ -11,15 +11,38 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { email?: unknown };
     const email = typeof body.email === "string" ? body.email.trim() : "";
+
     if (email && email.length <= 320) {
       const callback = new URL(applicationCallbackUrl(request.url));
       callback.searchParams.set("next", "/account/password");
+
       const supabase = await createClient();
-      await supabase.auth.resetPasswordForEmail(email, { redirectTo: callback.toString() });
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: callback.toString(),
+      });
+
+      if (error) {
+        console.warn("[password-recovery] Supabase recovery request failed", {
+          status: error.status,
+          code: error.code,
+          name: error.name,
+        });
+      }
     }
-  } catch {
+  } catch (error) {
+    console.warn("[password-recovery] Recovery request handling failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+
     // Intentionally return the same response for malformed, unknown, throttled,
     // and unavailable accounts to avoid account enumeration.
   }
-  return NextResponse.json(GENERIC_RESPONSE, { status: 202, headers: { "cache-control": "no-store" } });
+
+  return NextResponse.json(GENERIC_RESPONSE, {
+    status: 202,
+    headers: {
+      "cache-control": "no-store",
+    },
+  });
 }
