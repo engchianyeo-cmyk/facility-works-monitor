@@ -82,6 +82,10 @@ export default async function SiteHeader() {
             <Link href="/exports" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Exports</Link>
           )}
 
+          {identity && ["approver", "supervisor", "administrator"].includes(identity.role) && (
+            <Link href="/management/sla" className="rounded-lg px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50">SLA</Link>
+          )}
+
           {identity ? (
             <>
               {identity.role === "administrator" && (

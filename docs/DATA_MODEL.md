@@ -40,6 +40,16 @@ Incident statuses are `reported`, `acknowledged`, `mobilising`, `on_site`, `resc
 
 `maintenance_requirements`, immutable `maintenance_requirement_revisions`, `pm_occurrences`, and `pm_occurrence_deferrals` form the implemented preventive-maintenance foundation. Occurrence materialization and Work Order generation are explicit governed operations. Compliance state is a derived operational outcome using the Singapore business-date policy; it is not a regulatory certification.
 
+## SLA, escalation, locations, and reporting
+
+`sla_agreements`, immutable `sla_agreement_versions`, `service_categories`, and `sla_rules` retain contractual provenance, effective dates, priority targets, KPI targets, and approval state. Only an approved effective version can attach `work_order_sla_clocks` to a Work Order. `escalation_matrix_steps` defines percentage and critical-safety triggers; `sla_escalation_events` retains durable escalation and acknowledgement history.
+
+`sites`, `buildings`, `location_levels`, and `location_zones` provide the Site → Building → Level → Zone/Room hierarchy, with Assets as the operational leaf. `report_schedules` stores cadence, scope, recipients, last/next-run state, and an honest `NOT_CONFIGURED` delivery state. `report_runs` stores generated-run metadata without pretending external delivery occurred.
+
+AI extraction proposals are non-operational records with source provenance, confidence, warnings, and human approval state. They cannot activate a contract version or mutate deterministic Work Order SLA clocks.
+
+See [SLA_REPORTING.md](SLA_REPORTING.md).
+
 ## Planned domains
 
 The following are specifications, not assertions that tables exist:
