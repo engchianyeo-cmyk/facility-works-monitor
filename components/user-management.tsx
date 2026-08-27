@@ -122,6 +122,12 @@ export default function UserManagement({
   }, [loadUsers]);
 
   useEffect(() => {
+    const refresh = () => void loadUsers(true);
+    window.addEventListener("fmworks:user-provisioned", refresh);
+    return () => window.removeEventListener("fmworks:user-provisioned", refresh);
+  }, [loadUsers]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       void loadUsers(true);
     }, 30 * 1000);

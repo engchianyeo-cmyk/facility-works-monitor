@@ -30,9 +30,9 @@ export default function WorkOrderForm({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(null);
     const form = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(form.entries());
+    const payload: Record<string, FormDataEntryValue | null> = Object.fromEntries(form.entries());
     for (const key of ["category_id", "department_id", "asset_id", "due_date", "estimated_hours", "health_score_at_creation", "failure_probability", "predicted_failure_date", "confidence_score"]) {
-      if (payload[key] === "") payload[key] = "";
+      if (payload[key] === "") payload[key] = null;
     }
     payload.submit = String((event.nativeEvent as SubmitEvent).submitter?.getAttribute("data-submit")) === "true" ? "true" : "false";
     try {

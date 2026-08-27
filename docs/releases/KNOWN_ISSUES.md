@@ -23,6 +23,15 @@ Each open item needs an owner, impact, workaround, target release and Go/No-Go d
 - Realtime Command Centre subscriptions
 - Asset, preventive maintenance, inventory, commissioning and commercial modules
 
+## Pilot automated-acceptance observations
+
+| ID / severity | Impact | Current behavior/workaround | Decision |
+|---|---|---|---|
+| WP-PILOT-GO-002-AUTO-001 / P3 | Windows release-gate logs include Node `DEP0190` warnings when invoking `.cmd` tools | The commands and gate results are unaffected; retain the warning in CI evidence | Replace the Windows command launcher without weakening argument handling |
+| WP-PILOT-GO-002-AUTO-002 / P3 | Next.js development-server logs repeat a `NO_COLOR`/`FORCE_COLOR` warning during Playwright | Browser journeys and production build are unaffected | Clean up reporter environment variables in a later tooling pass |
+
+No open P2 issue was found by WP-PILOT-GO-002. Neither P3 observation affects safety, authorization, data integrity, or a Pilot core workflow.
+
 ## Release 1.3 candidates
 
 1. Provider integration and secure delivery worker.

@@ -117,6 +117,7 @@ export default function DirectUserProvisioning() {
 
       setMessage(result.message ?? "User provisioned successfully.");
       setForm({ ...EMPTY_FORM, department_id: departments[0]?.id ?? "" });
+      window.dispatchEvent(new Event("fmworks:user-provisioned"));
     } catch (submitError) {
       setError(
         submitError instanceof Error
