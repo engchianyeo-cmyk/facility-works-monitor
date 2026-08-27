@@ -31,8 +31,9 @@ function run(command, args, options = {}) {
   return options.capture ? result.stdout : "";
 }
 
-function sql(path) {
-  run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"], {
+function sql(path, variables = []) {
+  const variableArgs = variables.flatMap(([name, value]) => ["-v", `${name}=${value}`]);
+  run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", ...variableArgs, "-U", "postgres", "-d", "postgres"], {
     label: `apply ${path}`,
     input: readFileSync(path, "utf8"),
   });
@@ -129,6 +130,7 @@ function runSqlRegressions() {
     "tests/sql/run_auth_preserving_fresh_install.sh",
     "tests/sql/run_0023_first_administrator_bootstrap.sh",
     "tests/sql/run_0024_department_master_data_baseline.sh",
+    "tests/sql/run_0025_work_order_uat_dataset.sh",
   ];
   for (const runner of runners) {
     const name = `fmworks-release-${runner.match(/run_(.+)\.sh$/)[1].replaceAll("_", "-")}-${process.pid}`;
@@ -173,6 +175,7 @@ async function main() {
   const status = run(npx, ["supabase", "status", "-o", "json"], { capture: true, label: "read isolated Supabase test endpoints" });
   const localEnvironment = parseSupabaseEnvironment(status);
   const identities = await seedSyntheticIdentities(localEnvironment);
+  sql("supabase/uat/008_work_order_uat_dataset.sql", [["fmworks_preview_project_ref", "pvajuywwwpjlikqjnvgv"]]);
   const env = {
     ...process.env,
     ...identities,
