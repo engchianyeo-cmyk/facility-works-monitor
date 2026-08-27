@@ -57,6 +57,7 @@ export async function GET() {
       success: true,
       provisioning_configured: isAdminConfigured(),
       departments: departments ?? [],
+      department_setup_required: (departments ?? []).length === 0,
     });
   } catch {
     return apiError(

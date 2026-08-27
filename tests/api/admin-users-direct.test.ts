@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   departmentResult: { data: null as unknown, error: null as unknown },
   profileResult: { data: null as unknown, error: null as unknown },
   invitationResult: { data: { id: "invite-1" } as unknown, error: null as unknown },
+  departmentListResult: { data: [] as unknown[], error: null as unknown },
 }));
 
 vi.mock("@/lib/auth", async () => {
@@ -40,6 +41,8 @@ beforeEach(() => {
   mocks.profileResult.error = null;
   mocks.invitationResult.data = { id: "invite-1" };
   mocks.invitationResult.error = null;
+  mocks.departmentListResult.data = [{ id: DEPARTMENT_ID, name: "Facilities" }];
+  mocks.departmentListResult.error = null;
   mocks.rpc.mockResolvedValue({ data: { id: USER_ID, password_change_required: true }, error: null });
   mocks.createUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null });
   mocks.updateUserById.mockResolvedValue({ error: null });
@@ -48,7 +51,7 @@ beforeEach(() => {
 
   const department = chain(["select", "eq", "is", "order", "maybeSingle"]);
   department.maybeSingle.mockResolvedValue(mocks.departmentResult);
-  department.order.mockResolvedValue(mocks.departmentResult);
+  department.order.mockImplementation(() => Promise.resolve(mocks.departmentListResult));
   mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(department), rpc: mocks.rpc });
 
   const profile = chain(["select", "ilike", "maybeSingle"]);
@@ -74,7 +77,23 @@ describe("administrator direct user provisioning", () => {
   test("reports whether provisioning is configured", async () => {
     const response = await GET();
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ success: true, provisioning_configured: true });
+    await expect(response.json()).resolves.toMatchObject({
+      success: true,
+      provisioning_configured: true,
+      department_setup_required: false,
+      departments: [{ id: DEPARTMENT_ID, name: "Facilities" }],
+    });
+  });
+
+  test("reports the empty-bootstrap department prerequisite without inventing master data", async () => {
+    mocks.departmentListResult.data = [];
+    const response = await GET();
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      success: true,
+      department_setup_required: true,
+      departments: [],
+    });
   });
 
   test("rejects weak temporary passwords", async () => {

@@ -82,8 +82,6 @@ async function seedSyntheticIdentities(environment) {
   ).join(",\n");
   const setup = `
 begin;
-insert into public.departments(code,name,description,is_active)
-values ('PILOT-TEST','Synthetic Pilot Department','Automated acceptance data only',true);
 select pg_catalog.set_config('fmworks.profile_admin_rpc','on',true);
 update public.profiles as profile
 set role = seed.role, display_name = seed.display_name, is_active = true, deleted_at = null

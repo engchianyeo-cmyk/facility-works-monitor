@@ -17,11 +17,26 @@ test.describe.serial("Pilot identity, password lifecycle and RBAC", () => {
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 
     const unique = process.env.E2E_SYNTHETIC_RUN_ID!.slice(0, 8);
+    const departmentName = `Pilot Facilities ${unique}`;
+    const departmentSelect = page.getByLabel("Department");
+    await expect(departmentSelect.locator("option")).toHaveCount(1);
+    await expect(page.getByText("User provisioning requires at least one active department.")).toBeVisible();
+    await page.getByRole("link", { name: "Create an active department" }).click();
+    await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
+    await page.getByLabel("Code").fill(`PILOT-${unique}`.slice(0, 24));
+    await page.getByLabel("Name").fill(departmentName);
+    await page.getByRole("button", { name: "Create department" }).click();
+    await expect(page.getByRole("status")).toHaveText("Department created.");
+
+    await page.goto("/administration/users");
+    await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
     const email = `pilot.provisioned.${unique}@example.test`;
     const provisioning = page.locator("form").filter({ has: page.getByRole("button", { name: "Create user" }) });
+    await expect(provisioning.getByLabel("Department").locator("option")).toHaveCount(2);
+    await expect(provisioning.getByLabel("Department").locator("option").nth(1)).toHaveText(departmentName);
     await provisioning.getByLabel("Display name").fill(`Pilot Provisioned ${unique}`);
     await provisioning.getByLabel("Unique email").fill(email);
-    await provisioning.getByLabel("Department").selectOption({ index: 1 });
+    await provisioning.getByLabel("Department").selectOption({ label: departmentName });
     await provisioning.locator("label").filter({ hasText: /^Role/ }).locator("select").selectOption("reviewer");
     await provisioning.getByLabel("Temporary password").fill("Pilot-Provisioned-2026!");
     await provisioning.getByRole("button", { name: "Create user" }).click();

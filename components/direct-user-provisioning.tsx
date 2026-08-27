@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const ROLES = [
@@ -60,6 +61,7 @@ export default function DirectUserProvisioning() {
           error?: string;
           provisioning_configured?: boolean;
           departments?: Department[];
+          department_setup_required?: boolean;
         };
         if (!response.ok) {
           throw new Error(
@@ -158,6 +160,21 @@ export default function DirectUserProvisioning() {
             deployment Administrator to configure privileged server access.
           </p>
         )}
+        {!configurationLoading && departments.length === 0 && (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 sm:col-span-2 lg:col-span-3"
+          >
+            User provisioning requires at least one active department.{" "}
+            <Link
+              href="/administration/departments"
+              className="font-semibold underline underline-offset-2"
+            >
+              Create an active department
+            </Link>{" "}
+            using the approved Pilot master data, then return here.
+          </p>
+        )}
         <label className="text-sm font-medium text-slate-700">
           Action
           <select
@@ -206,6 +223,7 @@ export default function DirectUserProvisioning() {
           Department
           <select
             required
+            disabled={configurationLoading || departments.length === 0}
             value={form.department_id}
             onChange={(event) =>
               setForm({ ...form, department_id: event.target.value })
