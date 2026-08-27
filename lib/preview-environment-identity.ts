@@ -1,7 +1,7 @@
 import "server-only";
 import { lookup } from "node:dns/promises";
 
-export const PREVIEW_PROJECT_REF = "pvajuywwwypjlikqjnvgv";
+export const PREVIEW_PROJECT_REF = "pvajuywwwpjlikqjnvgv";
 export const PRODUCTION_PROJECT_REF = "pyapukytcrsuowmgzqzh";
 export const PREVIEW_HOSTNAME = `${PREVIEW_PROJECT_REF}.supabase.co`;
 export const PREVIEW_SUPABASE_URL = `https://${PREVIEW_HOSTNAME}`;

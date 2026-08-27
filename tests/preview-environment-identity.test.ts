@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { GET } from "@/app/api/internal/preview-environment-check/route";
-import { classifyLegacyRole, diagnosePreviewNetwork, PREVIEW_HOSTNAME, PREVIEW_SUPABASE_URL } from "@/lib/preview-environment-identity";
+import { classifyLegacyRole, classifySupabaseUrl, diagnosePreviewNetwork, PREVIEW_HOSTNAME, PREVIEW_SUPABASE_URL } from "@/lib/preview-environment-identity";
 
 const originalEnvironment = process.env.VERCEL_ENV;
 afterEach(() => { if (originalEnvironment === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = originalEnvironment; });
@@ -8,6 +8,10 @@ function jwt(role: string) { const encode = (value: object) => Buffer.from(JSON.
 const resolved = async () => ({});
 
 describe("Preview network connectivity diagnostic", () => {
+  test("accepts only the authoritative Preview project reference", () => {
+    expect(classifySupabaseUrl("https://pvajuywwwpjlikqjnvgv.supabase.co")).toBe("PREVIEW_MATCH");
+    expect(classifySupabaseUrl("https://pvajuywwwypjlikqjnvgv.supabase.co")).toBe("UNRECOGNIZED");
+  });
   test("refuses endpoint outside Preview", async () => { process.env.VERCEL_ENV = "production"; expect((await GET()).status).toBe(404); });
   test("hard-stops on Production hostname without networking", async () => { const request=vi.fn(),resolve=vi.fn();const result=await diagnosePreviewNetwork("preview","https://pyapukytcrsuowmgzqzh.supabase.co",jwt("anon"),jwt("service_role"),request,resolve);expect(result?.hostname).toBe("HOSTNAME_MISMATCH");expect(request).not.toHaveBeenCalled();expect(resolve).not.toHaveBeenCalled(); });
   test("resolves only the approved Preview hostname", async () => { const resolve=vi.fn(resolved),request=vi.fn(async()=>({ok:false,status:401}));await diagnosePreviewNetwork("preview",PREVIEW_SUPABASE_URL,jwt("anon"),jwt("service_role"),request,resolve);expect(resolve).toHaveBeenCalledWith(PREVIEW_HOSTNAME); });
