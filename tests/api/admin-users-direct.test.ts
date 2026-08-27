@@ -21,6 +21,10 @@ import { GET, POST } from "@/app/api/admin/users/direct/route";
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
 const DEPARTMENT_ID = "33333333-3333-4333-8333-333333333333";
+const BASELINE_DEPARTMENTS = [
+  "Administration", "Engineering", "Facility", "Finance", "HR",
+  "Operations", "Procurement", "Warehouse",
+].map((name, index) => ({ id: `${String(index + 1).padStart(8, "0")}-3333-4333-8333-333333333333`, name }));
 const administrator = { userId: ADMIN_ID, email: "admin@example.com", displayName: "Administrator", department: "Facilities", role: "administrator" as const };
 const validBody = { mode: "create", display_name: "Reviewer One", email: "reviewer@example.com", department_id: DEPARTMENT_ID, role: "reviewer", trade_discipline: "", contact_number: "61234567", temporary_password: "Temporary-1234", is_active: true };
 const request = (body: unknown = validBody) => new Request("http://localhost/api/admin/users/direct", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -41,7 +45,7 @@ beforeEach(() => {
   mocks.profileResult.error = null;
   mocks.invitationResult.data = { id: "invite-1" };
   mocks.invitationResult.error = null;
-  mocks.departmentListResult.data = [{ id: DEPARTMENT_ID, name: "Facilities" }];
+  mocks.departmentListResult.data = BASELINE_DEPARTMENTS;
   mocks.departmentListResult.error = null;
   mocks.rpc.mockResolvedValue({ data: { id: USER_ID, password_change_required: true }, error: null });
   mocks.createUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null });
@@ -81,7 +85,7 @@ describe("administrator direct user provisioning", () => {
       success: true,
       provisioning_configured: true,
       department_setup_required: false,
-      departments: [{ id: DEPARTMENT_ID, name: "Facilities" }],
+      departments: BASELINE_DEPARTMENTS,
     });
   });
 

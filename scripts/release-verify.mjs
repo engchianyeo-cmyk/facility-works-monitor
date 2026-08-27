@@ -128,6 +128,7 @@ function runSqlRegressions() {
     "tests/sql/run_0022_uat_material_defect_remediation.sh",
     "tests/sql/run_auth_preserving_fresh_install.sh",
     "tests/sql/run_0023_first_administrator_bootstrap.sh",
+    "tests/sql/run_0024_department_master_data_baseline.sh",
   ];
   for (const runner of runners) {
     const name = `fmworks-release-${runner.match(/run_(.+)\.sh$/)[1].replaceAll("_", "-")}-${process.pid}`;
@@ -156,13 +157,14 @@ async function main() {
   run(npx, ["supabase", "db", "reset", "--local", "--no-seed"], { label: "reset isolated local Supabase" });
   const chain = [
     "supabase/bootstrap/fmworks_pre_0012_bootstrap.sql",
-    ...Array.from({ length: 12 }, (_, index) => {
+    ...Array.from({ length: 13 }, (_, index) => {
       const number = String(index + 12).padStart(4, "0");
       const matches = [
         "department_management_foundation", "core_work_order_engine", "emergency_incident_management",
         "incident_safe_projection_and_roster_api", "secure_field_evidence", "work_order_completion_rework",
         "asset_registry_foundation", "preventive_maintenance_foundation", "pilot_identity_trust_hardening",
         "fresh_install_trust_contract_repair", "uat_material_defect_remediation", "first_administrator_bootstrap",
+        "department_master_data_baseline",
       ];
       return `supabase/migrations/${number}_${matches[index]}.sql`;
     }),
