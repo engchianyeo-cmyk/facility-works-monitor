@@ -31,9 +31,8 @@ function run(command, args, options = {}) {
   return options.capture ? result.stdout : "";
 }
 
-function sql(path, variables = []) {
-  const variableArgs = variables.flatMap(([name, value]) => ["-v", `${name}=${value}`]);
-  run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", ...variableArgs, "-U", "postgres", "-d", "postgres"], {
+function sql(path) {
+  run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"], {
     label: `apply ${path}`,
     input: readFileSync(path, "utf8"),
   });
@@ -175,7 +174,7 @@ async function main() {
   const status = run(npx, ["supabase", "status", "-o", "json"], { capture: true, label: "read isolated Supabase test endpoints" });
   const localEnvironment = parseSupabaseEnvironment(status);
   const identities = await seedSyntheticIdentities(localEnvironment);
-  sql("supabase/uat/008_work_order_uat_dataset.sql", [["fmworks_preview_project_ref", "pvajuywwwpjlikqjnvgv"]]);
+  sql("supabase/uat/008_work_order_uat_dataset.sql");
   const env = {
     ...process.env,
     ...identities,

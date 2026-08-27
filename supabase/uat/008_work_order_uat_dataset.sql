@@ -1,13 +1,6 @@
-\set ON_ERROR_STOP on
-
 -- Controlled Preview/UAT data package. This file is deliberately not a migration.
--- The caller must explicitly authorize the authoritative Preview project reference.
-select :'fmworks_preview_project_ref' = 'pvajuywwwpjlikqjnvgv' as uat_target_authorized \gset
-\if :uat_target_authorized
-\else
-  \echo 'Refusing WP-PILOT-GO-008 load: authoritative Preview project reference was not supplied.'
-  \quit 3
-\endif
+-- The caller must target the authoritative project explicitly with:
+-- supabase db query --linked --project-ref pvajuywwwpjlikqjnvgv --file <this-file>
 
 begin;
 
