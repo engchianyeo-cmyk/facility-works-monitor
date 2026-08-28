@@ -50,6 +50,8 @@ AI extraction proposals are non-operational records with source provenance, conf
 
 `sla_documents` stores controlled document metadata, version identity, a content fingerprint, Pilot storage reference, and review/approval state. Extended `sla_extraction_proposals` link source excerpts and provider identifiers to review modifications and, after separate human approval, an approved `sla_rules` row. `staffing_assessments` retain facility, asset, service, workforce, location scope, operating model, and proposed-organization inputs; `staffing_recommendations` retain advisory output, UNKNOWN inputs, assumptions, confidence, and coverage gaps.
 
+`ai_provider_configurations` stores provider/model governance metadata and limits but never credentials. `ai_prompt_versions` provides controlled prompt/schema lineage. `ai_operation_audit` retains safe request, validation, latency, usage and cost metadata without raw document text or provider secrets. Document parser status distinguishes extracted, partial, failed, unsupported, and OCR-required inputs.
+
 See [SLA_REPORTING.md](SLA_REPORTING.md).
 
 ## Planned domains

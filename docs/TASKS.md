@@ -50,6 +50,7 @@
 - Advisory IN_HOUSE, OUTSOURCED, and HYBRID staffing analysis with explicit UNKNOWN inputs and escalation coverage gaps.
 - Structured-metric-only, visibly labelled management commentary integrated with existing JSON/PDF reporting.
 - Future work: approved PDF/DOCX text processor, client-approved LLM adapter, approved external document storage, and task-level workforce calibration.
+- WP-FMW-011 adds local TXT/PDF/DOCX parsing, governed provider/prompt metadata, safe AI audit/usage controls, and the management AI administration screen. OCR, paid provider activation, and external document storage remain separately approved future work.
 
 ## Definition of done
 

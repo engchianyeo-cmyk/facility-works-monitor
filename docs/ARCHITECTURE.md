@@ -32,6 +32,7 @@ The browser uses the public Supabase URL and anon key. Administrative Auth opera
 - **Preventive Maintenance:** versioned requirements, dated occurrences, deferrals, manual processing and governed Work Order generation.
 - **SLA and reporting:** human-approved contract versions drive deterministic Work Order clocks and audited escalation; management reports consume verified operational metrics through replaceable output and AI-provider boundaries.
 - **Document intelligence and staffing:** protected SLA document records feed source-traceable, non-operational extraction proposals; advisory staffing analysis compares approved service obligations with owner, contractor, and specialist coverage without mutating users or escalation rules.
+- **Enterprise AI gateway:** server-only TXT/PDF/DOCX parsers normalize untrusted documents before a provider-neutral, schema-validated adapter boundary. Approved prompt versions, safe operation metadata, limits, privacy approval, bounded retries, and human review are independent controls; credentials never enter application tables.
 - **Future operational modules:** inventory, commissioning, and commercial management.
 
 Emergency incidents do not add emergency statuses to work orders. One incident may link to zero or many corrective work orders. See [EMERGENCY_RESPONSE.md](EMERGENCY_RESPONSE.md).

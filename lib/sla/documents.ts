@@ -1,29 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
-
-export const SLA_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
-export const SLA_DOCUMENT_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"] as const;
-
-export function safeDocumentFilename(value: string) {
-  const name = value.trim();
-  return name.length > 0 && name.length <= 180 && !/[\\/\0\r\n]/.test(name) && !name.startsWith(".");
-}
-
-export function validateSlaDocument(file: Pick<File, "name" | "size" | "type">) {
-  if (!safeDocumentFilename(file.name)) return "INVALID_FILENAME";
-  if (!SLA_DOCUMENT_TYPES.includes(file.type as (typeof SLA_DOCUMENT_TYPES)[number])) return "UNSUPPORTED_DOCUMENT";
-  if (file.size < 1) return "EMPTY_DOCUMENT";
-  if (file.size > SLA_DOCUMENT_MAX_BYTES) return "DOCUMENT_TOO_LARGE";
-  return null;
-}
-
-export async function pilotDocumentDescriptor(file: File) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  return {
-    original_filename: file.name,
-    media_type: file.type,
-    byte_size: bytes.byteLength,
-    content_sha256: createHash("sha256").update(bytes).digest("hex"),
-    storage_key: `pilot-db://${randomUUID()}`,
-    extracted_text: file.type === "text/plain" ? new TextDecoder("utf-8", { fatal: false }).decode(bytes) : null,
-  };
-}
+import{createHash,randomUUID}from"node:crypto";export const SLA_DOCUMENT_MAX_BYTES=10*1024*1024;export const SLA_DOCUMENT_TYPES=["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","text/plain"]as const;export type ParserStatus="PENDING"|"EXTRACTED"|"PARTIAL"|"UNSUPPORTED"|"FAILED"|"REQUIRES_OCR";export type ParsedDocument={status:ParserStatus;text:string|null;pages:{reference:string;text:string}[];warning?:string};
+export function safeDocumentFilename(value:string){const name=value.trim();return name.length>0&&name.length<=180&&!/[\\/\0\r\n]/.test(name)&&!name.startsWith(".")}export function validateSlaDocument(file:Pick<File,"name"|"size"|"type">){if(!safeDocumentFilename(file.name))return"INVALID_FILENAME";if(!SLA_DOCUMENT_TYPES.includes(file.type as(typeof SLA_DOCUMENT_TYPES)[number]))return"UNSUPPORTED_DOCUMENT";if(file.size<1)return"EMPTY_DOCUMENT";if(file.size>SLA_DOCUMENT_MAX_BYTES)return"DOCUMENT_TOO_LARGE";return null}function signatureMatches(bytes:Uint8Array,type:string){if(type==="application/pdf")return new TextDecoder().decode(bytes.slice(0,5))==="%PDF-";if(type.includes("wordprocessingml"))return bytes[0]===0x50&&bytes[1]===0x4b;return type==="text/plain"&&!bytes.slice(0,512).includes(0)}
+function literalPdfFallback(bytes:Uint8Array):ParsedDocument{const source=new TextDecoder("latin1").decode(bytes),matches=[...source.matchAll(/\((?:\\.|[^\\)])*\)\s*Tj/g)].map(x=>x[0].replace(/\)\s*Tj$/,"").slice(1).replace(/\\([\\()])/g,"$1")).filter(Boolean),text=matches.join(" ").replace(/\s+/g," ").trim();return text?{status:"PARTIAL",text,pages:[{reference:"Page reference unavailable",text}],warning:"PDF_LITERAL_TEXT_FALLBACK"}:{status:"REQUIRES_OCR",text:null,pages:[],warning:"IMAGE_ONLY_OR_SCANNED_PDF"}}
+async function parsePdf(bytes:Uint8Array):Promise<ParsedDocument>{try{const pdfjs=await import("pdfjs-dist/legacy/build/pdf.mjs"),pdf=await pdfjs.getDocument({data:bytes}).promise,pages=[]as{reference:string;text:string}[];for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n),content=await page.getTextContent(),text=content.items.map(item=>("str"in item?item.str:"")).join(" ").replace(/\s+/g," ").trim();pages.push({reference:`Page ${n}`,text})}const text=pages.map(x=>x.text).filter(Boolean).join("\n\n");return text?{status:pages.some(x=>!x.text)?"PARTIAL":"EXTRACTED",text,pages}:literalPdfFallback(bytes)}catch{return literalPdfFallback(bytes)}}
+export async function parseSlaDocument(bytes:Uint8Array,type:string):Promise<ParsedDocument>{if(!signatureMatches(bytes,type))return{status:"UNSUPPORTED",text:null,pages:[],warning:"DOCUMENT_SIGNATURE_MISMATCH"};try{if(type==="text/plain"){const text=new TextDecoder("utf-8",{fatal:false}).decode(bytes).trim();return text?{status:"EXTRACTED",text,pages:[{reference:"TXT",text}]}:{status:"FAILED",text:null,pages:[],warning:"EMPTY_DOCUMENT"}}if(type.includes("wordprocessingml")){const mammoth=await import("mammoth"),result=await mammoth.extractRawText({buffer:Buffer.from(bytes)}),text=result.value.trim();return text?{status:result.messages.length?"PARTIAL":"EXTRACTED",text,pages:[{reference:"DOCX",text}],warning:result.messages.map(x=>x.message).join("; ").slice(0,500)||undefined}:{status:"FAILED",text:null,pages:[],warning:"NO_TEXT_FOUND"}}return parsePdf(bytes)}catch{return{status:"FAILED",text:null,pages:[],warning:"DOCUMENT_PARSE_FAILED"}}}export async function pilotDocumentDescriptor(file:File){const bytes=new Uint8Array(await file.arrayBuffer()),parsed=await parseSlaDocument(bytes,file.type);return{original_filename:file.name,media_type:file.type,byte_size:bytes.byteLength,content_sha256:createHash("sha256").update(bytes).digest("hex"),storage_key:`pilot-db://${randomUUID()}`,extracted_text:parsed.text,parser_status:parsed.status,parser_metadata:{pages:parsed.pages.map(x=>({reference:x.reference,character_count:x.text.length})),warning:parsed.warning}}}
