@@ -43,6 +43,14 @@
 
 - Define projects, systems, equipment, checklists, tests, punch items, documents, acceptance, and handover to Asset Management.
 
+## SLA document intelligence and staffing - implemented foundation
+
+- Management-authorized, fingerprinted SLA document records with a Pilot-safe storage abstraction.
+- Provider-neutral deterministic mock extraction with clause provenance and human review/approval lineage.
+- Advisory IN_HOUSE, OUTSOURCED, and HYBRID staffing analysis with explicit UNKNOWN inputs and escalation coverage gaps.
+- Structured-metric-only, visibly labelled management commentary integrated with existing JSON/PDF reporting.
+- Future work: approved PDF/DOCX text processor, client-approved LLM adapter, approved external document storage, and task-level workforce calibration.
+
 ## Definition of done
 
 Approved requirements, migration review, automated tests, production build, security review, role-based UAT, operational guide updates, rollback plan, and release note.

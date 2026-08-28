@@ -19,3 +19,11 @@ Schedules support daily, weekly, and monthly cadence with recipients, scope, las
 ## AI boundary
 
 `FmIntelligenceProvider` defines extraction, staffing analysis, risk explanation, and management summary operations. The production default is disabled and requires no external credentials. The deterministic test adapter returns review-pending extraction proposals and can only narrate structured metrics supplied by FMWorks; it cannot activate an SLA or invent KPI inputs.
+
+## Document intelligence and staffing
+
+WP-FMW-010 accepts management-authorized PDF, DOCX, and TXT document records up to 10 MiB. Filenames, media type, size, non-empty content, and SHA-256 identity are validated before the governed database RPC creates a versioned record. Pilot TXT content can feed the deterministic mock extractor; PDF/DOCX parsing remains disabled until a document-processing provider is approved. No external LLM receives document content.
+
+Candidate clauses retain the source document, page/section/clause, excerpt, obligation, structured proposal, confidence, ambiguity, provider/model identity, review edits, reviewer, approver, and approved-rule linkage. Extraction itself cannot activate a rule. Management review promotes an edited candidate to a draft rule, after which the existing audited SLA-version approval remains the sole operational activation boundary.
+
+The staffing screen supports IN_HOUSE, OUTSOURCED, and HYBRID assessments. Missing facts remain `UNKNOWN`; recommendations expose FTE, shift coverage, competency, workload/SLA basis, assumptions, confidence, and gaps. Outputs are advisory and cannot create users, change assignments, or edit the escalation matrix. Management commentary is visibly labelled and numerical claims are validated against the structured metrics supplied to the provider adapter.

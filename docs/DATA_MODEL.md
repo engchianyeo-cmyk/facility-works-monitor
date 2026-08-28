@@ -48,6 +48,8 @@ Incident statuses are `reported`, `acknowledged`, `mobilising`, `on_site`, `resc
 
 AI extraction proposals are non-operational records with source provenance, confidence, warnings, and human approval state. They cannot activate a contract version or mutate deterministic Work Order SLA clocks.
 
+`sla_documents` stores controlled document metadata, version identity, a content fingerprint, Pilot storage reference, and review/approval state. Extended `sla_extraction_proposals` link source excerpts and provider identifiers to review modifications and, after separate human approval, an approved `sla_rules` row. `staffing_assessments` retain facility, asset, service, workforce, location scope, operating model, and proposed-organization inputs; `staffing_recommendations` retain advisory output, UNKNOWN inputs, assumptions, confidence, and coverage gaps.
+
 See [SLA_REPORTING.md](SLA_REPORTING.md).
 
 ## Planned domains

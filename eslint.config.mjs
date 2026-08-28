@@ -17,6 +17,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
       "supabase/.temp/**",
       "next-env.d.ts",
     ],

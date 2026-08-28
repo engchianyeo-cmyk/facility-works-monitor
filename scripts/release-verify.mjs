@@ -131,6 +131,7 @@ function runSqlRegressions() {
     "tests/sql/run_0024_department_master_data_baseline.sh",
     "tests/sql/run_0025_work_order_uat_dataset.sh",
     "tests/sql/run_0025_sla_reporting_foundation.sh",
+    "tests/sql/run_0026_sla_document_intelligence_staffing.sh",
   ];
   for (const runner of runners) {
     const name = `fmworks-release-${runner.match(/run_(.+)\.sh$/)[1].replaceAll("_", "-")}-${process.pid}`;
@@ -159,14 +160,14 @@ async function main() {
   run(npx, ["supabase", "db", "reset", "--local", "--no-seed"], { label: "reset isolated local Supabase" });
   const chain = [
     "supabase/bootstrap/fmworks_pre_0012_bootstrap.sql",
-    ...Array.from({ length: 14 }, (_, index) => {
+    ...Array.from({ length: 15 }, (_, index) => {
       const number = String(index + 12).padStart(4, "0");
       const matches = [
         "department_management_foundation", "core_work_order_engine", "emergency_incident_management",
         "incident_safe_projection_and_roster_api", "secure_field_evidence", "work_order_completion_rework",
         "asset_registry_foundation", "preventive_maintenance_foundation", "pilot_identity_trust_hardening",
         "fresh_install_trust_contract_repair", "uat_material_defect_remediation", "first_administrator_bootstrap",
-        "department_master_data_baseline", "sla_reporting_foundation",
+        "department_master_data_baseline", "sla_reporting_foundation", "sla_document_intelligence_staffing",
       ];
       return `supabase/migrations/${number}_${matches[index]}.sql`;
     }),
@@ -176,6 +177,7 @@ async function main() {
   const localEnvironment = parseSupabaseEnvironment(status);
   const identities = await seedSyntheticIdentities(localEnvironment);
   sql("supabase/uat/008_work_order_uat_dataset.sql");
+  sql("supabase/uat/010_sla_document_staffing_dataset.sql");
   const env = {
     ...process.env,
     ...identities,
