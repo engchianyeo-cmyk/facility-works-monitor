@@ -6,6 +6,7 @@ export const USER_ROLES = [
   "approver",
   "technician",
   "supervisor",
+  "facility_manager",
   "administrator",
 ] as const;
 
