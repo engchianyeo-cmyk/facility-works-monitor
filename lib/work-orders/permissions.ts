@@ -4,13 +4,16 @@ import type {
   WorkflowContext,
 } from "@/lib/work-orders/types";
 
+const WORK_AUTHORITIES: UserRole[] = ["approver", "supervisor", "facility_manager", "administrator"];
+const COMPLETED_WORK_AUTHORITIES: UserRole[] = ["supervisor", "facility_manager", "administrator"];
+
 export function canCreate(role: UserRole): boolean {
   return role !== "technician";
 }
 
 export function canEdit(context: WorkflowContext): boolean {
   if (["closed", "cancelled"].includes(context.status)) return false;
-  if (context.role === "administrator") return true;
+  if (["facility_manager", "administrator"].includes(context.role)) return true;
   return (
     ["reviewer", "initiator"].includes(context.role) &&
     context.actorId === context.requesterId &&
@@ -19,10 +22,7 @@ export function canEdit(context: WorkflowContext): boolean {
 }
 
 export function canAssign(role: UserRole, status: string): boolean {
-  return (
-    ["approver", "supervisor", "administrator"].includes(role) &&
-    ["approved", "assigned"].includes(status)
-  );
+  return WORK_AUTHORITIES.includes(role) && ["approved", "assigned"].includes(status);
 }
 
 export function canAct(
@@ -33,16 +33,15 @@ export function canAct(
 
   if (action === "submit") {
     return (
-      ["reviewer", "initiator", "approver", "supervisor"].includes(
-        context.role,
-      ) && context.actorId === context.requesterId
+      ["reviewer", "initiator", "approver", "supervisor", "facility_manager"].includes(context.role) &&
+      context.actorId === context.requesterId
     );
   }
-  if (["approve", "close"].includes(action)) {
-    return context.role === "approver" && context.actorId !== context.requesterId;
+  if (action === "approve") {
+    return ["approver", "facility_manager"].includes(context.role) && context.actorId !== context.requesterId;
   }
-  if (["review", "return_for_rework"].includes(action)) {
-    return ["approver", "supervisor"].includes(context.role);
+  if (["review", "return_for_rework", "close"].includes(action)) {
+    return COMPLETED_WORK_AUTHORITIES.includes(context.role);
   }
   if (["accept", "start", "complete"].includes(action)) {
     return (
@@ -51,7 +50,7 @@ export function canAct(
     );
   }
   if (action === "cancel") {
-    return ["approver", "supervisor"].includes(context.role);
+    return WORK_AUTHORITIES.includes(context.role);
   }
   return false;
 }
