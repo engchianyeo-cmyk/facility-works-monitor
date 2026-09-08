@@ -4,10 +4,14 @@ export const EXECUTION_ACTIONS: Record<WorkOrderStatus, { action: WorkOrderActio
   draft: [{ action: "submit", label: "Submit for approval" }],
   submitted: [{ action: "approve", label: "Approve Work Order" }],
   approved: [],
-  assigned: [{ action: "accept", label: "Accept assignment" }, { action: "start", label: "Start work" }],
-  in_progress: [{ action: "complete", label: "Record completion" }],
+  assigned: [
+    { action: "complete", label: "Mark as Completed" },
+    { action: "start", label: "Start work" },
+    { action: "accept", label: "Accept assignment" },
+  ],
+  in_progress: [{ action: "complete", label: "Mark as Completed" }],
   completed: [
-    { action: "review", label: "Accept completion" },
+    { action: "review", label: "Accept Completed Work" },
     { action: "return_for_rework", label: "Return for rework" },
   ],
   reviewed: [{ action: "close", label: "Close Work Order" }],
@@ -20,8 +24,8 @@ export const EXECUTION_SUCCESS: Partial<Record<WorkOrderAction, string>> = {
   approve: "The server confirmed that this Work Order is approved.",
   accept: "The server confirmed your assignment acceptance.",
   start: "The server confirmed that work is In Progress.",
-  complete: "The server confirmed completion. Supervisor review remains outstanding.",
-  review: "The server confirmed that the completion was accepted.",
+  complete: "The server confirmed the Work Order is Completed. Authorised review remains outstanding.",
+  review: "The server confirmed that the Completed Work was accepted.",
   return_for_rework: "The server returned this Work Order for rework.",
   close: "The server confirmed that this Work Order is Closed.",
   cancel: "The server confirmed that this Work Order is Cancelled.",
@@ -34,7 +38,7 @@ export function authorizedExecutionActions(status: string, allowed: readonly Wor
 export function validateCompletionDraft(completionNotes: string, actualHours: string) {
   const notes = completionNotes.trim();
   const hours = Number(actualHours);
-  if (!notes) return { ok: false as const, error: "Completion notes are required." };
+  if (!notes) return { ok: false as const, error: "Work performed statement is required before the Work Order can be marked Completed." };
   if (actualHours === "" || !Number.isFinite(hours) || hours < 0) return { ok: false as const, error: "Labour hours must be zero or greater." };
   return { ok: true as const, payload: { completion_notes: notes, actual_labour_hours: hours } };
 }
