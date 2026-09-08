@@ -1,4 +1,4 @@
-export const EVIDENCE_CATEGORIES = ["before", "after", "completion", "document", "other"] as const;
+export const EVIDENCE_CATEGORIES = ["before", "after"] as const;
 export type EvidenceCategory = typeof EVIDENCE_CATEGORIES[number];
 export type EvidenceParent = "work_order" | "incident";
 export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
