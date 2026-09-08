@@ -12,3 +12,5 @@ supabase/migrations/0019_preventive_maintenance_foundation.sql
 supabase/migrations/0020_pilot_identity_trust_hardening.sql
 supabase/migrations/0021_fresh_install_trust_contract_repair.sql
 supabase/migrations/0022_uat_material_defect_remediation.sql
+supabase/migrations/0023_first_administrator_bootstrap.sql
+supabase/migrations/0024_completed_work_contractor_commercial_controls.sql
