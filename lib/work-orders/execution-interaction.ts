@@ -11,8 +11,8 @@ export const EXECUTION_ACTIONS: Record<WorkOrderStatus, { action: WorkOrderActio
   ],
   in_progress: [{ action: "complete", label: "Mark as Completed" }],
   completed: [
-    { action: "review", label: "Accept Completed Work" },
-    { action: "return_for_rework", label: "Return for rework" },
+    { action: "review", label: "Verify Completed Work" },
+    { action: "return_for_rework", label: "Reject & Reopen" },
   ],
   reviewed: [{ action: "close", label: "Close Work Order" }],
   closed: [],
@@ -24,9 +24,9 @@ export const EXECUTION_SUCCESS: Partial<Record<WorkOrderAction, string>> = {
   approve: "The server confirmed that this Work Order is approved.",
   accept: "The server confirmed your assignment acceptance.",
   start: "The server confirmed that work is In Progress.",
-  complete: "The server confirmed the Work Order is Completed. Authorised review remains outstanding.",
-  review: "The server confirmed that the Completed Work was accepted.",
-  return_for_rework: "The server returned this Work Order for rework.",
+  complete: "The server confirmed the Work Order is Completed — Awaiting Verification.",
+  review: "The server confirmed that the Completed Work was verified.",
+  return_for_rework: "The server rejected the Completed Work and reopened this Work Order for rework.",
   close: "The server confirmed that this Work Order is Closed.",
   cancel: "The server confirmed that this Work Order is Cancelled.",
 };
