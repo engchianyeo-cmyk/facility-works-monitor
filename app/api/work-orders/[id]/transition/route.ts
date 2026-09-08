@@ -10,20 +10,34 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function transitionWorkOrder(request: NextRequest, { params }: RouteContext) {
   const identity = await getCurrentIdentity();
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
+
   let body: Record<string, unknown>;
-  try { body = (await request.json()) as Record<string, unknown>; }
-  catch { return errorResponse("VALIDATION_ERROR", "Request body must be valid JSON."); }
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return errorResponse("VALIDATION_ERROR", "Request body must be valid JSON.");
+  }
+
   const action = String(body.action ?? "").toLowerCase();
   if (!isWorkOrderAction(action)) return errorResponse("VALIDATION_ERROR", "Workflow action is invalid.");
+
   const { id } = await params;
   const payload = { ...body };
   delete payload.action;
+
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("transition_work_order", {
-    p_work_order_id: id,
-    p_action: action,
-    p_payload: payload,
-  });
+  const requestResult = action === "review"
+    ? await supabase.rpc("verify_completed_work", {
+        p_work_order_id: id,
+        p_payload: payload,
+      })
+    : await supabase.rpc("transition_work_order", {
+        p_work_order_id: id,
+        p_action: action,
+        p_payload: payload,
+      });
+
+  const { data, error } = requestResult;
   if (error) return transportFailure("transition");
   return rpcResponse(data as RpcResult<WorkOrderRecord> | null);
 }
