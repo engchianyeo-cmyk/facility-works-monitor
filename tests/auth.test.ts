@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ createClient: vi.fn() }));
+const mocks = vi.hoisted(() => ({ createClient: vi.fn(), createAdminClient: vi.fn() }));
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.createAdminClient }));
 
-import { getCurrentIdentity, USER_ROLES } from "@/lib/auth";
+import { getCurrentAccountIdentity, getCurrentIdentity, USER_ROLES } from "@/lib/auth";
 
 function clientFor(options: {
   user?: Record<string, unknown> | null;
@@ -114,5 +115,23 @@ describe("getCurrentIdentity", () => {
   test("fails closed when the Supabase client throws", async () => {
     mocks.createClient.mockRejectedValue(new Error("network details"));
     await expect(getCurrentIdentity()).resolves.toBeNull();
+  });
+});
+
+describe("getCurrentAccountIdentity", () => {
+  test("uses a trusted own-profile read for mandatory password setup", async () => {
+    mocks.createClient.mockResolvedValue(clientFor({ user, profile: null }));
+    mocks.createAdminClient.mockReturnValue(
+      clientFor({
+        profile: { ...activeProfile, password_change_required: true },
+      }),
+    );
+
+    await expect(getCurrentAccountIdentity()).resolves.toMatchObject({
+      userId: user.id,
+      role: "reviewer",
+      passwordChangeRequired: true,
+    });
+    expect(mocks.createAdminClient).toHaveBeenCalledOnce();
   });
 });

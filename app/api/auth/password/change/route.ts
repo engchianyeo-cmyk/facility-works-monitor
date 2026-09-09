@@ -13,20 +13,20 @@ export async function POST(request: Request) {
   const validation = validatePasswordChange(body.password, body.confirmation);
   if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
-  const { data: profile, error: profileError } = await supabase
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return NextResponse.json({ error: "Password administration is not configured." }, { status: 503 });
+  }
+
+  const { data: profile, error: profileError } = await admin
     .from("profiles")
     .select("role,is_active,deleted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (profileError || !profile || !profile.is_active || profile.deleted_at || !isUserRole(profile.role)) {
     return NextResponse.json({ error: "This account is not eligible for a password change." }, { status: 403 });
-  }
-
-  let admin;
-  try {
-    admin = createAdminClient();
-  } catch {
-    return NextResponse.json({ error: "Password administration is not configured." }, { status: 503 });
   }
 
   const { error: authError } = await admin.auth.admin.updateUserById(user.id, {

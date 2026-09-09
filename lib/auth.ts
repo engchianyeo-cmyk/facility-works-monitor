@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const USER_ROLES = [
   "reviewer",
@@ -25,7 +26,9 @@ export function isUserRole(value: unknown): value is UserRole {
   return USER_ROLES.includes(value as UserRole);
 }
 
-async function loadCurrentAccountIdentity(): Promise<AuthIdentity | null> {
+async function loadCurrentAccountIdentity(
+  allowPasswordSetupProfileRead = false,
+): Promise<AuthIdentity | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,7 +37,10 @@ async function loadCurrentAccountIdentity(): Promise<AuthIdentity | null> {
 
   if (userError || !user) return null;
 
-  const { data: profile, error: profileError } = await supabase
+  const profileClient = allowPasswordSetupProfileRead
+    ? createAdminClient()
+    : supabase;
+  const { data: profile, error: profileError } = await profileClient
     .from("profiles")
     .select("display_name, email, department, role, is_active, deleted_at, password_change_required")
     .eq("id", user.id)
@@ -70,7 +76,7 @@ async function loadCurrentAccountIdentity(): Promise<AuthIdentity | null> {
 
 export async function getCurrentAccountIdentity(): Promise<AuthIdentity | null> {
   try {
-    return await loadCurrentAccountIdentity();
+    return await loadCurrentAccountIdentity(true);
   } catch {
     return null;
   }
