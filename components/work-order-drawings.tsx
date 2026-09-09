@@ -12,7 +12,7 @@ import {
 type FacilityArea = {
   area_code: string;
   name: string;
-  floor_level: string | null;
+  level: string | null;
   drawing_reference: string | null;
   map_x: number | string | null;
   map_y: number | string | null;
@@ -39,7 +39,7 @@ function fallbackDrawing(context: LocationContext | null) {
     if (exact) return exact;
   }
 
-  const location = `${context.facility_area?.floor_level ?? ""} ${context.location ?? ""}`.toLowerCase();
+  const location = `${context.facility_area?.level ?? ""} ${context.location ?? ""}`.toLowerCase();
   if (/\b(level|floor)\s*2\b|2nd|second|pantry/.test(location)) {
     return WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-002") ?? null;
   }
@@ -137,7 +137,7 @@ export default function WorkOrderDrawings() {
               <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{locationContext.location ?? "—"}</dd></div>
                 <div><dt className="text-slate-500">Area Code</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.area_code ?? "—"}</dd></div>
-                <div><dt className="text-slate-500">Floor Level</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.floor_level ?? "—"}</dd></div>
+                <div><dt className="text-slate-500">Floor Level</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.level ?? "—"}</dd></div>
                 <div><dt className="text-slate-500">Asset / Equipment</dt><dd className="font-semibold text-slate-900">{locationContext.asset?.asset_tag ?? "—"}</dd></div>
               </dl>
             </div>
