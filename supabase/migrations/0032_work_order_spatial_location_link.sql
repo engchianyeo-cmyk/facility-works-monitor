@@ -1,8 +1,9 @@
 -- Link the controlled damaged-socket UAT Work Order to the governed facility area.
 --
--- This migration is intentionally narrow and idempotent. It does not invent
--- drawing coordinates: PAN-01 already identifies the correct room, floor and
--- drawing, while map_x/map_y remain null until the plan is explicitly calibrated.
+-- This migration is intentionally narrow and idempotent. It enriches the existing
+-- PAN-01 seed record only when its current values are compatible with the governed
+-- Level 2 pantry definition. It does not invent drawing coordinates: map_x/map_y
+-- remain unchanged until the plan is explicitly calibrated.
 
 begin;
 
@@ -13,6 +14,9 @@ declare
   target_area_id uuid;
   existing_area_id uuid;
   actor_id uuid;
+  current_area_name text;
+  current_level text;
+  current_drawing_reference text;
 begin
   if current_user <> 'postgres' then
     raise exception '0032 must be applied as postgres';
@@ -22,18 +26,39 @@ begin
     raise exception '0032 refused: facility_areas is missing';
   end if;
 
-  select id
-  into target_area_id
+  select id, name, level, drawing_reference
+  into target_area_id, current_area_name, current_level, current_drawing_reference
   from public.facility_areas
   where area_code = 'PAN-01'
-    and name = 'Pantry / Break Area'
-    and floor_level = '2'
-    and drawing_reference = 'FW-002'
-    and is_active = true;
+    and active = true
+  for update;
 
   if target_area_id is null then
-    raise exception '0032 refused: governed PAN-01 facility area is missing or changed';
+    raise exception '0032 refused: active PAN-01 facility area is missing';
   end if;
+
+  if current_area_name not in ('Pantry', 'Pantry / Break Area') then
+    raise exception '0032 refused: PAN-01 has unexpected name %', current_area_name;
+  end if;
+
+  if current_level is not null and current_level <> '2' then
+    raise exception '0032 refused: PAN-01 has unexpected level %', current_level;
+  end if;
+
+  if current_drawing_reference is not null and current_drawing_reference <> 'FW-002' then
+    raise exception '0032 refused: PAN-01 has unexpected drawing reference %', current_drawing_reference;
+  end if;
+
+  update public.facility_areas
+  set name = 'Pantry / Break Area',
+      level = '2',
+      drawing_reference = 'FW-002'
+  where id = target_area_id
+    and (
+      name is distinct from 'Pantry / Break Area'
+      or level is distinct from '2'
+      or drawing_reference is distinct from 'FW-002'
+    );
 
   select facility_area_id
   into existing_area_id
@@ -80,7 +105,7 @@ begin
         'asset_tag', 'SOCKET-L2-P-04',
         'facility_area_code', 'PAN-01',
         'facility_area_name', 'Pantry / Break Area',
-        'floor_level', '2',
+        'level', '2',
         'drawing_reference', 'FW-002',
         'coordinates_calibrated', false
       )::text
