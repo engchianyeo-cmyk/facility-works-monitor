@@ -14,7 +14,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   const supabase = await createClient();
   let orderQuery = supabase
     .from("work_orders")
-    .select("*, categories(name), departments(code,name,colour_tag)")
+    .select("*, categories(name), departments(code,name,colour_tag), facility_area:facility_areas(area_code,name,floor_level,drawing_reference,map_x,map_y), asset:assets(asset_tag,name)")
     .eq("id", id);
   if (identity.role === "technician") {
     orderQuery = orderQuery.eq("assigned_technician_id", identity.userId);
