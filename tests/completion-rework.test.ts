@@ -24,14 +24,14 @@ const returned = {
 };
 
 describe("completion review and rework interaction", () => {
-  test("offers separate accept and return decisions only when authorized", () => {
+  test("offers separate verify and reopen decisions only when authorized", () => {
     expect(authorizedExecutionActions("completed", ["review", "return_for_rework"]))
-      .toEqual([{ action: "review", label: "Accept completion" }, { action: "return_for_rework", label: "Return for rework" }]);
+      .toEqual([{ action: "review", label: "Verify Completed Work" }, { action: "return_for_rework", label: "Reject & Reopen" }]);
     expect(authorizedExecutionActions("completed", [])).toEqual([]);
   });
 
   test("requires a reason before submitting rework and retains controlled input", () => {
-    expect(component).toContain('if (!reason) { setError("A rework reason is required."); return; }');
+    expect(component).toContain('setError("A rework reason is required.")');
     expect(component).toContain("value={reworkReason}");
     expect(component).not.toContain('setReworkReason("")');
   });
@@ -43,8 +43,8 @@ describe("completion review and rework interaction", () => {
 
   test("presents technician correction context from immutable audit history", () => {
     expect(activeReworkContext("in_progress", [returned])).toMatchObject({ cycle: 2, reason: "Provide the final insulation resistance reading." });
-    expect(component).toContain("Completion returned for correction");
-    expect(component).toContain("Record corrected completion");
+    expect(component).toContain("Completed Work rejected for correction");
+    expect(component).toContain("Record Work Done");
     expect(page).toContain("activeReworkContext");
   });
 

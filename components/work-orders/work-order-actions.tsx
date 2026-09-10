@@ -6,13 +6,14 @@ import { priorityLabel, workOrderStatusLabel } from "@/lib/product-terminology";
 import {
   authorizedExecutionActions,
   EXECUTION_SUCCESS,
+  WORK_RECORD_SUCCESS,
   executionResponseMessage,
-  validateCompletionDraft,
+  validateWorkRecordDraft,
 } from "@/lib/work-orders/execution-interaction";
 import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
 import type { CompletionSnapshot } from "@/lib/work-orders/rework";
 
-type Interaction = "approve" | "complete" | "review" | "return_for_rework" | "cancel" | null;
+type Interaction = "approve" | "record_work" | "review" | "return_for_rework" | "cancel" | null;
 type SubmissionState = "online" | "submitting" | "failed" | "unavailable";
 
 type Props = {
@@ -28,6 +29,11 @@ type Props = {
   allowedActions: WorkOrderAction[];
   canEdit: boolean;
   canDuplicate: boolean;
+  canRecordWork: boolean;
+  formalCompletionAuthority: boolean;
+  completionMissing: string[];
+  recordedWork: string | null;
+  recordedHours: number | null;
   reviewContext?: {
     requestedWork: string;
     assignee: string;
@@ -62,8 +68,8 @@ export default function WorkOrderActions(props: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<Interaction>(null);
-  const [completionNotes, setCompletionNotes] = useState("");
-  const [actualHours, setActualHours] = useState("");
+  const [completionNotes, setCompletionNotes] = useState(props.recordedWork ?? "");
+  const [actualHours, setActualHours] = useState(props.recordedHours === null ? "" : String(props.recordedHours));
   const [approvalReason, setApprovalReason] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [reviewReason, setReviewReason] = useState("");
@@ -94,7 +100,7 @@ export default function WorkOrderActions(props: Props) {
   function openAction(action: WorkOrderAction) {
     setError(null);
     setMessage(null);
-    if (["complete", "cancel", "approve", "review", "return_for_rework"].includes(action)) {
+    if (["cancel", "approve", "review", "return_for_rework"].includes(action)) {
       setInteraction(action as Interaction);
       return;
     }
@@ -140,14 +146,38 @@ export default function WorkOrderActions(props: Props) {
     }
   }
 
-  function submitCompletion(event: React.FormEvent<HTMLFormElement>) {
+  async function submitWorkRecord(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = validateCompletionDraft(completionNotes, actualHours);
+    const result = validateWorkRecordDraft(completionNotes, actualHours);
     if (!result.ok) {
       setError(result.error);
       return;
     }
-    void transition("complete", result.payload);
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setBusy("record_work");
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/work-orders/${props.id}/execution`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(result.payload),
+      });
+      const body = await response.json() as Record<string, unknown>;
+      if (!response.ok) {
+        setError(executionResponseMessage(response.status, body));
+        return;
+      }
+      setInteraction(null);
+      setMessage(WORK_RECORD_SUCCESS);
+      router.refresh();
+    } catch {
+      setError("The network request failed. Nothing was submitted. Check your connection and retry.");
+    } finally {
+      submittingRef.current = false;
+      setBusy(null);
+    }
   }
 
   function submitApproval(event: React.FormEvent<HTMLFormElement>) {
@@ -292,22 +322,35 @@ export default function WorkOrderActions(props: Props) {
           <p className="mt-1">Marking work Completed requires a clear work-performed statement, cumulative labour hours, and at least one active After photo or PDF. Before evidence should be added whenever the original condition can be recorded safely.</p>
         </div>
 
+        {props.canRecordWork && (
+          <button type="button" disabled={busy !== null} onClick={() => setInteraction("record_work")} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white disabled:opacity-50">
+            Record Work Done
+          </button>
+        )}
+
+        {props.completionMissing.length > 0 && props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-black">Formal completion is not yet available</p>
+            <ul className="mt-2 list-disc pl-5">{props.completionMissing.map((item) => <li key={item}>{item}</li>)}</ul>
+          </div>
+        )}
+
         {primary ? (
           <div>
             <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Next authorized action</p>
             <button type="button" disabled={busy !== null} onClick={() => openAction(primary.action)} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white shadow-sm hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50">
-              {busy === primary.action ? "Submitting…" : props.currentRework && primary.action === "complete" ? "Record corrected Completed Work" : primary.label}
+              {busy === primary.action ? "Submitting…" : primary.label}
             </button>
           </div>
         ) : decisionActions.length === 0 && (
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No workflow action is currently available for your role and this Work Order state.</p>
         )}
 
-        {interaction === "complete" && (
-          <form onSubmit={submitCompletion} aria-describedby="completion-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
+        {interaction === "record_work" && (
+          <form onSubmit={submitWorkRecord} aria-describedby="completion-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
             <div>
-              <h3 className="font-black">Mark Work Order as Completed</h3>
-              <p id="completion-help" className="mt-1 text-sm text-slate-600">The Work Order becomes Completed — Awaiting Verification only after the server confirms the work record and mandatory After evidence.</p>
+              <h3 className="font-black">Record Work Done</h3>
+              <p id="completion-help" className="mt-1 text-sm text-slate-600">Saving this execution record does not formally complete or close the Work Order. An authorised Administrator must review the record and mark the Work Order Completed.</p>
             </div>
             <label className="block text-sm font-bold">Work performed statement <span aria-hidden="true">*</span>
               <textarea required rows={5} maxLength={4000} value={completionNotes} onChange={(event) => setCompletionNotes(event.target.value)} className="mt-1 min-h-32 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" placeholder="Summarize the work performed, test result and resulting equipment condition." />
@@ -315,9 +358,9 @@ export default function WorkOrderActions(props: Props) {
             <label className="block text-sm font-bold">Cumulative labour hours <span aria-hidden="true">*</span>
               <input required type="number" min="0" step="0.25" inputMode="decimal" value={actualHours} onChange={(event) => setActualHours(event.target.value)} className="mt-1 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
             </label>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><span className="font-bold">Evidence requirement:</span> At least one active After photo or PDF must be attached before submission. If an uploaded file is wrong, use Delete in the Evidence panel and upload the correct file.</div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><span className="font-bold">Evidence:</span> Add active After photo or PDF evidence separately before authorised completion.</div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50">{busy === "complete" ? "Submitting Completed Work…" : "Mark as Completed"}</button>
+              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50">{busy === "record_work" ? "Saving work record…" : "Save Work Record"}</button>
               <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">Keep working</button>
             </div>
           </form>

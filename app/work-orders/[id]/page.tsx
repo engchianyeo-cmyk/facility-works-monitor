@@ -13,7 +13,7 @@ import { operationalLabel, workOrderStatusLabel } from "@/lib/product-terminolog
 import { createClient } from "@/lib/supabase/server";
 import { buildWorkOrderDecisionModel, safeHumanLabel } from "@/lib/work-orders/decision-header";
 import { authorizedExecutionActions } from "@/lib/work-orders/execution-interaction";
-import { canAct, canAssign, canCreate, canEdit } from "@/lib/work-orders/permissions";
+import { canAct, canAssign, canCreate, canEdit, canRecordWork } from "@/lib/work-orders/permissions";
 import { activeReworkContext, reworkHistory } from "@/lib/work-orders/rework";
 import {
   WORK_ORDER_ACTIONS,
@@ -158,12 +158,20 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   }
 
   const [evidenceResult, incidentResult] = await Promise.all([
-    supabase.from("evidence_items").select("id", { count: "exact", head: true }).eq("work_order_id", id),
+    supabase.from("evidence_items").select("id,category,deleted_at").eq("work_order_id", id),
     order.incident_id
       ? supabase.from("incidents").select("id,incident_number,severity,status").eq("id", order.incident_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
-  const evidenceCount = evidenceResult.error ? undefined : evidenceResult.count ?? 0;
+  const evidenceItems = evidenceResult.error ? [] : evidenceResult.data ?? [];
+  const evidenceCount = evidenceResult.error ? undefined : evidenceItems.filter((item) => !item.deleted_at).length;
+  const hasActiveAfterEvidence = evidenceItems.some((item) => item.category === "after" && !item.deleted_at);
+  const completionMissing = [
+    !String(order.completion_notes ?? "").trim() ? "Work-performed statement has not been recorded." : null,
+    order.actual_labour_hours === null || Number(order.actual_labour_hours) < 0 ? "Valid cumulative labour hours have not been recorded." : null,
+    !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
+  ].filter((item): item is string => Boolean(item));
+  if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => action !== "complete");
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
   const assetLabel = assetReferenceLabel(order.asset_id, order.asset as { asset_tag: string; name: string } | null);
   const assetLinkAllowed = canLinkWorkOrderAsset(identity.role) && !["closed", "cancelled"].includes(status);
@@ -259,6 +267,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         allowedActions={allowedActions as WorkOrderAction[]}
         canEdit={canEdit(context)}
         canDuplicate={canCreate(identity.role)}
+        canRecordWork={canRecordWork(context)}
+        formalCompletionAuthority={identity.role === "administrator"}
+        completionMissing={completionMissing}
+        recordedWork={order.completion_notes}
+        recordedHours={order.actual_labour_hours}
         currentRework={currentRework}
         reviewContext={status === "completed" ? {
           requestedWork: order.description || "Requested work description unavailable.",

@@ -91,15 +91,17 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await evidence.getByRole("button", { name: "Add evidence" }).click();
     await expect(evidence.getByText(`pilot-${runId}.png`)).toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole("button", { name: "Record completion" }).click();
-    await page.getByLabel("Completion notes").fill("Synthetic corrective work completed and condition verified.");
-    await page.getByLabel("Labour hours").fill("1.25");
-    await page.getByRole("button", { name: "Submit completion" }).click();
-    await expect(page.getByText(/Awaiting Review/i).first()).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Record Work Done" }).click();
+    await page.getByLabel("Work performed statement").fill("Synthetic corrective work completed and condition verified.");
+    await page.getByLabel("Cumulative labour hours").fill("1.25");
+    await page.getByRole("button", { name: "Save Work Record" }).click();
+    await expect(page.getByRole("status")).toContainText("Work record saved. Awaiting authorised completion.");
+    await page.getByRole("button", { name: "Mark Completed" }).click();
+    await expect(page.getByText(/Awaiting Verification/i).first()).toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole("button", { name: "Accept completion" }).click();
-    await page.getByLabel("Decision reason, when applicable").fill("Synthetic acceptance confirms recorded evidence.");
-    await page.getByRole("button", { name: "Confirm acceptance" }).click();
+    await page.getByRole("button", { name: "Verify Completed Work" }).click();
+    await page.getByLabel("Verification / override reason, when applicable").fill("Synthetic verification confirms recorded evidence.");
+    await page.getByRole("button", { name: "Confirm Verification" }).click();
     await page.getByRole("button", { name: "Close Work Order" }).click();
     await expect(page.getByText(/^Closed$/).first()).toBeVisible({ timeout: 20_000 });
   });

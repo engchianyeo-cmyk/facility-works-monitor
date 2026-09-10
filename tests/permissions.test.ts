@@ -164,9 +164,7 @@ describe("Approver Actions", () => {
 });
 
 describe("Supervisor and Administrator Actions", () => {
-  test.each(["supervisor", "administrator"] as const)(
-    "%s can perform controlled workflow actions",
-    (role) => {
+  test.each(["supervisor", "administrator"] as const)("%s can approve", (role) => {
       expect(
         canPerformWorkOrderAction("approve", {
           role,
@@ -177,15 +175,10 @@ describe("Supervisor and Administrator Actions", () => {
         }),
       ).toBe(true);
 
-      expect(
-        canPerformWorkOrderAction("complete", {
-          role,
-          userId: `${role}-1`,
-          ownerId: "reviewer-1",
-          assignedTechnicianId: "technician-1",
-          status: "in_progress",
-        }),
-      ).toBe(true);
-    },
-  );
+  });
+  test("only Administrator can formally complete", () => {
+    const context = { userId: "actor", ownerId: "reviewer", assignedTechnicianId: "technician", status: "in_progress" as const };
+    expect(canPerformWorkOrderAction("complete", { ...context, role: "administrator" })).toBe(true);
+    expect(canPerformWorkOrderAction("complete", { ...context, role: "supervisor" })).toBe(false);
+  });
 });

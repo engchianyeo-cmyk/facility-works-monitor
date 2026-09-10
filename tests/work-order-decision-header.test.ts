@@ -46,9 +46,9 @@ describe("Work Order decision header presentation", () => {
     expect(model().exceptions).toEqual([]);
   });
 
-  test("preserves Completed — Awaiting Review as a distinct state", () => {
+  test("preserves Completed — Awaiting Verification as a distinct state", () => {
     const result = model({ status: "completed" });
-    expect(result.status).toBe("Completed — Awaiting Review");
+    expect(result.status).toBe("Completed — Awaiting Verification");
     expect(result.exceptions).toContainEqual(expect.objectContaining({ kind: "review", label: "Awaiting review" }));
   });
 

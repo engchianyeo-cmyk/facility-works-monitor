@@ -5,11 +5,11 @@ export const EXECUTION_ACTIONS: Record<WorkOrderStatus, { action: WorkOrderActio
   submitted: [{ action: "approve", label: "Approve Work Order" }],
   approved: [],
   assigned: [
-    { action: "complete", label: "Mark as Completed" },
+    { action: "complete", label: "Mark Completed" },
     { action: "start", label: "Start work" },
     { action: "accept", label: "Accept assignment" },
   ],
-  in_progress: [{ action: "complete", label: "Mark as Completed" }],
+  in_progress: [{ action: "complete", label: "Mark Completed" }],
   completed: [
     { action: "review", label: "Verify Completed Work" },
     { action: "return_for_rework", label: "Reject & Reopen" },
@@ -31,17 +31,21 @@ export const EXECUTION_SUCCESS: Partial<Record<WorkOrderAction, string>> = {
   cancel: "The server confirmed that this Work Order is Cancelled.",
 };
 
+export const WORK_RECORD_SUCCESS = "Work record saved. Awaiting authorised completion.";
+
 export function authorizedExecutionActions(status: string, allowed: readonly WorkOrderAction[]) {
   return (EXECUTION_ACTIONS[status as WorkOrderStatus] ?? []).filter(({ action }) => allowed.includes(action));
 }
 
-export function validateCompletionDraft(completionNotes: string, actualHours: string) {
+export function validateWorkRecordDraft(completionNotes: string, actualHours: string) {
   const notes = completionNotes.trim();
   const hours = Number(actualHours);
-  if (!notes) return { ok: false as const, error: "Work performed statement is required before the Work Order can be marked Completed." };
+  if (!notes) return { ok: false as const, error: "Work performed statement is required." };
   if (actualHours === "" || !Number.isFinite(hours) || hours < 0) return { ok: false as const, error: "Labour hours must be zero or greater." };
   return { ok: true as const, payload: { completion_notes: notes, actual_labour_hours: hours } };
 }
+
+export const validateCompletionDraft = validateWorkRecordDraft;
 
 export function executionResponseMessage(status: number, result: Record<string, unknown>) {
   if (status === 401) return "Your session is no longer active. Sign in again, then retry this action.";

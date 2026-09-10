@@ -43,14 +43,22 @@ export function canAct(
   if (["review", "return_for_rework", "close"].includes(action)) {
     return COMPLETED_WORK_AUTHORITIES.includes(context.role);
   }
-  if (["accept", "start", "complete"].includes(action)) {
+  if (["accept", "start"].includes(action)) {
     return (
       context.role === "technician" &&
       context.actorId === context.assignedTechnicianId
     );
   }
+  if (action === "complete") return false;
   if (action === "cancel") {
     return WORK_AUTHORITIES.includes(context.role);
   }
   return false;
+}
+
+export function canRecordWork(context: WorkflowContext): boolean {
+  if (!["assigned", "in_progress"].includes(context.status)) return false;
+  return context.role === "administrator" || (
+    context.role === "technician" && context.actorId === context.assignedTechnicianId
+  );
 }

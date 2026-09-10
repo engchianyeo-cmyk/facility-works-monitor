@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { UserRole } from "@/lib/auth";
-import { canAct, canAssign, canCreate, canEdit } from "@/lib/work-orders/permissions";
+import { canAct, canAssign, canCreate, canEdit, canRecordWork } from "@/lib/work-orders/permissions";
 import { getTransition } from "@/lib/work-orders/workflow";
 import { WORK_ORDER_ACTIONS, WORK_ORDER_STATUSES, type WorkOrderAction, type WorkOrderStatus } from "@/lib/work-orders/types";
 
@@ -25,17 +25,23 @@ describe("canonical workflow authorization", () => {
   test("reviewer remains requestor-level", () => expect(canAct("approve", { ...base, role: "reviewer" })).toBe(false));
   test("approver can approve another requester's order", () => expect(canAct("approve", { ...base, role: "approver" })).toBe(true));
   test("approver cannot self-approve", () => expect(canAct("approve", { ...base, role: "approver", actorId: "requester" })).toBe(false));
-  test.each(["approver", "supervisor", "administrator"] as UserRole[])("%s can review and return completed work", (role) => {
+  test.each(["supervisor", "facility_manager", "administrator"] as UserRole[])("%s can review and return completed work", (role) => {
     const completed = { ...base, role, status: "completed" as WorkOrderStatus };
     expect(canAct("review", completed)).toBe(true);
     expect(canAct("return_for_rework", completed)).toBe(true);
   });
-  test.each(["reviewer", "initiator", "technician"] as UserRole[])("%s cannot review or return completed work", (role) => {
+  test.each(["reviewer", "initiator", "technician", "approver"] as UserRole[])("%s cannot review or return completed work", (role) => {
     const completed = { ...base, role, status: "completed" as WorkOrderStatus };
     expect(canAct("review", completed)).toBe(false);
     expect(canAct("return_for_rework", completed)).toBe(false);
   });
-  test("assigned technician can accept, start and complete", () => { for (const action of ["accept", "start", "complete"] as const) expect(canAct(action, { ...base, role: "technician", actorId: "technician", status: action === "complete" ? "in_progress" : "assigned" })).toBe(true); });
+  test("assigned technician can accept and start but cannot formally complete", () => {
+    for (const action of ["accept", "start"] as const) expect(canAct(action, { ...base, role: "technician", actorId: "technician", status: "assigned" })).toBe(true);
+    expect(canAct("complete", { ...base, role: "technician", actorId: "technician", status: "in_progress" })).toBe(false);
+    expect(canRecordWork({ ...base, role: "technician", actorId: "technician", status: "in_progress" })).toBe(true);
+  });
+  test.each(["reviewer", "approver", "supervisor", "facility_manager"] as UserRole[])("%s cannot formally complete", (role) => expect(canAct("complete", { ...base, role, status: "in_progress" })).toBe(false));
+  test("administrator retains formal completion authority", () => expect(canAct("complete", { ...base, role: "administrator", status: "in_progress" })).toBe(true));
   test("only assignment authorities assign", () => { const roles: UserRole[] = ["reviewer", "initiator", "approver", "technician", "supervisor", "administrator"]; expect(roles.filter((role) => canAssign(role, "approved"))).toEqual(["approver", "supervisor", "administrator"]); });
   test("terminal states cannot be edited", () => { expect(canEdit({ ...base, role: "administrator", status: "closed" })).toBe(false); expect(canEdit({ ...base, role: "administrator", status: "cancelled" })).toBe(false); });
   test("technicians cannot create general work orders", () => expect(canCreate("technician")).toBe(false));

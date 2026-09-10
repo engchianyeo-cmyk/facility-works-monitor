@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import {
   authorizedExecutionActions,
-  EXECUTION_SUCCESS,
+  WORK_RECORD_SUCCESS,
   executionResponseMessage,
-  validateCompletionDraft,
+  validateWorkRecordDraft,
 } from "@/lib/work-orders/execution-interaction";
 
 const root = new URL("../", import.meta.url);
@@ -26,10 +26,10 @@ describe("Technician execution interaction", () => {
     expect(component).toContain('`/api/work-orders/${props.id}/transition`');
   });
 
-  test("validates completion notes and labour hours", () => {
-    expect(validateCompletionDraft("", "2")).toEqual({ ok: false, error: "Completion notes are required." });
-    expect(validateCompletionDraft("Replaced bearing", "-1")).toEqual({ ok: false, error: "Labour hours must be zero or greater." });
-    expect(validateCompletionDraft(" Replaced bearing ", "2.5")).toEqual({ ok: true, payload: { completion_notes: "Replaced bearing", actual_labour_hours: 2.5 } });
+  test("validates work records without claiming completion", () => {
+    expect(validateWorkRecordDraft("", "2")).toEqual({ ok: false, error: "Work performed statement is required." });
+    expect(validateWorkRecordDraft("Replaced bearing", "-1")).toEqual({ ok: false, error: "Labour hours must be zero or greater." });
+    expect(validateWorkRecordDraft(" Replaced bearing ", "2.5")).toEqual({ ok: true, payload: { completion_notes: "Replaced bearing", actual_labour_hours: 2.5 } });
   });
 
   test("preserves controlled input following recoverable failures", () => {
@@ -56,9 +56,9 @@ describe("Technician execution interaction", () => {
   });
 
   test("uses canonical completion language without claiming approval", () => {
-    expect(EXECUTION_SUCCESS.complete).toMatch(/Supervisor review remains outstanding/);
-    expect(component).toContain("Completed — Awaiting Review");
-    expect(component).toContain("no mandatory evidence requirement is recorded");
+    expect(WORK_RECORD_SUCCESS).toBe("Work record saved. Awaiting authorised completion.");
+    expect(component).toContain("Record Work Done");
+    expect(component).toContain("does not formally complete or close");
   });
 
   test("provides a mobile-oriented accessible interaction structure", () => {
@@ -71,7 +71,7 @@ describe("Technician execution interaction", () => {
 
   test("collects approval, completion and cancellation input inline", () => {
     expect(component).toContain('interaction === "approve"');
-    expect(component).toContain('interaction === "complete"');
+    expect(component).toContain('interaction === "record_work"');
     expect(component).toContain('interaction === "cancel"');
     expect(component).toContain('interaction === "review"');
     expect(component).toContain('interaction === "return_for_rework"');
