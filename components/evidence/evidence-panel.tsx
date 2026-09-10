@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { EVIDENCE_CATEGORIES, type EvidenceParent } from "@/lib/evidence";
 
 type Item = {
@@ -16,42 +17,62 @@ type Item = {
 const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 export default function EvidencePanel({ parentType, parentId }: { parentType: EvidenceParent; parentId: string }) {
+  const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"success" | "error" | null>(null);
 
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/evidence?parent_type=${parentType}&parent_id=${parentId}`, { cache: "no-store" });
       const result = await response.json();
       if (!response.ok) throw new Error();
-      setItems(result.data);
+      const loadedItems = result.data as Item[];
+      setItems(loadedItems);
       setState("ready");
+      return loadedItems;
     } catch {
       setState("error");
+      throw new Error("Evidence could not be reloaded to confirm the saved record.");
     }
   }, [parentId, parentType]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load().catch(() => undefined); }, [load]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setUploading(true);
     setMessage("");
+    setMessageKind(null);
     const form = event.currentTarget;
     const body = new FormData(form);
     body.set("parent_type", parentType);
     body.set("parent_id", parentId);
+    const requestedCategory = String(body.get("category") ?? "");
     try {
       const response = await fetch("/api/evidence", { method: "POST", body });
-      const result = await response.json();
+      const result = await response.json() as {
+        code?: string;
+        message?: string;
+        evidence?: { id?: string; category?: string };
+      };
       if (!response.ok) throw new Error(result.message ?? "Upload failed.");
+      if (!result.evidence?.id || result.evidence.category !== requestedCategory) {
+        throw new Error("Evidence registration could not be confirmed.");
+      }
+      const refreshedItems = await load();
+      if (!refreshedItems.some((item) => item.id === result.evidence?.id && item.category === requestedCategory)) {
+        throw new Error("Evidence was registered but is not visible in the active evidence record.");
+      }
       form.reset();
-      setMessage("Evidence uploaded and recorded in activity history.");
-      await load();
+      setMessageKind("success");
+      setMessage("Evidence added successfully.");
+      router.refresh();
     } catch (error) {
+      setMessageKind("error");
       setMessage(error instanceof Error ? error.message : "Evidence upload failed safely.");
     } finally {
       setUploading(false);
@@ -165,7 +186,7 @@ export default function EvidencePanel({ parentType, parentId }: { parentType: Ev
         </div>
       </form>
 
-      {message && <p role="status" className="mt-3 text-sm font-semibold text-blue-800">{message}</p>}
+      {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-sm font-semibold ${messageKind === "error" ? "text-red-800" : "text-blue-800"}`}>{message}</p>}
     </section>
   );
 }
