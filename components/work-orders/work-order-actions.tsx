@@ -12,6 +12,7 @@ import {
 } from "@/lib/work-orders/execution-interaction";
 import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
 import type { CompletionSnapshot } from "@/lib/work-orders/rework";
+import type { CompletionReadiness } from "@/lib/work-orders/operational-stage";
 
 type Interaction = "approve" | "record_work" | "review" | "return_for_rework" | "cancel" | null;
 type SubmissionState = "online" | "submitting" | "failed" | "unavailable";
@@ -31,6 +32,8 @@ type Props = {
   canDuplicate: boolean;
   canRecordWork: boolean;
   formalCompletionAuthority: boolean;
+  completionReadiness: CompletionReadiness;
+  operationalStage: string;
   completionMissing: string[];
   recordedWork: string | null;
   recordedHours: number | null;
@@ -84,7 +87,8 @@ export default function WorkOrderActions(props: Props) {
     [props.allowedActions, props.status],
   );
   const decisionActions = actions.filter(({ action }) => action === "review" || action === "return_for_rework");
-  const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework") ?? null;
+  const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework"
+    && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && ["accept", "start", "complete"].includes(action))) ?? null;
 
   useEffect(() => {
     const update = () => setSubmissionState(navigator.onLine ? "online" : "unavailable");
@@ -328,11 +332,20 @@ export default function WorkOrderActions(props: Props) {
           </button>
         )}
 
-        {props.completionMissing.length > 0 && props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-black">Formal completion is not yet available</p>
-            <ul className="mt-2 list-disc pl-5">{props.completionMissing.map((item) => <li key={item}>{item}</li>)}</ul>
-          </div>
+        {props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
+          <section aria-labelledby="formal-completion-title" className="rounded-xl border-2 border-violet-200 bg-violet-50 p-4 text-violet-950">
+            <p className="text-xs font-black uppercase tracking-wide text-violet-700">Formal completion</p>
+            <h3 id="formal-completion-title" className="mt-1 text-lg font-black">{props.operationalStage}</h3>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>Work record received <strong>{props.completionReadiness.workRecordReceived ? "✓" : "✕"}</strong></li>
+              <li>Actual labour hours recorded <strong>{props.completionReadiness.labourHoursRecorded ? "✓" : "✕"}</strong></li>
+              <li>Active After evidence <strong>{props.completionReadiness.activeAfterEvidence ? "✓" : "✕"}</strong></li>
+            </ul>
+            {props.completionMissing.length > 0 && <p className="mt-3 text-sm">All completion controls must pass before formal completion.</p>}
+            <button type="button" disabled={busy !== null || !props.completionReadiness.ready} onClick={() => void transition("complete", {})} className="mt-4 min-h-12 w-full rounded-xl bg-violet-700 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+              {busy === "complete" ? "Marking Completed…" : "Mark Completed"}
+            </button>
+          </section>
         )}
 
         {primary ? (
@@ -342,7 +355,7 @@ export default function WorkOrderActions(props: Props) {
               {busy === primary.action ? "Submitting…" : primary.label}
             </button>
           </div>
-        ) : decisionActions.length === 0 && (
+        ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No workflow action is currently available for your role and this Work Order state.</p>
         )}
 

@@ -221,6 +221,7 @@ export function buildWorkOrderDecisionModel(input: {
   incidentStatus?: unknown;
   evidenceCount?: number | null;
   reworkReason?: string | null;
+  operationalStage?: string;
 }): WorkOrderDecisionModel {
   const ownership = ownershipPresentation(input);
   const due = dueExposure(input);
@@ -233,7 +234,7 @@ export function buildWorkOrderDecisionModel(input: {
   const evidence = evidencePresentation(input.evidenceCount);
   return {
     priority: priorityLabel(input.priority),
-    status: workOrderStatusLabel(input.status),
+    status: input.operationalStage ?? workOrderStatusLabel(input.status),
     ownership,
     due,
     incident,

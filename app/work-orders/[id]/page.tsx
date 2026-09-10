@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildWorkOrderDecisionModel, safeHumanLabel } from "@/lib/work-orders/decision-header";
 import { authorizedExecutionActions } from "@/lib/work-orders/execution-interaction";
 import { canAct, canAssign, canCreate, canEdit, canRecordWork } from "@/lib/work-orders/permissions";
+import { deriveWorkOrderOperationalStage } from "@/lib/work-orders/operational-stage";
 import { activeReworkContext, reworkHistory } from "@/lib/work-orders/rework";
 import {
   WORK_ORDER_ACTIONS,
@@ -166,12 +167,22 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   const evidenceItems = evidenceResult.error ? [] : evidenceResult.data ?? [];
   const evidenceCount = evidenceResult.error ? undefined : evidenceItems.filter((item) => !item.deleted_at).length;
   const hasActiveAfterEvidence = evidenceItems.some((item) => item.category === "after" && !item.deleted_at);
+  const operationalStage = deriveWorkOrderOperationalStage({
+    status,
+    startedAt: order.started_at,
+    completionNotes: order.completion_notes,
+    actualLabourHours: order.actual_labour_hours,
+    evidence: evidenceItems,
+  });
   const completionMissing = [
     !String(order.completion_notes ?? "").trim() ? "Work-performed statement has not been recorded." : null,
     order.actual_labour_hours === null || Number(order.actual_labour_hours) < 0 ? "Valid cumulative labour hours have not been recorded." : null,
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
   ].filter((item): item is string => Boolean(item));
   if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => action !== "complete");
+  if (identity.role === "administrator" && ["assigned", "in_progress"].includes(status)) {
+    allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
+  }
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
   const assetLabel = assetReferenceLabel(order.asset_id, order.asset as { asset_tag: string; name: string } | null);
   const assetLinkAllowed = canLinkWorkOrderAsset(identity.role) && !["closed", "cancelled"].includes(status);
@@ -194,7 +205,6 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   const overviewFields = [
     ["Source", operationalLabel(String(order.source))],
     ["Estimated hours", order.estimated_hours],
-    ["Actual labour hours", order.actual_labour_hours],
     ["Contact number", order.contact_number],
   ].filter(([, value]) => hasValue(value));
   const assignmentFields = [
@@ -203,10 +213,10 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     ["Assigned at", order.assigned_at ? formatDateTime(order.assigned_at) : null],
     ["Accepted at", order.accepted_at ? formatDateTime(order.accepted_at) : null],
   ].filter(([, value]) => hasValue(value));
-  const noteFields = [
-    ["Completion notes", order.completion_notes],
-    ["Internal notes", order.internal_notes],
-    ["Cancellation reason", order.cancellation_reason],
+  const jobInstructionFields = [["Original / imported instructions", order.internal_notes]].filter(([, value]) => hasValue(value));
+  const technicianWorkFields = [
+    ["Work performed", order.completion_notes],
+    ["Actual labour hours", order.actual_labour_hours],
   ].filter(([, value]) => hasValue(value));
   const predictiveFields = [
     ["Source reference", order.source_reference],
@@ -235,8 +245,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     incidentStatus: relatedIncident?.status,
     evidenceCount,
     reworkReason: currentRework?.reason,
+    operationalStage: operationalStage.label,
   });
-  const nextAction = authorizedExecutionActions(String(order.status), allowedActions)[0]?.label ?? null;
+  const nextAction = identity.role === "administrator" && ["assigned", "in_progress"].includes(status)
+    ? operationalStage.nextAction
+    : authorizedExecutionActions(String(order.status), allowedActions)[0]?.label ?? null;
   const location = [order.site, order.location].filter(Boolean).join(" · ") || "Location not recorded";
 
   return (
@@ -267,8 +280,10 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         allowedActions={allowedActions as WorkOrderAction[]}
         canEdit={canEdit(context)}
         canDuplicate={canCreate(identity.role)}
-        canRecordWork={canRecordWork(context)}
+        canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
         formalCompletionAuthority={identity.role === "administrator"}
+        completionReadiness={operationalStage.completion}
+        operationalStage={operationalStage.label}
         completionMissing={completionMissing}
         recordedWork={order.completion_notes}
         recordedHours={order.actual_labour_hours}
@@ -290,10 +305,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         {assetLinkAllowed && <div className="mt-4 border-t border-emerald-200 pt-4"><AssetLinkControl parent="work-orders" parentId={id} assets={assetOptions} currentAssetId={order.asset_id} unavailable={Boolean(order.asset_id && !order.asset)} /></div>}
       </section>
 
-      {(order.description || overviewFields.length > 0) && (
+      {overviewFields.length > 0 && (
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="font-semibold text-slate-900">Work details</h2>
-          {order.description && <p className="mt-3 whitespace-pre-wrap text-slate-700">{order.description}</p>}
           {overviewFields.length > 0 && (
             <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
               {overviewFields.map(([label, value]) => <div key={String(label)}><dt className="text-slate-400">{label}</dt><dd className="mt-1 font-medium text-slate-800">{display(value)}</dd></div>)}
@@ -311,11 +325,21 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         </section>
       )}
 
-      {noteFields.length > 0 && (
+      {(order.description || jobInstructionFields.length > 0) && (
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold text-slate-900">Work notes</h2>
+          <h2 className="font-semibold text-slate-900">Original Work Order / Job Instructions</h2>
+          {order.description && <p className="mt-3 whitespace-pre-wrap text-sm text-slate-800">{order.description}</p>}
           <dl className="mt-4 space-y-4">
-            {noteFields.map(([label, value]) => <div key={String(label)}><dt className="text-sm font-medium text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{display(value)}</dd></div>)}
+            {jobInstructionFields.map(([label, value]) => <div key={String(label)}><dt className="text-sm font-medium text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{display(value)}</dd></div>)}
+          </dl>
+        </section>
+      )}
+
+      {technicianWorkFields.length > 0 && (
+        <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+          <h2 className="font-semibold text-blue-950">Technician Work Record</h2>
+          <dl className="mt-4 space-y-4">
+            {technicianWorkFields.map(([label, value]) => <div key={String(label)}><dt className="text-sm font-medium text-blue-700">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-sm text-blue-950">{display(value)}</dd></div>)}
           </dl>
         </section>
       )}
