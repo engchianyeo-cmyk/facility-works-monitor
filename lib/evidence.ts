@@ -1,6 +1,27 @@
 export const EVIDENCE_CATEGORIES = ["before", "after"] as const;
 export type EvidenceCategory = typeof EVIDENCE_CATEGORIES[number];
 export type EvidenceParent = "work_order" | "incident";
+const MUTABLE_WORK_ORDER_EVIDENCE_STATUSES = new Set(["assigned", "in_progress"]);
+const WORK_ORDER_EVIDENCE_MANAGEMENT_ROLES = new Set(["approver", "supervisor", "administrator"]);
+
+export function canMutateWorkOrderEvidence(input: {
+  role: string;
+  userId: string;
+  assignedTechnicianId: string | null;
+  status: string;
+  hasActiveFacilityMembership?: boolean;
+  requesterId?: string | null;
+  creatorId?: string | null;
+}) {
+  if (input.role === "technician") {
+    return MUTABLE_WORK_ORDER_EVIDENCE_STATUSES.has(input.status)
+      && input.assignedTechnicianId === input.userId
+      && input.hasActiveFacilityMembership === true;
+  }
+  return WORK_ORDER_EVIDENCE_MANAGEMENT_ROLES.has(input.role)
+    || input.requesterId === input.userId
+    || input.creatorId === input.userId;
+}
 export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 export const SIGNED_ACCESS_SECONDS = 300;
 

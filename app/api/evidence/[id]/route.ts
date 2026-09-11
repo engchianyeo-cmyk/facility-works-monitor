@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 
 const fail = (code: string, message: string, status = 400) => NextResponse.json({ ok: false, code, message }, { status });
 
@@ -37,7 +38,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const supabase = await createClient();
     const { data: visibleOrder, error } = await supabase
       .from("work_orders")
-      .select("id,status")
+      .select("id,status,assigned_technician_id")
       .eq("id", item.work_order_id)
       .maybeSingle();
     if (error || !visibleOrder) return fail("NOT_FOUND", "Work Order was not found.", 404);
@@ -55,10 +56,16 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
 
   const management = ["supervisor", "facility_manager", "administrator"].includes(identity.role);
   const uploader = item.uploaded_by === identity.userId;
-  const verifiedOrTerminal = item.work_order_id && ["reviewed", "closed", "cancelled"].includes(parentStatus ?? "");
+  const verifiedOrTerminal = item.work_order_id && ["completed", "reviewed", "closed", "cancelled"].includes(parentStatus ?? "");
 
   if (verifiedOrTerminal && identity.role !== "administrator") {
     return fail("ADMINISTRATOR_REQUIRED", "Only an Administrator may void evidence after Completed Work has been verified or the Work Order is terminal.", 403);
+  }
+  if (item.work_order_id && identity.role !== "administrator") {
+    const supabase = await createClient();
+    const { data: order } = await supabase.from("work_orders").select("status,assigned_technician_id,facility_id,user_id,requested_by").eq("id", item.work_order_id).maybeSingle();
+    const membership = identity.role === "technician" && order ? await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id }) : { data: false };
+    if (!order || !canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status: order.status, hasActiveFacilityMembership: membership.data === true, creatorId: order.user_id, requesterId: order.requested_by })) return fail("EVIDENCE_READ_ONLY", "Evidence is read-only for this Work Order.", 403);
   }
   if (!verifiedOrTerminal && !management && !uploader) {
     return fail("ACCESS_DENIED", "You are not authorised to remove this evidence.", 403);

@@ -16,7 +16,7 @@ type Item = {
 
 const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
-export default function EvidencePanel({ parentType, parentId }: { parentType: EvidenceParent; parentId: string }) {
+export default function EvidencePanel({ parentType, parentId, canMutate = true }: { parentType: EvidenceParent; parentId: string; canMutate?: boolean }) {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -146,14 +146,14 @@ export default function EvidencePanel({ parentType, parentId }: { parentType: Ev
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button type="button" onClick={() => void open(item.id)} className="min-h-11 rounded-lg border border-blue-300 px-3 text-sm font-black text-blue-800">Open</button>
-                  <button
+                  {canMutate && <button
                     type="button"
                     disabled={deletingId !== null}
                     onClick={() => void remove(item)}
                     className="min-h-11 rounded-lg border border-red-300 px-3 text-sm font-black text-red-700 disabled:opacity-50"
                   >
                     {deletingId === item.id ? "Removing…" : "Delete"}
-                  </button>
+                  </button>}
                 </div>
               </div>
               {item.description && <p className="mt-2 text-sm">{item.description}</p>}
@@ -168,7 +168,7 @@ export default function EvidencePanel({ parentType, parentId }: { parentType: Ev
         </div>
       )}
 
-      <form onSubmit={submit} className="mt-6 grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+      {canMutate ? <form onSubmit={submit} className="mt-6 grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
         <label className="text-sm font-bold">Category
           <select name="category" defaultValue="after" className="mt-1 min-h-12 w-full rounded-lg border bg-white px-3">
             {EVIDENCE_CATEGORIES.map((value) => <option key={value} value={value}>{label(value)}</option>)}
@@ -184,7 +184,7 @@ export default function EvidencePanel({ parentType, parentId }: { parentType: Ev
           <p className="mb-3 text-xs text-slate-600">Online connection required. Maximum 10 MB. Do not upload passwords, identity documents, or unrelated personal information.</p>
           <button disabled={uploading} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50 sm:w-auto">{uploading ? "Uploading…" : "Add evidence"}</button>
         </div>
-      </form>
+      </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Evidence is read-only. Completed Work must be rejected and reopened before the assigned Technician can correct field evidence.</p>}
 
       {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-sm font-semibold ${messageKind === "error" ? "text-red-800" : "text-blue-800"}`}>{message}</p>}
     </section>

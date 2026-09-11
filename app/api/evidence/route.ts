@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/auth";
-import { cleanFilename, compensateEvidenceRegistrationFailure, validCategory, validParent, validateEvidenceFile } from "@/lib/evidence";
+import { canMutateWorkOrderEvidence, cleanFilename, compensateEvidenceRegistrationFailure, validCategory, validParent, validateEvidenceFile } from "@/lib/evidence";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -72,6 +72,15 @@ export async function POST(request: NextRequest) {
   if (description.length > 500) return fail("VALIDATION_ERROR", "Description must be 500 characters or fewer.");
   if (!(candidate instanceof File)) return fail("VALIDATION_ERROR", "Choose a file to upload.");
   if (!await parentVisible(type, parentId)) return fail("NOT_FOUND", "Parent record was not found.", 404);
+  if (type === "work_order") {
+    const supabase = await createClient();
+    const { data: order, error } = await supabase.from("work_orders").select("status,assigned_technician_id,facility_id,user_id,requested_by").eq("id", parentId).maybeSingle();
+    if (error || !order) return fail("NOT_FOUND", "Work Order was not found.", 404);
+    const membership = identity.role === "technician" ? await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id }) : { data: false };
+    if (!canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status: order.status, hasActiveFacilityMembership: membership.data === true, creatorId: order.user_id, requesterId: order.requested_by })) {
+      return fail("EVIDENCE_READ_ONLY", "Evidence is read-only unless you are authorised to record field evidence for this active assignment.", 403);
+    }
+  }
 
   const bytes = new Uint8Array(await candidate.arrayBuffer());
   const fileError = validateEvidenceFile(candidate, bytes);
