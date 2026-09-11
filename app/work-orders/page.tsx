@@ -14,6 +14,7 @@ const SORT: Record<string, { column: string; ascending: boolean }> = {
   newest: { column: "created_at", ascending: false }, oldest: { column: "created_at", ascending: true },
   due_date: { column: "due_date", ascending: true }, priority: { column: "priority_rank", ascending: false }, updated: { column: "updated_at", ascending: false },
 };
+const ACTIVE_STATUSES = ["draft", "submitted", "approved", "assigned", "in_progress"];
 
 function formatDate(value: string | null) {
   if (!value) return "Not set";
@@ -29,8 +30,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   const pageSize = 20; const from = (page - 1) * pageSize; const to = from + pageSize - 1;
   const supabase = await createClient();
   const { data: departments } = await supabase.from("departments").select("id,code,name").eq("is_active", true).is("deleted_at", null).order("name");
-  let query = supabase.from("work_orders").select("*, categories(name), departments(code,name,colour_tag)", { count: "exact" });
-  if (identity.role === "technician") query = query.eq("assigned_technician_id", identity.userId);
+  let query = supabase.from("work_orders").select("*, categories(name), departments(code,name,colour_tag), facility:sites(code,name), facility_area:facility_areas(area_code,name,level), asset:assets(asset_tag,name)", { count: "exact" });
   if (values.search?.trim()) {
     const search = values.search.replaceAll(/[,%()]/g, " ").trim();
     if (search) query = query.or(`work_order_number.ilike.%${search}%,title.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
@@ -39,11 +39,16 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   if (isWorkOrderPriority(values.priority)) query = query.eq("priority", values.priority);
   if (isWorkOrderSource(values.source)) query = query.eq("source", values.source);
   if (values.department) query = query.eq("department_id", values.department);
-  if (values.assignment === "mine" && identity.role !== "technician") query = query.eq("assigned_technician_id", identity.userId);
+  if (values.assignment === "mine") query = query.eq("assigned_technician_id", identity.userId);
   else if (values.assignment === "unassigned") query = query.is("assigned_technician_id", null).is("assigned_vendor_id", null).is("assigned_team_id", null);
   else if (values.assignment === "technician") query = query.not("assigned_technician_id", "is", null);
   else if (values.assignment === "vendor") query = query.not("assigned_vendor_id", "is", null);
   else if (values.assignment === "team") query = query.not("assigned_team_id", "is", null);
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Singapore" }).format(new Date());
+  if (values.active === "true") query = query.in("status", ACTIVE_STATUSES);
+  if (values.attention === "critical") query = query.in("status", ACTIVE_STATUSES).or("emergency_work.eq.true,priority.eq.critical");
+  else if (values.attention === "overdue") query = query.in("status", ACTIVE_STATUSES).lt("due_date", today);
+  else if (values.attention === "action") query = query.in("status", ACTIVE_STATUSES).or(`emergency_work.eq.true,priority.eq.critical,assigned_technician_id.eq.${identity.userId},due_date.lt.${today},and(assigned_technician_id.is.null,assigned_vendor_id.is.null,assigned_team_id.is.null)`);
   if (values.date_from) query = query.gte("created_at", `${values.date_from}T00:00:00.000Z`);
   if (values.date_to) query = query.lte("created_at", `${values.date_to}T23:59:59.999Z`);
   const sorting = SORT[values.sort ?? "newest"] ?? SORT.newest;
@@ -59,7 +64,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
       {!error && (orders ?? []).length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No matching work orders.</div>}
       {!error && (orders ?? []).length > 0 && <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{orders?.map((order) => {
         const overdue = order.due_date && !["closed", "cancelled", "completed", "reviewed"].includes(order.status) && new Date(`${order.due_date}T23:59:59`).getTime() < Date.now();
-        return <li key={order.id}><Link href={`/work-orders/${order.id}`} className="flex flex-col gap-3 p-4 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-xs font-bold tracking-wide text-blue-700">{order.work_order_number}</p><h2 className="truncate font-semibold text-slate-900">{order.title}</h2><p className="mt-1 text-sm text-slate-500">{[order.site, order.location, order.categories?.name, order.departments?.name].filter(Boolean).join(" · ")}</p><p className={`mt-1 text-xs ${overdue ? "font-bold text-red-700" : "text-slate-400"}`}>{overdue ? "Overdue · " : ""}Due {formatDate(order.due_date)} · {String(order.source).replaceAll("_", " ")}</p></div><div className="flex shrink-0 gap-2"><WorkOrderPriorityBadge priority={order.priority as WorkOrderPriority} /><WorkOrderStatusBadge status={order.status as WorkOrderStatus} /></div></Link></li>;
+        return <li key={order.id}><Link href={`/work-orders/${order.id}`} className="flex flex-col gap-3 p-4 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-xs font-bold tracking-wide text-blue-700">{order.work_order_number}{order.emergency_work ? " · Emergency" : ""}</p><h2 className="truncate font-semibold text-slate-900">{order.title}</h2><p className="mt-1 text-sm text-slate-500">{[order.facility?.name ?? order.site, order.facility_area ? `${order.facility_area.level} · ${order.facility_area.area_code} ${order.facility_area.name}` : order.location, order.asset ? `${order.asset.asset_tag} ${order.asset.name}` : null].filter(Boolean).join(" · ")}</p><p className="mt-1 text-xs text-slate-500">Assigned Technician: {order.assigned_to ?? "Unassigned"}</p><p className={`mt-1 text-xs ${overdue ? "font-bold text-red-700" : "text-slate-400"}`}>{overdue ? "Overdue · " : ""}Due {formatDate(order.due_date)} · {String(order.source).replaceAll("_", " ")}</p></div><div className="flex shrink-0 gap-2"><WorkOrderPriorityBadge priority={order.priority as WorkOrderPriority} /><WorkOrderStatusBadge status={order.status as WorkOrderStatus} /></div></Link></li>;
       })}</ul>}
       <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Page {page} of {totalPages} · {count ?? 0} records</span><div className="flex gap-2">{page > 1 && <Link className="rounded border px-3 py-1.5" href={pageHref(page - 1)}>Previous</Link>}{page < totalPages && <Link className="rounded border px-3 py-1.5" href={pageHref(page + 1)}>Next</Link>}</div></div>
     </main>

@@ -66,8 +66,7 @@ export default async function OperationsPage() {
   if (!identity) redirect("/login?next=/operations");
 
   const supabase = await createClient();
-  let orderQuery = supabase.from("work_orders").select("id,work_order_number,title,location,site,asset_id,asset:assets(asset_tag,name),priority,status,assigned_to,assigned_technician_id,assigned_vendor_id,assigned_team_id,due_date,completion_notes,completed_at,created_at,updated_at,categories(name)").order("priority_rank", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
-  if (identity.role === "technician") orderQuery = orderQuery.eq("assigned_technician_id", identity.userId);
+  const orderQuery = supabase.from("work_orders").select("id,work_order_number,title,location,site,asset_id,asset:assets(asset_tag,name),priority,status,assigned_to,assigned_technician_id,assigned_vendor_id,assigned_team_id,due_date,completion_notes,completed_at,created_at,updated_at,categories(name)").order("priority_rank", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
 
   const teamAllowed = ["approver", "supervisor", "administrator"].includes(identity.role);
   const [orderResult, incidentResult, teamResult, evidenceResult] = await Promise.all([

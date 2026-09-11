@@ -15,7 +15,7 @@ describe("Operations Workspace", () => {
 
   test("provides the approved workspace views", () => {
     const workspace = read("components/operations/OperationsWorkspace.tsx");
-    for (const label of ["Today", "Work Queue", "Approvals", "Team", "Schedule", "Exceptions"]) {
+    for (const label of ["Today", "Facility Work", "Approvals", "Team", "Schedule", "Exceptions"]) {
       expect(workspace).toContain(label);
     }
   });
@@ -46,7 +46,7 @@ describe("Operations Workspace", () => {
     const workspace = read("components/operations/OperationsWorkspace.tsx");
     expect(workspace).toContain('useState("active")');
     expect(workspace).toContain('["submitted", "approved", "assigned", "in_progress"]');
-    expect(workspace).toContain('<option value="all">All</option>');
+    expect(workspace).toContain('<option value="all">All Facility Work</option>');
   });
 
   test("covers critical overdue and unassigned work", () => {
@@ -77,8 +77,8 @@ describe("Operations Workspace", () => {
     expect(workspace).toContain('const visibleViews = technician');
     expect(workspace).toContain('["today", "work", "schedule"].includes(view.id)');
     expect(workspace).toContain("min-h-11");
-    expect(workspace).toContain("My Work");
-    expect(workspace).toContain('item.id === "today" ? "Emergency"');
+    expect(workspace).toContain("Facility Work");
+    expect(workspace).toContain('item.id === "today" ? "Attention Required"');
     expect(workspace).toContain('if (view.id === "approvals") return canReview');
   });
 

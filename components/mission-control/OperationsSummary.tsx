@@ -13,12 +13,19 @@ export type MissionWorkOrder = {
   due_date: string | null;
   completed_at?: string | null;
   created_at: string;
+  emergency_work?: boolean;
+  assigned_technician_id?: string | null;
+  assigned_vendor_id?: string | null;
+  assigned_team_id?: string | null;
+  assigned_to?: string | null;
+  location?: string;
+  site?: string | null;
 };
 
 export default function OperationsSummary({ orders }: { orders: MissionWorkOrder[] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <SectionTitle title="Recent operations" action={<Link href="/work-orders" className="text-sm font-bold text-blue-700 hover:underline">All work orders →</Link>} />
+      <SectionTitle title="Active facility work" action={<Link href="/work-orders" className="text-sm font-bold text-blue-700 hover:underline">All work orders →</Link>} />
       <div className="mt-4">
         {!orders.length ? (
           <EmptyState title="No work orders available" description="New operational work will appear here." />
@@ -33,7 +40,7 @@ export default function OperationsSummary({ orders }: { orders: MissionWorkOrder
                     <p className="text-xs text-slate-500">Due {order.due_date || "not set"}</p>
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
-                    <StatusChip tone={order.priority === "critical" ? "danger" : order.priority === "high" ? "warning" : "neutral"}>{priorityLabel(order.priority)}</StatusChip>
+                    <StatusChip tone={order.status === "closed" ? "neutral" : order.priority === "critical" ? "danger" : order.priority === "high" ? "warning" : "neutral"}>{order.status === "closed" ? `Original priority: ${priorityLabel(order.priority)}` : priorityLabel(order.priority)}</StatusChip>
                     <StatusChip tone="info">{workOrderStatusLabel(order.status)}</StatusChip>
                   </div>
                 </Link>

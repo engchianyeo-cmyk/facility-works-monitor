@@ -17,7 +17,8 @@ describe("Technician execution interaction", () => {
     expect(authorizedExecutionActions("assigned", [])).toEqual([]);
     expect(page).toContain("canAct(action, context)");
     expect(page).toContain('identity.role === "technician"');
-    expect(page).toContain('.eq("assigned_technician_id", identity.userId)');
+    expect(page).not.toContain('.eq("assigned_technician_id", identity.userId)');
+    expect(page).toContain("canRecordWork(context)");
   });
 
   test("keeps the protected start interaction to one intentional action", () => {

@@ -7,7 +7,7 @@ import { GET } from "@/app/api/work-orders/route";
 
 function query(result = { data: [{ id: "order-1" }], error: null, count: 41 }) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const method of ["select", "or", "eq", "is", "not", "gte", "lte", "order"]) chain[method] = vi.fn().mockReturnValue(chain);
+  for (const method of ["select", "or", "eq", "is", "not", "gte", "lte", "lt", "in", "order"]) chain[method] = vi.fn().mockReturnValue(chain);
   chain.range = vi.fn().mockResolvedValue(result);
   return chain;
 }
@@ -21,6 +21,7 @@ describe("GET /api/work-orders", () => {
   });
   test("rejects unsupported filters", async () => { const response = await GET(new NextRequest("http://localhost/api/work-orders?status=deleted")); expect(response.status).toBe(400); expect(await response.json()).toMatchObject({ code: "VALIDATION_ERROR" }); expect(mocks.createClient).not.toHaveBeenCalled(); });
   test("caps page size", async () => { const chain = query({ data: [], error: null, count: 0 }); mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(chain) }); await GET(new NextRequest("http://localhost/api/work-orders?page_size=500")); expect(chain.range).toHaveBeenCalledWith(0, 99); });
-  test("always scopes a Technician list to the authenticated Technician", async () => { const chain = query({ data: [], error: null, count: 0 }); mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(chain) }); await GET(new NextRequest("http://localhost/api/work-orders?assignment=unassigned")); expect(chain.eq).toHaveBeenCalledWith("assigned_technician_id", "11111111-1111-4111-8111-111111111111"); expect(chain.is).toHaveBeenCalledWith("assigned_technician_id", null); });
+  test("uses RLS facility scope for a Technician", async () => { const chain = query({ data: [], error: null, count: 15 }); mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(chain) }); const response = await GET(new NextRequest("http://localhost/api/work-orders")); expect(chain.eq).not.toHaveBeenCalledWith("assigned_technician_id", "11111111-1111-4111-8111-111111111111"); expect(await response.json()).toMatchObject({ pagination: { total: 15 } }); });
+  test("supports explicit My Assignments", async () => { const chain = query({ data: [], error: null, count: 1 }); mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(chain) }); await GET(new NextRequest("http://localhost/api/work-orders?assignment=mine")); expect(chain.eq).toHaveBeenCalledWith("assigned_technician_id", "11111111-1111-4111-8111-111111111111"); });
   test("does not force assignment scoping for an Approver", async () => { mocks.getCurrentIdentity.mockResolvedValue({ userId: "approver-id", role: "approver" }); const chain = query({ data: [], error: null, count: 0 }); mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(chain) }); await GET(new NextRequest("http://localhost/api/work-orders")); expect(chain.eq).not.toHaveBeenCalledWith("assigned_technician_id", "approver-id"); });
 });

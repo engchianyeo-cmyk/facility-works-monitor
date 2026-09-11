@@ -12,13 +12,10 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;
   const supabase = await createClient();
-  let orderQuery = supabase
+  const orderQuery = supabase
     .from("work_orders")
     .select("*, categories(name), departments(code,name,colour_tag), facility_area:facility_areas(area_code,name,level,drawing_reference,map_x,map_y), asset:assets(asset_tag,name)")
     .eq("id", id);
-  if (identity.role === "technician") {
-    orderQuery = orderQuery.eq("assigned_technician_id", identity.userId);
-  }
   const { data, error } = await orderQuery.maybeSingle();
   if (error) return transportFailure("load");
   if (!data) return errorResponse("NOT_FOUND", "Work order not found.", 404);

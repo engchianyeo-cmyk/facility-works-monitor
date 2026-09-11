@@ -12,9 +12,10 @@ import CopilotPanel, { type MissionRecommendation } from "./CopilotPanel";
 import QuickActions from "./QuickActions";
 import FacilityLayoutPanel, { sampleFacilityLayoutConfig } from "./FacilityLayoutPanel";
 import { roleLabel } from "@/lib/product-terminology";
+import TechnicianMissionControl from "./TechnicianMissionControl";
 
 export type MissionControlData = {
-  identity: { displayName: string; role: UserRole; department: string | null };
+  identity: { userId: string; displayName: string; role: UserRole; department: string | null };
   generatedAt: string;
   orders: MissionWorkOrder[];
   incidents: MissionIncident[];
@@ -27,6 +28,7 @@ export type MissionControlData = {
 };
 
 export default function MissionControl({ data }: { data: MissionControlData }) {
+  if (data.identity.role === "technician") return <TechnicianMissionControl data={data} />;
   const availabilityMessage = !data.availability.workOrders
     ? "Some Work Order information is temporarily unavailable. Incident operations remain available where shown."
     : "Some Incident information is temporarily unavailable. Work Order operations remain available.";

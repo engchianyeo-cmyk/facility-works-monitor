@@ -15,13 +15,14 @@ describe("/api/work-orders/[id]", () => {
     mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValueOnce(orderQuery).mockReturnValueOnce(logQuery) });
     const response = await GET(new NextRequest("http://localhost/api/work-orders/order-1"), context); expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ ok: true, data: { id: "order-1", activity: [{ action: "created" }] } });
   });
-  test("GET scopes Technician detail access to their own assignment", async () => {
+  test("GET relies on RLS for same-facility Technician detail access", async () => {
     mocks.getCurrentIdentity.mockResolvedValue({ ...identity, userId: "technician-id", role: "technician" });
-    const orderQuery: Record<string, ReturnType<typeof vi.fn>> = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn() }; orderQuery.select.mockReturnValue(orderQuery); orderQuery.eq.mockReturnValue(orderQuery); orderQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
-    mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValue(orderQuery) });
+    const orderQuery: Record<string, ReturnType<typeof vi.fn>> = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn() }; orderQuery.select.mockReturnValue(orderQuery); orderQuery.eq.mockReturnValue(orderQuery); orderQuery.maybeSingle.mockResolvedValue({ data: { id: "same-facility-order" }, error: null });
+    const logQuery: Record<string, ReturnType<typeof vi.fn>> = { select: vi.fn(), eq: vi.fn(), order: vi.fn() }; logQuery.select.mockReturnValue(logQuery); logQuery.eq.mockReturnValue(logQuery); logQuery.order.mockResolvedValue({ data: [], error: null });
+    mocks.createClient.mockResolvedValue({ from: vi.fn().mockReturnValueOnce(orderQuery).mockReturnValueOnce(logQuery) });
     const response = await GET(new NextRequest("http://localhost/api/work-orders/order-1"), context);
-    expect(orderQuery.eq).toHaveBeenCalledWith("assigned_technician_id", "technician-id");
-    expect(response.status).toBe(404);
+    expect(orderQuery.eq).not.toHaveBeenCalledWith("assigned_technician_id", "technician-id");
+    expect(response.status).toBe(200);
   });
   test("PATCH uses update RPC", async () => { const rpc = vi.fn().mockResolvedValue({ data: { ok: true, work_order: { id: "order-1", title: "Updated" } }, error: null }); mocks.createClient.mockResolvedValue({ rpc }); const response = await PATCH(new NextRequest("http://localhost/api/work-orders/order-1", { method: "PATCH", body: JSON.stringify({ title: "Updated" }) }), context); expect(response.status).toBe(200); expect(rpc).toHaveBeenCalledWith("update_work_order", { p_work_order_id: "22222222-2222-4222-8222-222222222222", p_payload: { title: "Updated" } }); });
   test("PATCH rejects malformed JSON", async () => { const response = await PATCH(new NextRequest("http://localhost/api/work-orders/order-1", { method: "PATCH", body: "{" }), context); expect(response.status).toBe(400); expect(await response.json()).toMatchObject({ code: "VALIDATION_ERROR", message: "Request body must be valid JSON." }); });

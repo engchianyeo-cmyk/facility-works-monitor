@@ -20,6 +20,7 @@ const SORT_COLUMNS: Record<string, string> = {
   updated: "updated_at",
   work_order_number: "work_order_number",
 };
+const ACTIVE_STATUSES = ["draft", "submitted", "approved", "assigned", "in_progress"];
 
 export async function GET(request: NextRequest) {
   const identity = await getCurrentIdentity();
@@ -45,9 +46,6 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("work_orders")
     .select("*, categories(name), departments(code,name,colour_tag)", { count: "exact" });
-  if (identity.role === "technician") {
-    query = query.eq("assigned_technician_id", identity.userId);
-  }
 
   const search = params.get("search")?.trim();
   if (search) {
@@ -62,7 +60,7 @@ export async function GET(request: NextRequest) {
   const assignment = params.get("assignment");
   if (assignment === "unassigned") {
     query = query.is("assigned_technician_id", null).is("assigned_vendor_id", null).is("assigned_team_id", null);
-  } else if (assignment === "mine" && identity.role !== "technician") {
+  } else if (assignment === "mine") {
     query = query.eq("assigned_technician_id", identity.userId);
   } else if (assignment === "technician") {
     query = query.not("assigned_technician_id", "is", null);
@@ -71,6 +69,12 @@ export async function GET(request: NextRequest) {
   } else if (assignment === "team") {
     query = query.not("assigned_team_id", "is", null);
   }
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Singapore" }).format(new Date());
+  if (params.get("active") === "true") query = query.in("status", ACTIVE_STATUSES);
+  const attention = params.get("attention");
+  if (attention === "critical") query = query.in("status", ACTIVE_STATUSES).or("emergency_work.eq.true,priority.eq.critical");
+  else if (attention === "overdue") query = query.in("status", ACTIVE_STATUSES).lt("due_date", today);
+  else if (attention === "action") query = query.in("status", ACTIVE_STATUSES).or(`emergency_work.eq.true,priority.eq.critical,assigned_technician_id.eq.${identity.userId},due_date.lt.${today},and(assigned_technician_id.is.null,assigned_vendor_id.is.null,assigned_team_id.is.null)`);
   const dateFrom = params.get("date_from");
   const dateTo = params.get("date_to");
   if (dateFrom) query = query.gte("created_at", `${dateFrom}T00:00:00.000Z`);
