@@ -92,7 +92,9 @@ export default function WorkOrderDrawings() {
     ? {
         x: mapX,
         y: mapY,
-        label: `${locationContext.facility_area.area_code} · ${locationContext.facility_area.name}`,
+        label: locationContext.asset
+          ? `${locationContext.asset.asset_tag} · ${locationContext.facility_area.area_code} ${locationContext.facility_area.name}`
+          : `${locationContext.facility_area.area_code} · ${locationContext.facility_area.name}`,
       }
     : undefined;
 
@@ -135,10 +137,11 @@ export default function WorkOrderDrawings() {
                 {locationContext.facility_area?.name ?? locationContext.location ?? "Location not recorded"}
               </p>
               <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{locationContext.location ?? "—"}</dd></div>
-                <div><dt className="text-slate-500">Area Code</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.area_code ?? "—"}</dd></div>
-                <div><dt className="text-slate-500">Floor Level</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.level ?? "—"}</dd></div>
-                <div><dt className="text-slate-500">Asset / Equipment</dt><dd className="font-semibold text-slate-900">{locationContext.asset?.asset_tag ?? "—"}</dd></div>
+                <div><dt className="text-slate-500">Building / Block</dt><dd className="font-semibold text-slate-900">{locationContext.site ?? "—"}</dd></div>
+                <div><dt className="text-slate-500">Area / Room</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.name ?? locationContext.location ?? "—"}</dd></div>
+                <div><dt className="text-slate-500">Level / Area Code</dt><dd className="font-semibold text-slate-900">{[locationContext.facility_area?.level, locationContext.facility_area?.area_code].filter(Boolean).join(" · ") || "—"}</dd></div>
+                <div><dt className="text-slate-500">Asset</dt><dd className="font-semibold text-slate-900">{locationContext.asset ? `${locationContext.asset.asset_tag} · ${locationContext.asset.name}` : "—"}</dd></div>
+                <div><dt className="text-slate-500">Drawing Reference</dt><dd className="font-semibold text-slate-900">{locationDrawing?.code ?? locationContext.facility_area?.drawing_reference ?? "—"}</dd></div>
               </dl>
             </div>
             {locationDrawing && (
@@ -151,9 +154,9 @@ export default function WorkOrderDrawings() {
               </button>
             )}
           </div>
-          {locationContext.facility_area && !marker && (
+          {!marker && (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-              The correct drawing and facility area are linked. Exact plan-marker coordinates have not yet been calibrated for this area.
+              Precise asset position has not yet been configured on this drawing. This is a Facility Configuration gap; an authorised Facility Engineer or Administrator must place and save the marker before it can be displayed.
             </p>
           )}
           {marker && (
