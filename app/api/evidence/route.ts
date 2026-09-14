@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: order, error } = await supabase.from("work_orders").select("status,assigned_technician_id,facility_id,user_id,requested_by").eq("id", parentId).maybeSingle();
     if (error || !order) return fail("NOT_FOUND", "Work Order was not found.", 404);
-    const membership = identity.role === "technician" ? await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id }) : { data: false };
+    const membership = await supabase.rpc("field_work_facility_permitted", { p_facility_id: order.facility_id });
     if (!canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status: order.status, hasActiveFacilityMembership: membership.data === true, creatorId: order.user_id, requesterId: order.requested_by })) {
-      return fail("EVIDENCE_READ_ONLY", "Evidence is read-only unless you are authorised to record field evidence for this active assignment.", 403);
+      return fail("EVIDENCE_READ_ONLY", "Evidence is read-only unless you are the authorised field-responsible person for this active assignment.", 403);
     }
   }
 
