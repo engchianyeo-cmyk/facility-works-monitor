@@ -6,6 +6,7 @@ import type {
 
 const WORK_AUTHORITIES: UserRole[] = ["approver", "supervisor", "facility_manager", "administrator"];
 const COMPLETED_WORK_AUTHORITIES: UserRole[] = ["supervisor", "facility_manager", "administrator"];
+const FIELD_EXECUTION_ROLES: UserRole[] = ["technician", "supervisor", "facility_manager", "administrator"];
 
 export function canCreate(role: UserRole): boolean {
   return role !== "technician";
@@ -29,6 +30,16 @@ export function canAct(
   action: WorkOrderAction,
   context: WorkflowContext,
 ): boolean {
+  if (action === "accept") {
+    return FIELD_EXECUTION_ROLES.includes(context.role)
+      && (context.assignedTechnicianId === null || context.actorId === context.assignedTechnicianId);
+  }
+  if (action === "start") {
+    return FIELD_EXECUTION_ROLES.includes(context.role)
+      && context.actorId === context.assignedTechnicianId;
+  }
+  if (action === "complete") return false;
+
   if (context.role === "administrator") return true;
 
   if (action === "submit") {
@@ -43,13 +54,6 @@ export function canAct(
   if (["review", "return_for_rework", "close"].includes(action)) {
     return COMPLETED_WORK_AUTHORITIES.includes(context.role);
   }
-  if (["accept", "start"].includes(action)) {
-    return (
-      context.role === "technician" &&
-      context.actorId === context.assignedTechnicianId
-    );
-  }
-  if (action === "complete") return false;
   if (action === "cancel") {
     return WORK_AUTHORITIES.includes(context.role);
   }
@@ -58,7 +62,6 @@ export function canAct(
 
 export function canRecordWork(context: WorkflowContext): boolean {
   if (!["assigned", "in_progress"].includes(context.status)) return false;
-  return context.role === "administrator" || (
-    context.role === "technician" && context.actorId === context.assignedTechnicianId
-  );
+  return FIELD_EXECUTION_ROLES.includes(context.role)
+    && context.actorId === context.assignedTechnicianId;
 }
