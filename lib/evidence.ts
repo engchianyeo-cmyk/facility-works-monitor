@@ -2,6 +2,7 @@ export const EVIDENCE_CATEGORIES = ["before", "after"] as const;
 export type EvidenceCategory = typeof EVIDENCE_CATEGORIES[number];
 export type EvidenceParent = "work_order" | "incident";
 const MUTABLE_WORK_ORDER_EVIDENCE_STATUSES = new Set(["assigned", "in_progress"]);
+const FIELD_EXECUTION_ROLES = new Set(["technician", "supervisor", "facility_manager", "administrator"]);
 
 export function canMutateWorkOrderEvidence(input: {
   role: string;
@@ -12,7 +13,7 @@ export function canMutateWorkOrderEvidence(input: {
   requesterId?: string | null;
   creatorId?: string | null;
 }) {
-  return input.role === "technician"
+  return FIELD_EXECUTION_ROLES.has(input.role)
     && MUTABLE_WORK_ORDER_EVIDENCE_STATUSES.has(input.status)
     && input.assignedTechnicianId === input.userId
     && input.hasActiveFacilityMembership === true;
