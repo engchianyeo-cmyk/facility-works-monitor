@@ -31,22 +31,10 @@ function calibratedCoordinate(value: number | string | null | undefined) {
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
 }
 
-function fallbackDrawing(context: LocationContext | null) {
-  if (!context) return null;
-  const reference = context.facility_area?.drawing_reference?.trim().toUpperCase();
-  if (reference) {
-    const exact = WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === reference);
-    if (exact) return exact;
-  }
-
-  const location = `${context.facility_area?.level ?? ""} ${context.location ?? ""}`.toLowerCase();
-  if (/\b(level|floor)\s*2\b|2nd|second|pantry/.test(location)) {
-    return WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-002") ?? null;
-  }
-  if (/roof/.test(location)) {
-    return WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-003") ?? null;
-  }
-  return WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-001") ?? null;
+function configuredDrawing(context: LocationContext | null) {
+  const reference = context?.facility_area?.drawing_reference?.trim().toUpperCase();
+  if (!reference) return null;
+  return WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === reference) ?? null;
 }
 
 export default function WorkOrderDrawings() {
@@ -85,10 +73,10 @@ export default function WorkOrderDrawings() {
     return () => controller.abort();
   }, [workOrderId]);
 
-  const locationDrawing = useMemo(() => fallbackDrawing(locationContext), [locationContext]);
+  const locationDrawing = useMemo(() => configuredDrawing(locationContext), [locationContext]);
   const mapX = calibratedCoordinate(locationContext?.facility_area?.map_x);
   const mapY = calibratedCoordinate(locationContext?.facility_area?.map_y);
-  const marker = mapX !== null && mapY !== null && locationContext?.facility_area
+  const marker = locationDrawing && mapX !== null && mapY !== null && locationContext?.facility_area
     ? {
         x: mapX,
         y: mapY,
@@ -124,7 +112,7 @@ export default function WorkOrderDrawings() {
           Facility Drawings
         </p>
         <p className="mt-1 text-sm text-neutral-500">
-          Facility reference drawings with Work Order location focus where spatial data is available.
+          Facility reference drawings with the configured Work Order location marker where spatial data is available.
         </p>
       </div>
 
@@ -141,7 +129,7 @@ export default function WorkOrderDrawings() {
                 <div><dt className="text-slate-500">Area / Room</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.name ?? locationContext.location ?? "—"}</dd></div>
                 <div><dt className="text-slate-500">Level / Area Code</dt><dd className="font-semibold text-slate-900">{[locationContext.facility_area?.level, locationContext.facility_area?.area_code].filter(Boolean).join(" · ") || "—"}</dd></div>
                 <div><dt className="text-slate-500">Asset</dt><dd className="font-semibold text-slate-900">{locationContext.asset ? `${locationContext.asset.asset_tag} · ${locationContext.asset.name}` : "—"}</dd></div>
-                <div><dt className="text-slate-500">Drawing Reference</dt><dd className="font-semibold text-slate-900">{locationDrawing?.code ?? locationContext.facility_area?.drawing_reference ?? "—"}</dd></div>
+                <div><dt className="text-slate-500">Drawing Reference</dt><dd className="font-semibold text-slate-900">{locationContext.facility_area?.drawing_reference ?? "—"}</dd></div>
               </dl>
             </div>
             {locationDrawing && (
@@ -154,14 +142,19 @@ export default function WorkOrderDrawings() {
               </button>
             )}
           </div>
-          {!marker && (
+          {!locationDrawing && (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-              Precise asset position has not yet been configured on this drawing. This is a Facility Configuration gap; an authorised Facility Engineer or Administrator must place and save the marker before it can be displayed.
+              No configured facility drawing is linked to this Work Order location. An authorised Facility Engineer or Administrator must select and save the correct drawing before the Technician can use the layout location.
+            </p>
+          )}
+          {locationDrawing && !marker && (
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+              The correct facility drawing is configured, but the precise marker has not yet been saved. An authorised Facility Engineer or Administrator must place and save the marker before it can be displayed to the Technician.
             </p>
           )}
           {marker && (
             <p className="mt-3 text-xs font-semibold text-blue-800">
-              The layout will highlight {marker.label} at its calibrated plan position.
+              The layout will highlight {marker.label} at its saved facility-plan position.
             </p>
           )}
         </div>
