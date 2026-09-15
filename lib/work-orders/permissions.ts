@@ -38,7 +38,10 @@ export function canAct(
     return FIELD_EXECUTION_ROLES.includes(context.role)
       && context.actorId === context.assignedTechnicianId;
   }
-  if (action === "complete") return false;
+  if (action === "complete") {
+    return FIELD_EXECUTION_ROLES.includes(context.role)
+      && context.actorId === context.assignedTechnicianId;
+  }
 
   if (context.role === "administrator") return true;
 
