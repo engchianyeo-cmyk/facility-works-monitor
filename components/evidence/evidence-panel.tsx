@@ -146,14 +146,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true }
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button type="button" onClick={() => void open(item.id)} className="min-h-11 rounded-lg border border-blue-300 px-3 text-sm font-black text-blue-800">Open</button>
-                  {canMutate && <button
-                    type="button"
-                    disabled={deletingId !== null}
-                    onClick={() => void remove(item)}
-                    className="min-h-11 rounded-lg border border-red-300 px-3 text-sm font-black text-red-700 disabled:opacity-50"
-                  >
-                    {deletingId === item.id ? "Removing…" : "Delete"}
-                  </button>}
+                  {canMutate && <button type="button" disabled={deletingId !== null} onClick={() => void remove(item)} className="min-h-11 rounded-lg border border-red-300 px-3 text-sm font-black text-red-700 disabled:opacity-50">{deletingId === item.id ? "Removing…" : "Delete"}</button>}
                 </div>
               </div>
               {item.description && <p className="mt-2 text-sm">{item.description}</p>}
@@ -164,13 +157,13 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true }
       ) : (
         <div className="mt-5 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-6 text-center">
           <p className="font-bold text-amber-950">No evidence attached</p>
-          <p className="mt-1 text-sm text-amber-900">After evidence is required before work can be marked Completed. Add Before evidence whenever the original fault or site condition can be safely recorded.</p>
+          <p className="mt-1 text-sm text-amber-900">Before evidence records the original condition. After evidence is required before physical completion can be submitted.</p>
         </div>
       )}
 
       {canMutate ? <form onSubmit={submit} className="mt-6 grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
         <label className="text-sm font-bold">Category
-          <select name="category" defaultValue="after" className="mt-1 min-h-12 w-full rounded-lg border bg-white px-3">
+          <select name="category" defaultValue="before" className="mt-1 min-h-12 w-full rounded-lg border bg-white px-3">
             {EVIDENCE_CATEGORIES.map((value) => <option key={value} value={value}>{label(value)}</option>)}
           </select>
         </label>
@@ -184,7 +177,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true }
           <p className="mb-3 text-xs text-slate-600">Online connection required. Maximum 10 MB. Do not upload passwords, identity documents, or unrelated personal information.</p>
           <button disabled={uploading} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50 sm:w-auto">{uploading ? "Uploading…" : "Add evidence"}</button>
         </div>
-      </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Evidence is read-only. Completed Work must be rejected and reopened before the assigned Technician can correct field evidence.</p>}
+      </form> : <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950"><p className="font-black">Field evidence is locked until responsibility is accepted.</p><p className="mt-1">The authorised field person must first use <strong>Accept assignment</strong>. After acceptance, that responsible person can add Before/After evidence while the Work Order is active. This applies to Technician, Supervisor, Facility Manager or Administrator field execution.</p></div>}
 
       {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-sm font-semibold ${messageKind === "error" ? "text-red-800" : "text-blue-800"}`}>{message}</p>}
     </section>
