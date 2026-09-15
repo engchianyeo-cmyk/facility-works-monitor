@@ -26,16 +26,25 @@ async function transitionWorkOrder(request: NextRequest, { params }: RouteContex
   delete payload.action;
 
   const supabase = await createClient();
-  const requestResult = action === "review"
-    ? await supabase.rpc("verify_completed_work", {
+  const requestResult = action === "accept"
+    ? await supabase.rpc("accept_work_responsibility", {
         p_work_order_id: id,
-        p_payload: payload,
       })
-    : await supabase.rpc("transition_work_order", {
-        p_work_order_id: id,
-        p_action: action,
-        p_payload: payload,
-      });
+    : action === "complete"
+      ? await supabase.rpc("submit_physical_completion", {
+          p_work_order_id: id,
+          p_payload: payload,
+        })
+      : action === "review"
+        ? await supabase.rpc("verify_completed_work", {
+            p_work_order_id: id,
+            p_payload: payload,
+          })
+        : await supabase.rpc("transition_work_order", {
+            p_work_order_id: id,
+            p_action: action,
+            p_payload: payload,
+          });
 
   const { data, error } = requestResult;
   if (error) return transportFailure("transition");
