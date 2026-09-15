@@ -178,13 +178,13 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
   ].filter((item): item is string => Boolean(item));
   if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => action !== "complete");
-  if (identity.role === "administrator" && ["assigned", "in_progress"].includes(status)) {
-    allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
-  }
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
-  const technicianFacilityMembership = identity.role === "technician" && order.facility_id
-    ? await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id })
+  const fieldFacilityPermission = order.facility_id
+    ? await supabase.rpc("field_work_facility_permitted", { p_facility_id: order.facility_id })
     : { data: false };
+  const fieldCompletionAuthority = ["assigned", "in_progress"].includes(status)
+    && order.assigned_technician_id === identity.userId
+    && fieldFacilityPermission.data === true;
   const assetLabel = assetReferenceLabel(order.asset_id, order.asset as { asset_tag: string; name: string } | null);
   const assetLinkAllowed = canLinkWorkOrderAsset(identity.role) && !["closed", "cancelled"].includes(status);
   const assetOptionsResult = assetLinkAllowed
@@ -215,7 +215,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     ["Accepted at", order.accepted_at ? formatDateTime(order.accepted_at) : null],
   ].filter(([, value]) => hasValue(value));
   const jobInstructionFields = [["Original / imported instructions", order.internal_notes]].filter(([, value]) => hasValue(value));
-  const technicianWorkFields = [
+  const fieldWorkFields = [
     ["Work performed", order.completion_notes],
     ["Actual labour hours", order.actual_labour_hours],
   ].filter(([, value]) => hasValue(value));
@@ -248,9 +248,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     reworkReason: currentRework?.reason,
     operationalStage: operationalStage.label,
   });
-  const nextAction = identity.role === "administrator" && ["assigned", "in_progress"].includes(status)
-    ? operationalStage.nextAction
-    : authorizedExecutionActions(String(order.status), allowedActions)[0]?.label ?? null;
+  const nextAction = authorizedExecutionActions(String(order.status), allowedActions)[0]?.label ?? null;
   const location = [order.site, order.location].filter(Boolean).join(" · ") || "Location not recorded";
 
   return (
@@ -276,13 +274,12 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         priority={order.priority}
         dueDate={order.due_date}
         overdue={decisionModel.due.state === "overdue"}
-        technician={identity.role === "technician"}
         status={status}
         allowedActions={allowedActions as WorkOrderAction[]}
         canEdit={canEdit(context)}
         canDuplicate={canCreate(identity.role)}
-        canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
-        formalCompletionAuthority={identity.role === "administrator"}
+        canRecordWork={canRecordWork(context)}
+        fieldCompletionAuthority={fieldCompletionAuthority}
         completionReadiness={operationalStage.completion}
         operationalStage={operationalStage.label}
         completionMissing={completionMissing}
@@ -291,7 +288,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         currentRework={currentRework}
         reviewContext={status === "completed" ? {
           requestedWork: order.description || "Requested work description unavailable.",
-          assignee: resolvedAssignee ?? "Assigned technician unavailable",
+          assignee: resolvedAssignee ?? "Responsible field person unavailable",
           completionNotes: order.completion_notes,
           cumulativeLabourHours: order.actual_labour_hours,
           completedAt: order.completed_at,
@@ -309,11 +306,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       {overviewFields.length > 0 && (
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="font-semibold text-slate-900">Work details</h2>
-          {overviewFields.length > 0 && (
-            <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              {overviewFields.map(([label, value]) => <div key={String(label)}><dt className="text-slate-400">{label}</dt><dd className="mt-1 font-medium text-slate-800">{display(value)}</dd></div>)}
-            </dl>
-          )}
+          <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            {overviewFields.map(([label, value]) => <div key={String(label)}><dt className="text-slate-400">{label}</dt><dd className="mt-1 font-medium text-slate-800">{display(value)}</dd></div>)}
+          </dl>
         </section>
       )}
 
@@ -336,11 +331,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         </section>
       )}
 
-      {technicianWorkFields.length > 0 && (
+      {fieldWorkFields.length > 0 && (
         <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-          <h2 className="font-semibold text-blue-950">Technician Work Record</h2>
+          <h2 className="font-semibold text-blue-950">Field Work Record</h2>
           <dl className="mt-4 space-y-4">
-            {technicianWorkFields.map(([label, value]) => <div key={String(label)}><dt className="text-sm font-medium text-blue-700">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-sm text-blue-950">{display(value)}</dd></div>)}
+            {fieldWorkFields.map(([label, value]) => <div key={String(label)}><dt className="text-sm font-medium text-blue-700">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-sm text-blue-950">{display(value)}</dd></div>)}
           </dl>
         </section>
       )}
@@ -365,7 +360,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       )}
 
       <div id="work-order-evidence">
-        <EvidencePanel parentType="work_order" parentId={id} canMutate={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: technicianFacilityMembership.data === true, creatorId: order.user_id, requesterId: order.requested_by })} />
+        <EvidencePanel parentType="work_order" parentId={id} canMutate={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by })} />
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
