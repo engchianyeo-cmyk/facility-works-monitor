@@ -1,9 +1,13 @@
 import Link from "next/link";
-import { getCurrentIdentity } from "@/lib/auth";
+import { getCurrentAccountIdentity } from "@/lib/auth";
 import { operationalLabel } from "@/lib/product-terminology";
 
 export default async function SiteHeader() {
-  const identity = await getCurrentIdentity();
+  // The global header must reflect the authenticated account even when a
+  // protected page applies stricter workflow/profile checks. Using the account
+  // identity here prevents an authenticated session from being rendered with
+  // the anonymous "Sign in" navigation and no way to sign out.
+  const identity = await getCurrentAccountIdentity();
   const management = identity && ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role);
   const contractorAdmin = identity && ["supervisor", "facility_manager", "administrator"].includes(identity.role);
 
