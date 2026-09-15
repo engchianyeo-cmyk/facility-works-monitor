@@ -25,13 +25,12 @@ type Props = {
   priority: string;
   dueDate: string | null;
   overdue: boolean;
-  technician: boolean;
   status: WorkOrderStatus;
   allowedActions: WorkOrderAction[];
   canEdit: boolean;
   canDuplicate: boolean;
   canRecordWork: boolean;
-  formalCompletionAuthority: boolean;
+  fieldCompletionAuthority: boolean;
   completionReadiness: CompletionReadiness;
   operationalStage: string;
   completionMissing: string[];
@@ -87,8 +86,7 @@ export default function WorkOrderActions(props: Props) {
     [props.allowedActions, props.status],
   );
   const decisionActions = actions.filter(({ action }) => action === "review" || action === "return_for_rework");
-  const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework"
-    && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && ["accept", "start", "complete"].includes(action))) ?? null;
+  const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework" && action !== "complete") ?? null;
 
   useEffect(() => {
     const update = () => setSubmissionState(navigator.onLine ? "online" : "unavailable");
@@ -257,7 +255,7 @@ export default function WorkOrderActions(props: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-mono text-xs font-black tracking-wide text-blue-300">{props.reference}</p>
-            <h2 id="execution-title" className="mt-1 text-xl font-black">{props.technician ? "Technician execution" : "Work Order actions"}</h2>
+            <h2 id="execution-title" className="mt-1 text-xl font-black">Field execution</h2>
           </div>
           <span data-submission-state={submissionState} className="rounded-full border border-slate-600 px-3 py-1 text-xs font-black">{stateLabel}</span>
         </div>
@@ -289,7 +287,7 @@ export default function WorkOrderActions(props: Props) {
             </div>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div><dt className="font-bold text-violet-700">Requested work</dt><dd className="mt-1 whitespace-pre-wrap">{props.reviewContext.requestedWork}</dd></div>
-              <div><dt className="font-bold text-violet-700">Assigned technician / contractor</dt><dd className="mt-1">{props.reviewContext.assignee}</dd></div>
+              <div><dt className="font-bold text-violet-700">Responsible field person / contractor</dt><dd className="mt-1">{props.reviewContext.assignee}</dd></div>
               <div><dt className="font-bold text-violet-700">Work performed statement</dt><dd className="mt-1 whitespace-pre-wrap">{props.reviewContext.completionNotes ?? "Work performed statement unavailable"}</dd></div>
               <div><dt className="font-bold text-violet-700">Cumulative labour</dt><dd className="mt-1">{props.reviewContext.cumulativeLabourHours ?? "Unavailable"} hours</dd></div>
               <div><dt className="font-bold text-violet-700">Completed</dt><dd className="mt-1">{dateTimeLabel(props.reviewContext.completedAt)}</dd></div>
@@ -323,7 +321,7 @@ export default function WorkOrderActions(props: Props) {
 
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950">
           <p className="font-black">Before you finish</p>
-          <p className="mt-1">Marking work Completed requires a clear work-performed statement, cumulative labour hours, and at least one active After photo or PDF. Before evidence should be added whenever the original condition can be recorded safely.</p>
+          <p className="mt-1">Submitting physical completion requires a clear work-performed statement, cumulative labour hours, and at least one active After photo or PDF. Before evidence should be added whenever the original condition can be recorded safely.</p>
         </div>
 
         {props.canRecordWork && (
@@ -332,18 +330,18 @@ export default function WorkOrderActions(props: Props) {
           </button>
         )}
 
-        {props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
-          <section aria-labelledby="formal-completion-title" className="rounded-xl border-2 border-violet-200 bg-violet-50 p-4 text-violet-950">
-            <p className="text-xs font-black uppercase tracking-wide text-violet-700">Formal completion</p>
-            <h3 id="formal-completion-title" className="mt-1 text-lg font-black">{props.operationalStage}</h3>
+        {props.fieldCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
+          <section aria-labelledby="physical-completion-title" className="rounded-xl border-2 border-violet-200 bg-violet-50 p-4 text-violet-950">
+            <p className="text-xs font-black uppercase tracking-wide text-violet-700">Physical completion</p>
+            <h3 id="physical-completion-title" className="mt-1 text-lg font-black">{props.operationalStage}</h3>
             <ul className="mt-4 space-y-2 text-sm">
               <li>Work record received <strong>{props.completionReadiness.workRecordReceived ? "✓" : "✕"}</strong></li>
               <li>Actual labour hours recorded <strong>{props.completionReadiness.labourHoursRecorded ? "✓" : "✕"}</strong></li>
               <li>Active After evidence <strong>{props.completionReadiness.activeAfterEvidence ? "✓" : "✕"}</strong></li>
             </ul>
-            {props.completionMissing.length > 0 && <p className="mt-3 text-sm">All completion controls must pass before formal completion.</p>}
+            {props.completionMissing.length > 0 && <p className="mt-3 text-sm">All completion controls must pass before physical completion can be submitted.</p>}
             <button type="button" disabled={busy !== null || !props.completionReadiness.ready} onClick={() => void transition("complete", {})} className="mt-4 min-h-12 w-full rounded-xl bg-violet-700 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
-              {busy === "complete" ? "Marking Completed…" : "Mark Completed"}
+              {busy === "complete" ? "Submitting Physical Completion…" : "Submit Physical Completion"}
             </button>
           </section>
         )}
@@ -355,7 +353,7 @@ export default function WorkOrderActions(props: Props) {
               {busy === primary.action ? "Submitting…" : primary.label}
             </button>
           </div>
-        ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
+        ) : decisionActions.length === 0 && !(props.fieldCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No workflow action is currently available for your role and this Work Order state.</p>
         )}
 
@@ -363,7 +361,7 @@ export default function WorkOrderActions(props: Props) {
           <form onSubmit={submitWorkRecord} aria-describedby="completion-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
             <div>
               <h3 className="font-black">Record Work Done</h3>
-              <p id="completion-help" className="mt-1 text-sm text-slate-600">Saving this execution record does not formally complete or close the Work Order. An authorised Administrator must review the record and mark the Work Order Completed.</p>
+              <p id="completion-help" className="mt-1 text-sm text-slate-600">Saving this work record does not complete or close the Work Order. The responsible field person must add required After evidence and submit physical completion. An independent authorised superior then verifies the completed work.</p>
             </div>
             <label className="block text-sm font-bold">Work performed statement <span aria-hidden="true">*</span>
               <textarea required rows={5} maxLength={4000} value={completionNotes} onChange={(event) => setCompletionNotes(event.target.value)} className="mt-1 min-h-32 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" placeholder="Summarize the work performed, test result and resulting equipment condition." />
@@ -371,7 +369,7 @@ export default function WorkOrderActions(props: Props) {
             <label className="block text-sm font-bold">Cumulative labour hours <span aria-hidden="true">*</span>
               <input required type="number" min="0" step="0.25" inputMode="decimal" value={actualHours} onChange={(event) => setActualHours(event.target.value)} className="mt-1 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
             </label>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><span className="font-bold">Evidence:</span> Add active After photo or PDF evidence separately before authorised completion.</div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><span className="font-bold">Evidence:</span> Add active After photo or PDF evidence separately before submitting physical completion.</div>
             <div className="grid gap-3 sm:grid-cols-2">
               <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50">{busy === "record_work" ? "Saving work record…" : "Save Work Record"}</button>
               <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">Keep working</button>
@@ -383,7 +381,7 @@ export default function WorkOrderActions(props: Props) {
           <form onSubmit={submitReview} aria-describedby="review-help execution-error" className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <div>
               <h3 className="font-black text-emerald-950">Verify Completed Work</h3>
-              <p id="review-help" className="mt-1 text-sm text-emerald-900">Supervisor, Facility Manager or Administrator authority is required. If the Administrator also performed the work, self-verification is permitted but an override reason is mandatory and will be audited.</p>
+              <p id="review-help" className="mt-1 text-sm text-emerald-900">Supervisor, Facility Manager or Administrator authority is required. The responsible field person should not normally verify their own work. If an Administrator must self-verify, an override reason is mandatory and will be audited.</p>
             </div>
             <label className="block text-sm font-bold text-emerald-950">Verification / override reason, when applicable
               <textarea rows={3} maxLength={2000} value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="mt-1 w-full rounded-lg border border-emerald-300 bg-white p-3" placeholder="For Administrator self-verification, state the reason for exercising Administrator authority." />
