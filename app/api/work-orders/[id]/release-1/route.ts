@@ -6,20 +6,35 @@ import type { RpcResult } from "@/lib/work-orders/types";
 
 type Context = { params: Promise<{ id: string }> };
 
+function rpcCollection(value: unknown, key: "quotations" | "rates") {
+  if (!value || typeof value !== "object") return [];
+  const collection = (value as Record<string, unknown>)[key];
+  return Array.isArray(collection) ? collection : [];
+}
+
 export async function GET(_: NextRequest, { params }: Context) {
   if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;
   const supabase = await createClient();
-  const [markups, costs, procurement, quotations, rates] = await Promise.all([
+  const [markups, costs, procurement, quotationResult, rateResult] = await Promise.all([
     supabase.from("work_order_markups").select("id,source_type,source_reference,page_number,x_percent,y_percent,note,created_at,created_by").eq("work_order_id", id).is("deleted_at", null).order("created_at"),
     supabase.from("work_order_cost_lines").select("id,cost_phase,cost_type,description,quantity,unit,unit_rate,amount,worker_name,created_at").eq("work_order_id", id).order("created_at"),
     supabase.from("work_order_procurement_commitments").select("id,purchase_reference,description,currency,committed_amount,status,created_at").eq("work_order_id", id).order("created_at", { ascending: false }),
     supabase.rpc("work_order_contractor_quotations", { p_work_order_id: id }),
     supabase.rpc("work_order_contractor_rate_items", { p_work_order_id: id }),
   ]);
-  const failed = [markups, costs, procurement, quotations, rates].find((item) => item.error);
+  const failed = [markups, costs, procurement, quotationResult, rateResult].find((item) => item.error);
   if (failed?.error) return transportFailure("load Release 1 workspace for");
-  return NextResponse.json({ ok: true, data: { markups: markups.data ?? [], costs: costs.data ?? [], procurement: procurement.data ?? [], quotations: quotations.data ?? [], rates: rates.data ?? [] } });
+  return NextResponse.json({
+    ok: true,
+    data: {
+      markups: markups.data ?? [],
+      costs: costs.data ?? [],
+      procurement: procurement.data ?? [],
+      quotations: rpcCollection(quotationResult.data, "quotations"),
+      rates: rpcCollection(rateResult.data, "rates"),
+    },
+  });
 }
 
 export async function POST(request: NextRequest, { params }: Context) {

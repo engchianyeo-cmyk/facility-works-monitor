@@ -26,6 +26,13 @@ describe("Release 1 markup and commercial workspace", () => {
     expect(migration).toContain("work_order_procurement_recorded");
   });
 
+  test("normalizes JSON RPC envelopes before rendering collections", () => {
+    expect(route).toContain('rpcCollection(quotationResult.data, "quotations")');
+    expect(route).toContain('rpcCollection(rateResult.data, "rates")');
+    expect(component).toContain("Array.isArray(workspace.quotations)");
+    expect(component).toContain("Array.isArray(workspace.rates)");
+  });
+
   test("denies direct authenticated writes", () => {
     expect(migration).toContain("revoke all on public.work_order_markups,public.work_order_procurement_commitments from anon,authenticated");
     expect(migration).toContain("revoke all on function public.record_work_order_markup(uuid,jsonb),public.record_work_order_procurement(uuid,jsonb) from public,anon,service_role");
