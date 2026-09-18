@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import ImageLightbox from "@/components/image-lightbox";
+import DrawingMarkupEditor from "@/components/work-orders/drawing-markup-editor";
 import {
   WORK_ORDER_DRAWINGS,
   WorkOrderDrawing,
@@ -49,7 +50,7 @@ function fallbackDrawing(context: LocationContext | null) {
   return WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-001") ?? null;
 }
 
-export default function WorkOrderDrawings() {
+export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMutateMarkup?: boolean }) {
   const params = useParams<{ id?: string }>();
   const workOrderId = typeof params?.id === "string" ? params.id : null;
   const [selectedDrawing, setSelectedDrawing] =
@@ -165,6 +166,15 @@ export default function WorkOrderDrawings() {
             </p>
           )}
         </div>
+      )}
+
+      {workOrderId && locationDrawing && contextState === "ready" && (
+        <DrawingMarkupEditor
+          workOrderId={workOrderId}
+          drawing={locationDrawing}
+          assetMarker={marker}
+          canMutate={canMutateMarkup}
+        />
       )}
 
       {contextState === "unavailable" && (

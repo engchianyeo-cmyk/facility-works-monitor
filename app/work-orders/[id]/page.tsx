@@ -400,7 +400,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
             : <ul className="divide-y divide-slate-100">{activity.map((entry) => <li key={entry.id} className="py-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{entry.actor || "System"} · {operationalLabel(entry.action)}</strong><time className="text-slate-400">{formatDateTime(entry.created_at)}</time></div>{(entry.from_status || entry.to_status) && <p className="mt-1 text-slate-500">{entry.from_status ? workOrderStatusLabel(entry.from_status) : "Not recorded"} → {entry.to_status ? workOrderStatusLabel(entry.to_status) : "Not recorded"}</p>}{entry.note && <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs text-slate-600">{auditNote(entry.note)}</pre>}</li>)}</ul>}
       </section>
 
-      <WorkOrderDrawings />
+      <WorkOrderDrawings canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: technicianFacilityMembership.data === true, creatorId: order.user_id, requesterId: order.requested_by })} />
       <ReleaseOneWorkspace id={id} role={identity.role} status={status} />
     </main>
   );
