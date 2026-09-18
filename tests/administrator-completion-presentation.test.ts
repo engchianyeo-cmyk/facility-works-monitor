@@ -8,7 +8,7 @@ const permissions = readFileSync("lib/work-orders/permissions.ts", "utf8");
 describe("Administrator formal completion presentation", () => {
   test("removes assignment execution actions from the Administrator workflow", () => {
     expect(page).toContain('action !== "accept" && action !== "start"');
-    expect(actions).toContain('["accept", "start", "complete"].includes(action)');
+    expect(actions).toContain('["accept", "start", "complete", "submit_physical_completion"].includes(action)');
   });
 
   test("does not require Administrator to re-enter an existing work record", () => {
@@ -16,7 +16,7 @@ describe("Administrator formal completion presentation", () => {
   });
 
   test("renders a single readiness-gated formal completion control", () => {
-    expect(actions).toContain("Formal completion");
+    expect(actions).toContain("Administrator Exception Completion");
     expect(actions).toContain("Active After evidence");
     expect(actions).toContain("!props.completionReadiness.ready");
   });

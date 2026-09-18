@@ -156,10 +156,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     }
   }
 
-  const [evidenceResult, incidentResult] = await Promise.all([
+  const [evidenceResult, incidentResult, approvalReadinessResult, verificationReadinessResult] = await Promise.all([
     supabase.from("evidence_items").select("id,category,deleted_at").eq("work_order_id", id),
     order.incident_id
       ? supabase.from("incidents").select("id,incident_number,severity,status").eq("id", order.incident_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    status === "submitted" ? supabase.rpc("work_order_approval_readiness", { p_work_order_id: id }) : Promise.resolve({ data: null, error: null }),
+    status === "completed" && ["supervisor", "facility_manager", "administrator"].includes(identity.role)
+      ? supabase.rpc("work_order_verification_readiness", { p_work_order_id: id })
       : Promise.resolve({ data: null, error: null }),
   ]);
   const evidenceItems = evidenceResult.error ? [] : evidenceResult.data ?? [];
@@ -177,7 +181,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     order.actual_labour_hours === null || Number(order.actual_labour_hours) < 0 ? "Valid cumulative labour hours have not been recorded." : null,
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
   ].filter((item): item is string => Boolean(item));
-  if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => action !== "complete");
+  if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => !["complete", "submit_physical_completion"].includes(action));
+  const approvalReadiness = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ready: boolean; missing_requirements: string[]; required_authority: string; proposed_cost: number } | null;
+  const verificationReadiness = verificationReadinessResult.error ? null : verificationReadinessResult.data as { verification_ready: boolean; missing_requirements: string[]; completion_event_found: boolean; legacy_completion_record: boolean; self_verification_reason_required: boolean } | null;
+  if (status === "submitted" && approvalReadiness?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "approve");
+  if (status === "completed" && verificationReadiness?.verification_ready !== true) allowedActions = allowedActions.filter((action) => action !== "review");
   if (identity.role === "administrator" && ["assigned", "in_progress"].includes(status)) {
     allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
   }
@@ -286,6 +294,8 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         completionReadiness={operationalStage.completion}
         operationalStage={operationalStage.label}
         completionMissing={completionMissing}
+        approvalReadiness={approvalReadiness}
+        verificationReadiness={verificationReadiness}
         recordedWork={order.completion_notes}
         recordedHours={order.actual_labour_hours}
         currentRework={currentRework}
@@ -302,7 +312,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       />
 
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "System not recorded"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "Engineering System: Not configured"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>
         {assetLinkAllowed && <div className="mt-4 border-t border-emerald-200 pt-4"><AssetLinkControl parent="work-orders" parentId={id} assets={assetOptions} currentAssetId={order.asset_id} unavailable={Boolean(order.asset_id && !order.asset)} /></div>}
       </section>
 

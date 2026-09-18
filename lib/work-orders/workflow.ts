@@ -2,13 +2,14 @@ import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
 import { workOrderStatusLabel } from "@/lib/product-terminology";
 
 export const WORKFLOW_TRANSITIONS: Record<
-  Exclude<WorkOrderAction, "accept" | "cancel">,
+  Exclude<WorkOrderAction, "accept" | "accept_responsibility" | "cancel">,
   { from: readonly WorkOrderStatus[]; to: WorkOrderStatus }
 > = {
   submit: { from: ["draft"], to: "submitted" },
   approve: { from: ["submitted"], to: "approved" },
   start: { from: ["assigned"], to: "in_progress" },
   complete: { from: ["in_progress"], to: "completed" },
+  submit_physical_completion: { from: ["assigned", "in_progress"], to: "completed" },
   review: { from: ["completed"], to: "reviewed" },
   return_for_rework: { from: ["completed"], to: "in_progress" },
   close: { from: ["reviewed"], to: "closed" },
@@ -31,6 +32,11 @@ export function getTransition(
   if (action === "accept") {
     return status === "assigned"
       ? { ok: true, to: "assigned" }
+      : { ok: false, code: "INVALID_TRANSITION" };
+  }
+  if (action === "accept_responsibility") {
+    return ["approved", "assigned", "in_progress"].includes(status)
+      ? { ok: true, to: status === "approved" ? "assigned" : status }
       : { ok: false, code: "INVALID_TRANSITION" };
   }
   if (action === "cancel") {

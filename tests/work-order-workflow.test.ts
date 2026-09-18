@@ -6,7 +6,10 @@ import { WORK_ORDER_ACTIONS, WORK_ORDER_STATUSES, type WorkOrderAction, type Wor
 
 const valid: Array<[WorkOrderStatus, WorkOrderAction, WorkOrderStatus]> = [
   ["draft", "submit", "submitted"], ["submitted", "approve", "approved"],
+  ["approved", "accept_responsibility", "assigned"],
   ["assigned", "accept", "assigned"], ["assigned", "start", "in_progress"],
+  ["assigned", "accept_responsibility", "assigned"], ["in_progress", "accept_responsibility", "in_progress"],
+  ["assigned", "submit_physical_completion", "completed"], ["in_progress", "submit_physical_completion", "completed"],
   ["in_progress", "complete", "completed"], ["completed", "review", "reviewed"],
   ["completed", "return_for_rework", "in_progress"],
   ["reviewed", "close", "closed"],
@@ -23,8 +26,7 @@ describe("canonical workflow transition matrix", () => {
 describe("canonical workflow authorization", () => {
   const base = { actorId: "actor", requesterId: "requester", assignedTechnicianId: "technician", status: "submitted" as WorkOrderStatus };
   test("reviewer remains requestor-level", () => expect(canAct("approve", { ...base, role: "reviewer" })).toBe(false));
-  test("approver can approve another requester's order", () => expect(canAct("approve", { ...base, role: "approver" })).toBe(true));
-  test("approver cannot self-approve", () => expect(canAct("approve", { ...base, role: "approver", actorId: "requester" })).toBe(false));
+  test("Approver role alone has no monetary approval band", () => expect(canAct("approve", { ...base, role: "approver" })).toBe(false));
   test.each(["supervisor", "facility_manager", "administrator"] as UserRole[])("%s can review and return completed work", (role) => {
     const completed = { ...base, role, status: "completed" as WorkOrderStatus };
     expect(canAct("review", completed)).toBe(true);
@@ -38,6 +40,7 @@ describe("canonical workflow authorization", () => {
   test("assigned technician can accept and start but cannot formally complete", () => {
     for (const action of ["accept", "start"] as const) expect(canAct(action, { ...base, role: "technician", actorId: "technician", status: "assigned" })).toBe(true);
     expect(canAct("complete", { ...base, role: "technician", actorId: "technician", status: "in_progress" })).toBe(false);
+    expect(canAct("submit_physical_completion", { ...base, role: "technician", actorId: "technician", status: "in_progress" })).toBe(true);
     expect(canRecordWork({ ...base, role: "technician", actorId: "technician", status: "in_progress" })).toBe(true);
   });
   test.each(["reviewer", "approver", "supervisor", "facility_manager"] as UserRole[])("%s cannot formally complete", (role) => expect(canAct("complete", { ...base, role, status: "in_progress" })).toBe(false));

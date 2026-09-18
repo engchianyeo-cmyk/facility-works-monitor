@@ -31,6 +31,10 @@ async function transitionWorkOrder(request: NextRequest, { params }: RouteContex
         p_work_order_id: id,
         p_payload: payload,
       })
+    : action === "accept_responsibility"
+      ? await supabase.rpc("accept_work_responsibility", { p_work_order_id: id })
+      : action === "submit_physical_completion"
+        ? await supabase.rpc("submit_physical_completion", { p_work_order_id: id, p_payload: payload })
     : await supabase.rpc("transition_work_order", {
         p_work_order_id: id,
         p_action: action,

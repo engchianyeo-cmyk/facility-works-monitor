@@ -31,9 +31,11 @@ export const WORK_ORDER_PRIORITIES = [
 export const WORK_ORDER_ACTIONS = [
   "submit",
   "approve",
+  "accept_responsibility",
   "accept",
   "start",
   "complete",
+  "submit_physical_completion",
   "review",
   "return_for_rework",
   "close",

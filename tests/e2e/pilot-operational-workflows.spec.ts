@@ -65,7 +65,7 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+$/, { timeout: 20_000 });
     await expect(page.getByRole("heading", { name: `Pilot corrective work ${runId}`, exact: true }).first()).toBeVisible();
 
-    await page.getByRole("button", { name: "Approve Work Order" }).click();
+    await page.getByRole("button", { name: "Approve Work to Proceed" }).click();
     await page.getByLabel("Override reason, when applicable").fill("Synthetic Administrator override for isolated acceptance only.");
     await page.getByRole("button", { name: "Confirm approval" }).click();
     await expect(page.getByText(/approved/i).first()).toBeVisible({ timeout: 20_000 });
@@ -96,7 +96,9 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await page.getByLabel("Cumulative labour hours").fill("1.25");
     await page.getByRole("button", { name: "Save Work Record" }).click();
     await expect(page.getByRole("status")).toContainText("Work record saved. Awaiting authorised completion.");
-    await page.getByRole("button", { name: "Mark Completed" }).click();
+    await page.getByRole("button", { name: "Administrator Exception Completion" }).click();
+    await page.getByLabel("Exception reason").fill("Synthetic Administrator exception completion for isolated lifecycle verification.");
+    await page.getByRole("button", { name: "Submit Exception Completion" }).click();
     await expect(page.getByText(/Awaiting Verification/i).first()).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole("button", { name: "Verify Completed Work" }).click();

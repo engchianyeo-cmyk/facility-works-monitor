@@ -29,6 +29,12 @@ export function canAct(
   action: WorkOrderAction,
   context: WorkflowContext,
 ): boolean {
+  if (action === "accept_responsibility") {
+    return context.role === "technician" && !context.assignedTechnicianId && ["approved", "assigned", "in_progress"].includes(context.status);
+  }
+  if (action === "submit_physical_completion") {
+    return context.role === "technician" && context.actorId === context.assignedTechnicianId && ["assigned", "in_progress"].includes(context.status);
+  }
   if (context.role === "administrator") return true;
 
   if (action === "submit") {
@@ -38,7 +44,7 @@ export function canAct(
     );
   }
   if (action === "approve") {
-    return ["approver", "facility_manager"].includes(context.role) && context.actorId !== context.requesterId;
+    return ["supervisor", "facility_manager", "administrator"].includes(context.role);
   }
   if (["review", "return_for_rework", "close"].includes(action)) {
     return COMPLETED_WORK_AUTHORITIES.includes(context.role);

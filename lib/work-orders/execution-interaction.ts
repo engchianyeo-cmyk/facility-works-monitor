@@ -2,14 +2,14 @@ import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
 
 export const EXECUTION_ACTIONS: Record<WorkOrderStatus, { action: WorkOrderAction; label: string }[]> = {
   draft: [{ action: "submit", label: "Submit for approval" }],
-  submitted: [{ action: "approve", label: "Approve Work Order" }],
-  approved: [],
+  submitted: [{ action: "approve", label: "Approve Work to Proceed" }],
+  approved: [{ action: "accept_responsibility", label: "Accept Work / Take Responsibility" }],
   assigned: [
-    { action: "complete", label: "Mark Completed" },
+    { action: "submit_physical_completion", label: "Submit Physical Completion" },
     { action: "start", label: "Start work" },
     { action: "accept", label: "Accept assignment" },
   ],
-  in_progress: [{ action: "complete", label: "Mark Completed" }],
+  in_progress: [{ action: "submit_physical_completion", label: "Submit Physical Completion" }],
   completed: [
     { action: "review", label: "Verify Completed Work" },
     { action: "return_for_rework", label: "Reject & Reopen" },
@@ -22,6 +22,7 @@ export const EXECUTION_ACTIONS: Record<WorkOrderStatus, { action: WorkOrderActio
 export const EXECUTION_SUCCESS: Partial<Record<WorkOrderAction, string>> = {
   submit: "The server confirmed that this Work Order is awaiting approval.",
   approve: "The server confirmed that this Work Order is approved.",
+  accept_responsibility: "The server confirmed your field responsibility.",
   accept: "The server confirmed your assignment acceptance.",
   start: "The server confirmed that work is In Progress.",
   complete: "The server confirmed the Work Order is Completed — Awaiting Verification.",

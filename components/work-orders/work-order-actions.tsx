@@ -14,7 +14,7 @@ import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
 import type { CompletionSnapshot } from "@/lib/work-orders/rework";
 import type { CompletionReadiness } from "@/lib/work-orders/operational-stage";
 
-type Interaction = "approve" | "record_work" | "review" | "return_for_rework" | "cancel" | null;
+type Interaction = "approve" | "record_work" | "exception_complete" | "review" | "return_for_rework" | "cancel" | null;
 type SubmissionState = "online" | "submitting" | "failed" | "unavailable";
 
 type Props = {
@@ -35,6 +35,8 @@ type Props = {
   completionReadiness: CompletionReadiness;
   operationalStage: string;
   completionMissing: string[];
+  approvalReadiness?: { ready: boolean; missing_requirements: string[]; required_authority: string; proposed_cost: number } | null;
+  verificationReadiness?: { verification_ready: boolean; missing_requirements: string[]; completion_event_found: boolean; legacy_completion_record: boolean; self_verification_reason_required: boolean } | null;
   recordedWork: string | null;
   recordedHours: number | null;
   reviewContext?: {
@@ -74,6 +76,7 @@ export default function WorkOrderActions(props: Props) {
   const [completionNotes, setCompletionNotes] = useState(props.recordedWork ?? "");
   const [actualHours, setActualHours] = useState(props.recordedHours === null ? "" : String(props.recordedHours));
   const [approvalReason, setApprovalReason] = useState("");
+  const [exceptionCompletionReason, setExceptionCompletionReason] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [reviewReason, setReviewReason] = useState("");
   const [reworkReason, setReworkReason] = useState("");
@@ -88,7 +91,7 @@ export default function WorkOrderActions(props: Props) {
   );
   const decisionActions = actions.filter(({ action }) => action === "review" || action === "return_for_rework");
   const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework"
-    && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && ["accept", "start", "complete"].includes(action))) ?? null;
+    && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && ["accept", "start", "complete", "submit_physical_completion"].includes(action))) ?? null;
 
   useEffect(() => {
     const update = () => setSubmissionState(navigator.onLine ? "online" : "unavailable");
@@ -200,6 +203,16 @@ export default function WorkOrderActions(props: Props) {
     void transition("cancel", { reason });
   }
 
+  function submitExceptionCompletion(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = exceptionCompletionReason.trim();
+    if (!reason) {
+      setError("An Administrator exception-completion reason is required.");
+      return;
+    }
+    void transition("complete", { reason });
+  }
+
   function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const reason = reviewReason.trim();
@@ -271,6 +284,23 @@ export default function WorkOrderActions(props: Props) {
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
+        {props.status === "submitted" && props.approvalReadiness && (
+          <section className={`rounded-xl border-2 p-4 ${props.approvalReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+            <p className="text-xs font-black uppercase tracking-wide">Approval readiness</p>
+            <h3 className="mt-1 font-black">{props.approvalReadiness.ready ? "Ready for governed approval" : "Not ready for approval"}</h3>
+            <p className="mt-2 text-sm">Structured proposed cost: S${Number(props.approvalReadiness.proposed_cost).toLocaleString("en-SG")} · Required authority: {props.approvalReadiness.required_authority}</p>
+            {props.approvalReadiness.missing_requirements.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm">{props.approvalReadiness.missing_requirements.map((item) => <li key={item}>{item.replaceAll("_", " ")}</li>)}</ul>}
+          </section>
+        )}
+
+        {props.status === "completed" && props.verificationReadiness && (
+          <section className={`rounded-xl border-2 p-4 ${props.verificationReadiness.verification_ready ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+            <p className="text-xs font-black uppercase tracking-wide">Verification readiness</p>
+            <h3 className="mt-1 font-black">{props.verificationReadiness.legacy_completion_record ? "Legacy completion record — authoritative completion submission missing" : props.verificationReadiness.verification_ready ? "Ready for verification" : "Verification blocked"}</h3>
+            {props.verificationReadiness.self_verification_reason_required && <p className="mt-2 text-sm font-bold">Administrator self-verification requires an audited override reason.</p>}
+            {props.verificationReadiness.missing_requirements.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm">{props.verificationReadiness.missing_requirements.map((item) => <li key={item}>{item.replaceAll("_", " ")}</li>)}</ul>}
+          </section>
+        )}
         {props.currentRework && (
           <section aria-labelledby="rework-context-title" className="rounded-xl border-2 border-orange-300 bg-orange-50 p-4 text-orange-950">
             <p className="text-xs font-black uppercase tracking-wide">Rework cycle {props.currentRework.cycle}</p>
@@ -342,10 +372,18 @@ export default function WorkOrderActions(props: Props) {
               <li>Active After evidence <strong>{props.completionReadiness.activeAfterEvidence ? "✓" : "✕"}</strong></li>
             </ul>
             {props.completionMissing.length > 0 && <p className="mt-3 text-sm">All completion controls must pass before formal completion.</p>}
-            <button type="button" disabled={busy !== null || !props.completionReadiness.ready} onClick={() => void transition("complete", {})} className="mt-4 min-h-12 w-full rounded-xl bg-violet-700 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
-              {busy === "complete" ? "Marking Completed…" : "Mark Completed"}
+            <button type="button" disabled={busy !== null || !props.completionReadiness.ready} onClick={() => setInteraction("exception_complete")} className="mt-4 min-h-12 w-full rounded-xl bg-violet-700 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+              Administrator Exception Completion
             </button>
           </section>
+        )}
+
+        {interaction === "exception_complete" && (
+          <form onSubmit={submitExceptionCompletion} className="space-y-4 rounded-xl border border-violet-300 bg-violet-50 p-4">
+            <div><h3 className="font-black">Administrator Exception Completion</h3><p className="mt-1 text-sm">This is an exceptional audited route. Assigned Technicians normally submit physical completion.</p></div>
+            <label className="block text-sm font-bold">Exception reason <span aria-hidden="true">*</span><textarea required rows={3} maxLength={2000} value={exceptionCompletionReason} onChange={(event) => setExceptionCompletionReason(event.target.value)} className="mt-1 w-full rounded-lg border border-violet-300 bg-white p-3" /></label>
+            <div className="grid gap-3 sm:grid-cols-2"><button disabled={busy !== null} className="min-h-12 rounded-xl bg-violet-700 px-5 font-black text-white">Submit Exception Completion</button><button type="button" onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border bg-white px-5 font-bold">Back</button></div>
+          </form>
         )}
 
         {primary ? (
@@ -383,7 +421,7 @@ export default function WorkOrderActions(props: Props) {
           <form onSubmit={submitReview} aria-describedby="review-help execution-error" className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <div>
               <h3 className="font-black text-emerald-950">Verify Completed Work</h3>
-              <p id="review-help" className="mt-1 text-sm text-emerald-900">Supervisor, Facility Manager or Administrator authority is required. If the Administrator also performed the work, self-verification is permitted but an override reason is mandatory and will be audited.</p>
+              <p id="review-help" className="mt-1 text-sm text-emerald-900">Supervisor, Facility Manager or Administrator authority is required. Administrator self-verification requires an override reason when indicated by verification readiness.</p>
             </div>
             <label className="block text-sm font-bold text-emerald-950">Verification / override reason, when applicable
               <textarea rows={3} maxLength={2000} value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="mt-1 w-full rounded-lg border border-emerald-300 bg-white p-3" placeholder="For Administrator self-verification, state the reason for exercising Administrator authority." />

@@ -73,7 +73,7 @@ export default async function OperationsPage() {
     orderQuery,
     supabase.from("incidents").select("id,incident_number,incident_type,severity,status,location,assigned_technician_id,assigned_team_id,reported_at").not("status", "in", "(closed,cancelled)").order("reported_at", { ascending: false }),
     teamAllowed ? supabase.from("profiles").select("id,display_name,trade_discipline,department,last_active_at").eq("role", "technician").eq("is_active", true).is("deleted_at", null).order("display_name") : Promise.resolve({ data: [], error: null }),
-    supabase.from("evidence_items").select("work_order_id").not("work_order_id", "is", null),
+    supabase.from("evidence_items").select("work_order_id").not("work_order_id", "is", null).is("deleted_at", null),
   ]);
 
   const rawOrders = (orderResult.error ? [] : orderResult.data ?? []) as unknown as RawOrder[];
