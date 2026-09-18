@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import WorkOrderDrawings from "@/components/work-order-drawings";
+import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace";
 import EvidencePanel from "@/components/evidence/evidence-panel";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
@@ -400,6 +401,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       </section>
 
       <WorkOrderDrawings />
+      <ReleaseOneWorkspace id={id} role={identity.role} status={status} />
     </main>
   );
 }
