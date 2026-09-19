@@ -8,6 +8,13 @@ export type WorkOrderDrawing = {
   height: number;
 };
 
+export const FW001_RS01_LOADING_DOCK = {
+  sourcePixel: { x: 246, y: 255 },
+  normalized: { x: 23.077, y: 37.39 },
+  acceptanceRegion: { minX: 230, maxX: 262, minY: 238, maxY: 270 },
+  excludedParkingCanopyRegion: { minX: 200, maxX: 430, minY: 300, maxY: 390 },
+} as const;
+
 export const WORK_ORDER_DRAWINGS: readonly WorkOrderDrawing[] = [
   {
     code: "FW-001",
