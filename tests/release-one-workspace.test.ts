@@ -27,7 +27,7 @@ describe("Release 1 markup and commercial workspace", () => {
 
   test("wires quotation, actual cost and procurement commands", () => {
     for (const rpc of ["record_contractor_quotation", "manage_work_order_actual_cost", "record_work_order_procurement"]) expect(route).toContain(rpc);
-    for (const label of ["Record quotation", "Add actual cost", "Confirm actual costing", "Record commitment"]) expect(component).toContain(label);
+    for (const label of ["Prepare Proposal", "Save Draft", "Submit for Approval", "Procurement commitments"]) expect(component).toContain(label);
     expect(migration).toContain("work_order_procurement_recorded");
   });
 
@@ -36,15 +36,15 @@ describe("Release 1 markup and commercial workspace", () => {
     expect(controls).toContain("SGD_BELOW_1000_ONE_QUOTE");
     expect(controls).toContain("Technicians cannot approve expenditure.");
     expect(controls).toContain("financial_approved_by is distinct from recommended_by");
-    expect(component).toContain('data.financial?.cost_status==="draft"');
+    expect(component).toContain('quote?.status==="submitted"');
     expect(component).toContain('["approver","supervisor","facility_manager","administrator"]');
   });
 
   test("normalizes JSON RPC envelopes before rendering collections", () => {
     expect(route).toContain('rpcCollection(quotationResult.data, "quotations")');
     expect(route).toContain('rpcCollection(rateResult.data, "rates")');
-    expect(component).toContain("Array.isArray(workspace.quotations)");
-    expect(component).toContain("Array.isArray(workspace.rates)");
+    expect(component).toContain("Array.isArray(w.quotations)");
+    expect(component).toContain("Array.isArray(w.documents)");
   });
 
   test("denies direct authenticated writes", () => {

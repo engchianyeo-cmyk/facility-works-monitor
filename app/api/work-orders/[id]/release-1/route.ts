@@ -16,16 +16,18 @@ export async function GET(_: NextRequest, { params }: Context) {
   if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;
   const supabase = await createClient();
-  const [markups, costs, procurement, quotationResult, rateResult, financial, order] = await Promise.all([
+  const [markups, costs, procurement, quotationResult, rateResult, financial, order, payment, documents] = await Promise.all([
     supabase.from("work_order_markups").select("id,source_type,source_reference,drawing_revision,page_number,x_percent,y_percent,annotation_type,geometry,note,created_at,created_by").eq("work_order_id", id).is("deleted_at", null).order("created_at"),
     supabase.from("work_order_cost_lines").select("id,cost_phase,cost_type,description,quantity,unit,unit_rate,amount,worker_name,created_at").eq("work_order_id", id).order("created_at"),
     supabase.from("work_order_procurement_commitments").select("id,purchase_reference,description,currency,committed_amount,status,created_at").eq("work_order_id", id).order("created_at", { ascending: false }),
     supabase.rpc("work_order_contractor_quotations", { p_work_order_id: id }),
     supabase.rpc("work_order_contractor_rate_items", { p_work_order_id: id }),
     supabase.from("work_order_financial_controls").select("currency,estimated_cost,quoted_cost,approved_budget,cost_status,recommended_by,recommended_at,recommendation_note,financial_approved_by,financial_approved_at,financial_approval_note,rule:commercial_approval_rules(rule_code,minimum_quotations,maximum_amount)").eq("work_order_id", id).maybeSingle(),
-    supabase.from("work_orders").select("assigned_vendor_id,actual_costs_confirmed_at,contractor:vendors(name)").eq("id", id).maybeSingle(),
+    supabase.from("work_orders").select("title,description,location,status,reviewed_at,assigned_vendor_id,actual_costs_confirmed_at,contractor:vendors(name,payment_terms_days),asset:assets(asset_tag,name,asset_type,location)").eq("id", id).maybeSingle(),
+    supabase.from("contractor_payment_assessments").select("id,status,assessed_amount,completed_work_accepted_at,invoice_received_at,invoice_reference,payment_term_started_at,payment_due_at,recommendation_note,recommended_by,recommended_at,approval_note,approved_by,approved_at,completion_notified_at,paid_amount,payment_reference,paid_by,paid_at,payment_note").eq("work_order_id", id).maybeSingle(),
+    supabase.from("work_order_commercial_documents").select("id,document_type,quotation_id,payment_assessment_id,original_filename,content_type,byte_size,uploaded_at,uploaded_by").eq("work_order_id", id).is("deleted_at", null).order("uploaded_at"),
   ]);
-  const failed = [markups, costs, procurement, quotationResult, rateResult, financial, order].find((item) => item.error);
+  const failed = [markups, costs, procurement, quotationResult, rateResult, financial, order, payment, documents].find((item) => item.error);
   if (failed?.error) return transportFailure("load Release 1 workspace for");
   return NextResponse.json({
     ok: true,
@@ -38,6 +40,9 @@ export async function GET(_: NextRequest, { params }: Context) {
       financial: financial.data,
       contractor: order.data?.contractor ?? null,
       actual_costs_confirmed_at: order.data?.actual_costs_confirmed_at ?? null,
+      order: order.data,
+      payment: payment.data,
+      documents: documents.data ?? [],
     },
   });
 }
@@ -65,6 +70,13 @@ export async function POST(request: NextRequest, { params }: Context) {
       p_source_filename: payload.source_filename ?? null,
       p_source_sha256: payload.source_sha256 ?? null,
     }),
+    save_proposal: () => supabase.rpc("save_work_order_proposal", { p_work_order_id: id, p_payload: payload }),
+    submit_proposal: () => supabase.rpc("submit_work_order_proposal", { p_work_order_id: id, p_quotation_id: payload.quotation_id, p_note: payload.note ?? null }),
+    approve_proposal: () => supabase.rpc("approve_work_order_proposal", { p_work_order_id: id, p_quotation_id: payload.quotation_id, p_note: payload.note }),
+    save_payment_proposal: () => supabase.rpc("save_work_order_payment_proposal", { p_work_order_id: id, p_payload: payload }),
+    submit_payment_proposal: () => supabase.rpc("submit_work_order_payment_proposal", { p_work_order_id: id, p_note: payload.note ?? null }),
+    approve_payment: () => supabase.rpc("approve_work_order_payment", { p_work_order_id: id, p_note: payload.note }),
+    record_finance_payment: () => supabase.rpc("record_work_order_finance_payment", { p_work_order_id: id, p_payload: payload }),
   };
   const call = calls[body.operation];
   if (!call) return errorResponse("VALIDATION_ERROR", "Unsupported Release 1 operation.", 400);
