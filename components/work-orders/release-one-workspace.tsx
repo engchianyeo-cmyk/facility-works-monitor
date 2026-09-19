@@ -12,7 +12,7 @@ type Document = { id:string; document_type:"quotation"|"invoice"; quotation_id:s
 type Workspace = { costs:CostLine[]; procurement:Array<{id:string;purchase_reference:string;description:string;committed_amount:number;status:string}>; quotations:Quotation[]; financial:Financial|null; contractor:{name?:string;payment_terms_days?:number}|Array<{name?:string;payment_terms_days?:number}>|null; actual_costs_confirmed_at:string|null; order:{title?:string;status?:string;reviewed_at?:string;asset?:{asset_tag?:string;name?:string}|Array<{asset_tag?:string;name?:string}>}|null; payment:Payment|null; documents:Document[] };
 
 const input="min-h-11 w-full rounded border border-slate-300 bg-white px-3 text-sm";
-const money=(value:number|null|undefined)=>value===null||value===undefined?"Pending":new Intl.NumberFormat("en-SG",{style:"currency",currency:"SGD"}).format(Number(value));
+const money=(value:number|null|undefined)=>value===null||value===undefined?"Pending":`S$${new Intl.NumberFormat("en-SG",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value))}`;
 const date=(value:string|null|undefined)=>value?new Intl.DateTimeFormat("en-SG",{dateStyle:"medium"}).format(new Date(value)):"Pending";
 const field=(form:FormData,name:string)=>String(form.get(name)??"").trim();
 

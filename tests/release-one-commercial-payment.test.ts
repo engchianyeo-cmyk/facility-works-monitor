@@ -19,6 +19,7 @@ describe("Release 1 proposal and contractor payment workflow", () => {
     for (const field of ["quotation_ref=null", "quotation_date=null", "contractor_legal_name=null", "gst_treatment=null", "itemization_note=null"]) expect(migration).toContain(field);
     expect(workspace).toContain("Pending authentic quotation");
     expect(workspace).toContain("Pending authentic invoice");
+    expect(workspace).toContain('`S$${new Intl.NumberFormat');
   });
 
   test("requires independent approvals and keeps Finance payment separate", () => {
