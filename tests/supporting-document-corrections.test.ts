@@ -37,6 +37,7 @@ describe("governed supporting-document correction", () => {
     expect(migration).toContain("superseded_by=result.id");
     expect(migration).toContain("supporting_document_locked',true");
     expect(workspace).toContain("Supporting document is read-only.");
+    expect(workspace).toContain("setMessage(null);try{const form=new FormData()");
   });
 
   test("requires an attachment before submission and independent approval", () => {
