@@ -22,6 +22,7 @@ describe("governed supporting-document correction", () => {
     expect(migration).toContain("c.status='open'");
     expect(evidenceRoute).toContain("correctionOpen: Boolean(correction.data)");
     expect(evidence).toContain("canDelete = canMutate");
+    expect(evidence).toContain("Authorized management must open a supporting-document correction");
   });
 
   test("requires both field evidence categories and an approved quotation document before closure", () => {

@@ -201,6 +201,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     .eq("work_order_id", id)
     .eq("status", "open")
     .maybeSingle();
+  const evidenceCanMutate = canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: technicianFacilityMembership.data === true, correctionOpen: Boolean(openDocumentCorrection), creatorId: order.user_id, requesterId: order.requested_by });
   const assetLabel = assetReferenceLabel(order.asset_id, order.asset as { asset_tag: string; name: string } | null);
   const assetLinkAllowed = canLinkWorkOrderAsset(identity.role) && !["closed", "cancelled"].includes(status);
   const assetOptionsResult = assetLinkAllowed
@@ -385,7 +386,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <DocumentCorrectionControl workOrderId={id} role={identity.role} status={status} openReason={openDocumentCorrection?.reason ?? null} />
 
       <div id="work-order-evidence">
-        <EvidencePanel parentType="work_order" parentId={id} canMutate={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: technicianFacilityMembership.data === true, correctionOpen: Boolean(openDocumentCorrection), creatorId: order.user_id, requesterId: order.requested_by })} canDelete={!openDocumentCorrection} />
+        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate && !openDocumentCorrection} />
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">

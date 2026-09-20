@@ -184,7 +184,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
           <p className="mb-3 text-xs text-slate-600">Online connection required. Maximum 10 MB. Do not upload passwords, identity documents, or unrelated personal information.</p>
           <button disabled={uploading} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50 sm:w-auto">{uploading ? "Uploading…" : "Add evidence"}</button>
         </div>
-      </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Evidence is read-only. Completed Work must be rejected and reopened before the assigned Technician can correct field evidence.</p>}
+      </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Evidence is read-only. Authorized management must open a supporting-document correction before the assigned Technician can add missing field evidence.</p>}
 
       {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-sm font-semibold ${messageKind === "error" ? "text-red-800" : "text-blue-800"}`}>{message}</p>}
     </section>
