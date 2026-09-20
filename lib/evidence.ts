@@ -10,11 +10,12 @@ export function canMutateWorkOrderEvidence(input: {
   assignedTechnicianId: string | null;
   status: string;
   hasActiveFacilityMembership?: boolean;
+  correctionOpen?: boolean;
   requesterId?: string | null;
   creatorId?: string | null;
 }) {
   if (input.role === "technician") {
-    return MUTABLE_WORK_ORDER_EVIDENCE_STATUSES.has(input.status)
+    return (MUTABLE_WORK_ORDER_EVIDENCE_STATUSES.has(input.status) || input.correctionOpen === true)
       && input.assignedTechnicianId === input.userId
       && input.hasActiveFacilityMembership === true;
   }

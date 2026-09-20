@@ -24,6 +24,7 @@ describe("Technician field-witness evidence authority", () => {
   });
   test.each(["assigned", "in_progress"])("allows field evidence while %s", (status) => expect(canMutateWorkOrderEvidence({ ...assigned, status })).toBe(true));
   test.each(["completed", "reviewed", "closed", "cancelled"])("makes Technician evidence read-only while %s", (status) => expect(canMutateWorkOrderEvidence({ ...assigned, status })).toBe(false));
+  test.each(["completed", "reviewed", "closed"])("allows an assigned Technician to correct evidence while an authorized window is open at %s", (status) => expect(canMutateWorkOrderEvidence({ ...assigned, status, correctionOpen: true })).toBe(true));
   test("keeps routine field upload available without an Administrator", () => expect(canMutateWorkOrderEvidence(assigned)).toBe(true));
   test("does not let Technician requester or creator status bypass assignment authority", () => {
     expect(canMutateWorkOrderEvidence({ ...assigned, assignedTechnicianId: "tech-b", requesterId: "tech-a", creatorId: "tech-a" })).toBe(false);

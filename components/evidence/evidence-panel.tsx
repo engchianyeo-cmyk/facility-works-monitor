@@ -16,7 +16,7 @@ type Item = {
 
 const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
-export default function EvidencePanel({ parentType, parentId, canMutate = true }: { parentType: EvidenceParent; parentId: string; canMutate?: boolean }) {
+export default function EvidencePanel({ parentType, parentId, canMutate = true, canDelete = canMutate }: { parentType: EvidenceParent; parentId: string; canMutate?: boolean; canDelete?: boolean }) {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -146,7 +146,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true }
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button type="button" onClick={() => void open(item.id)} className="min-h-11 rounded-lg border border-blue-300 px-3 text-sm font-black text-blue-800">Open</button>
-                  {canMutate && <button
+                  {canDelete && <button
                     type="button"
                     disabled={deletingId !== null}
                     onClick={() => void remove(item)}

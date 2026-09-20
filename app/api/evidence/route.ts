@@ -76,8 +76,11 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: order, error } = await supabase.from("work_orders").select("status,assigned_technician_id,facility_id,user_id,requested_by").eq("id", parentId).maybeSingle();
     if (error || !order) return fail("NOT_FOUND", "Work Order was not found.", 404);
-    const membership = identity.role === "technician" ? await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id }) : { data: false };
-    if (!canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status: order.status, hasActiveFacilityMembership: membership.data === true, creatorId: order.user_id, requesterId: order.requested_by })) {
+    const [membership, correction] = await Promise.all([
+      identity.role === "technician" ? supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id }) : Promise.resolve({ data: false }),
+      supabase.from("work_order_document_corrections").select("id").eq("work_order_id", parentId).eq("status", "open").maybeSingle(),
+    ]);
+    if (!canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status: order.status, hasActiveFacilityMembership: membership.data === true, correctionOpen: Boolean(correction.data), creatorId: order.user_id, requesterId: order.requested_by })) {
       return fail("EVIDENCE_READ_ONLY", "Evidence is read-only unless you are authorised to record field evidence for this active assignment.", 403);
     }
   }

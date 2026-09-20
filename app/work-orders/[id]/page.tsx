@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import WorkOrderDrawings from "@/components/work-order-drawings";
 import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace";
 import EvidencePanel from "@/components/evidence/evidence-panel";
+import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import WorkOrderAssignment from "@/components/work-orders/work-order-assignment";
@@ -194,6 +195,12 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   const technicianFacilityMembership = identity.role === "technician" && order.facility_id
     ? await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id })
     : { data: false };
+  const { data: openDocumentCorrection } = await supabase
+    .from("work_order_document_corrections")
+    .select("id,reason")
+    .eq("work_order_id", id)
+    .eq("status", "open")
+    .maybeSingle();
   const assetLabel = assetReferenceLabel(order.asset_id, order.asset as { asset_tag: string; name: string } | null);
   const assetLinkAllowed = canLinkWorkOrderAsset(identity.role) && !["closed", "cancelled"].includes(status);
   const assetOptionsResult = assetLinkAllowed
@@ -375,8 +382,10 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         </section>
       )}
 
+      <DocumentCorrectionControl workOrderId={id} role={identity.role} status={status} openReason={openDocumentCorrection?.reason ?? null} />
+
       <div id="work-order-evidence">
-        <EvidencePanel parentType="work_order" parentId={id} canMutate={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: technicianFacilityMembership.data === true, creatorId: order.user_id, requesterId: order.requested_by })} />
+        <EvidencePanel parentType="work_order" parentId={id} canMutate={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: technicianFacilityMembership.data === true, correctionOpen: Boolean(openDocumentCorrection), creatorId: order.user_id, requesterId: order.requested_by })} canDelete={!openDocumentCorrection} />
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
