@@ -19,6 +19,7 @@ describe("integrated Release 1 commercial lifecycle", () => {
     expect(migration).toContain("decision_pending_independent_approval',true");
     expect(migration).toContain("update public.work_orders set assigned_vendor_id=q.vendor_id");
     expect(migration).toContain("q.submitted_by=actor_id or q.prepared_by=actor_id");
+    expect(route).toContain("contractor:vendors!work_orders_assigned_vendor_fkey");
   });
 
   test("limits choices to Procurement-prequalified and Facility-confirmed contractors", () => {
