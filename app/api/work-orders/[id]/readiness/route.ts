@@ -20,3 +20,17 @@ export async function GET(_: Request, { params }: RouteContext) {
     return transportFailure("load readiness for");
   }
 }
+
+export async function POST(request: Request, { params }: RouteContext) {
+  try {
+    if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
+    const { id } = await params;
+    const payload = await request.json().catch(() => null) as Record<string, unknown> | null;
+    if (!payload) return errorResponse("VALIDATION_ERROR", "Approval basis values are required.");
+    const { data, error } = await (await createClient()).rpc("set_work_order_approval_basis", { p_work_order_id: id, p_payload: payload });
+    if (error) return transportFailure("save approval readiness for");
+    return rpcResponse(data as RpcResult);
+  } catch {
+    return transportFailure("save approval readiness for");
+  }
+}

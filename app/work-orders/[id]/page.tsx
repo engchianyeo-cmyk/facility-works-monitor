@@ -4,6 +4,7 @@ import WorkOrderDrawings from "@/components/work-order-drawings";
 import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace";
 import EvidencePanel from "@/components/evidence/evidence-panel";
 import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
+import ApprovalBasisControl from "@/components/work-orders/approval-basis-control";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import WorkOrderAssignment from "@/components/work-orders/work-order-assignment";
@@ -371,6 +372,10 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
             {predictiveFields.map(([label, value]) => <div key={String(label)}><dt className="text-purple-600">{label}</dt><dd className="mt-1 text-purple-950">{display(value)}</dd></div>)}
           </dl>
         </section>
+      )}
+
+      {status === "submitted" && ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role) && (
+        <ApprovalBasisControl workOrderId={id} />
       )}
 
       {assignmentAllowed && (

@@ -4,6 +4,8 @@ import { describe, expect, test } from "vitest";
 const migration = readFileSync("supabase/migrations/20260921004602_release_1_integrated_commercial_lifecycle.sql", "utf8");
 const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
 const route = readFileSync("app/api/work-orders/[id]/release-1/route.ts", "utf8");
+const readinessRoute = readFileSync("app/api/work-orders/[id]/readiness/route.ts", "utf8");
+const approvalBasis = readFileSync("components/work-orders/approval-basis-control.tsx", "utf8");
 
 describe("integrated Release 1 commercial lifecycle", () => {
   test("starts proposal and final-account workflows without seeded records", () => {
@@ -40,5 +42,11 @@ describe("integrated Release 1 commercial lifecycle", () => {
     expect(migration).toContain("SGD_1000_AND_ABOVE_THREE_QUOTES");
     expect(migration).toContain("1000,null,3");
     expect(workspace).toContain("quotations required from");
+  });
+
+  test("exposes the governed pre-work approval basis in the Work Order journey", () => {
+    for (const field of ["proposed_cost", "cost_basis", "execution_arrangement", "safety_isolation_information"]) expect(approvalBasis).toContain(field);
+    expect(approvalBasis).toContain("Save Approval Basis");
+    expect(readinessRoute).toContain('rpc("set_work_order_approval_basis"');
   });
 });
