@@ -6,6 +6,7 @@ const workspace = readFileSync("components/work-orders/release-one-workspace.tsx
 const route = readFileSync("app/api/work-orders/[id]/release-1/route.ts", "utf8");
 const readinessRoute = readFileSync("app/api/work-orders/[id]/readiness/route.ts", "utf8");
 const approvalBasis = readFileSync("components/work-orders/approval-basis-control.tsx", "utf8");
+const paymentCorrection = readFileSync("supabase/migrations/20260921061036_correct_payment_assessment_actual_cost.sql", "utf8");
 
 describe("integrated Release 1 commercial lifecycle", () => {
   test("starts proposal and final-account workflows without seeded records", () => {
@@ -32,8 +33,8 @@ describe("integrated Release 1 commercial lifecycle", () => {
   });
 
   test("makes rejection, actual cost and procurement controls operational", () => {
-    for (const operation of ["return_proposal", "return_payment", "actual_cost", "confirm_actual_costs", "procurement"]) expect(route).toContain(operation);
-    for (const label of ["Return Proposal for Revision", "Return Payment Proposal", "Add Actual Cost", "Confirm Actual Costing", "Record Procurement Commitment"]) expect(workspace).toContain(label);
+    for (const operation of ["return_proposal", "return_payment", "reopen_payment_correction", "actual_cost", "confirm_actual_costs", "procurement"]) expect(route).toContain(operation);
+    for (const label of ["Return Proposal for Revision", "Return Payment Proposal", "Reopen Payment for Correction", "Add Actual Cost", "Confirm Actual Costing", "Record Procurement Commitment"]) expect(workspace).toContain(label);
     expect(migration).toContain("work_order_proposal_returned");
     expect(migration).toContain("contractor_payment_proposal_returned");
   });
@@ -48,5 +49,13 @@ describe("integrated Release 1 commercial lifecycle", () => {
     for (const field of ["proposed_cost", "cost_basis", "execution_arrangement", "safety_isolation_information"]) expect(approvalBasis).toContain(field);
     expect(approvalBasis).toContain("Save Approval Basis");
     expect(readinessRoute).toContain('rpc("set_work_order_approval_basis"');
+  });
+
+  test("creates final accounts from actual costs and preserves approved-payment correction history", () => {
+    expect(paymentCorrection).toContain("c.cost_phase='actual'");
+    expect(paymentCorrection).toContain("'draft',actual_total");
+    expect(paymentCorrection).toContain("reopen_work_order_payment_for_correction");
+    expect(paymentCorrection).toContain("prior_approval_preserved_in_activity_history");
+    expect(paymentCorrection).toContain("result.reviewed_at+interval '30 days'");
   });
 });

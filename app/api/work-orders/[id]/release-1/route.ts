@@ -85,6 +85,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     prepare_proposal: () => supabase.rpc("prepare_work_order_proposal", { p_work_order_id: id, p_payload: payload }),
     return_proposal: () => supabase.rpc("return_work_order_proposal", { p_work_order_id: id, p_quotation_id: payload.quotation_id, p_note: payload.note }),
     return_payment: () => supabase.rpc("return_work_order_payment", { p_work_order_id: id, p_note: payload.note }),
+    reopen_payment_correction: () => supabase.rpc("reopen_work_order_payment_for_correction", { p_work_order_id: id, p_reason: payload.reason }),
   };
   const call = calls[body.operation];
   if (!call) return errorResponse("VALIDATION_ERROR", "Unsupported Release 1 operation.", 400);
