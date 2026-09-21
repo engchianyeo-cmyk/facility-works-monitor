@@ -21,7 +21,9 @@ export async function POST(request: NextRequest, { params }: Context) {
   if (!body?.operation) return errorResponse("VALIDATION_ERROR", "Correction operation is required.");
   const { id } = await params;
   const supabase = await createClient();
-  const result = body.operation === "open"
+  const result = body.operation === "withdraw_completion"
+    ? await supabase.rpc("withdraw_physical_completion", { p_work_order_id: id, p_reason: body.reason ?? "" })
+    : body.operation === "open"
     ? await supabase.rpc("open_work_order_document_correction", { p_work_order_id: id, p_reason: body.reason ?? "" })
     : body.operation === "close"
       ? await supabase.rpc("close_work_order_document_correction", { p_work_order_id: id, p_note: body.note ?? "" })

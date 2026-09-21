@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   const documentType = String(form.get("document_type") ?? "");
   const recordId = String(form.get("record_id") ?? "");
   const candidate = form.get("file");
-  if (!["quotation", "invoice"].includes(documentType) || !/^[0-9a-f-]{36}$/i.test(recordId) || !(candidate instanceof File)) return fail("VALIDATION_ERROR", "Document type, record and file are required.");
+  if (!["quotation", "invoice", "final_invoice"].includes(documentType) || !/^[0-9a-f-]{36}$/i.test(recordId) || !(candidate instanceof File)) return fail("VALIDATION_ERROR", "Document type, record and file are required.");
   const bytes = new Uint8Array(await candidate.arrayBuffer());
   const fileError = validateEvidenceFile(candidate, bytes);
   if (fileError) return fail("INVALID_FILE", fileError);
@@ -27,7 +27,14 @@ export async function POST(request: NextRequest, { params }: Context) {
   if (uploaded.error) return fail("UPLOAD_FAILED", "Commercial document could not be uploaded.", 503);
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("register_work_order_commercial_document", {
+    const { data, error } = documentType === "final_invoice" ? await supabase.rpc("register_work_order_final_cost_document", {
+      p_work_order_id: id,
+      p_submission_id: recordId,
+      p_original_filename: safeName,
+      p_content_type: candidate.type,
+      p_byte_size: candidate.size,
+      p_storage_path: path,
+    }) : await supabase.rpc("register_work_order_commercial_document", {
       p_work_order_id: id,
       p_document_type: documentType,
       p_record_id: recordId,

@@ -16,7 +16,7 @@ export async function GET(_: NextRequest, { params }: Context) {
   if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;
   const supabase = await createClient();
-  const [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction] = await Promise.all([
+  const [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction, finalCost, finalCostDocuments] = await Promise.all([
     supabase.from("work_order_markups").select("id,source_type,source_reference,drawing_revision,page_number,x_percent,y_percent,annotation_type,geometry,note,created_at,created_by").eq("work_order_id", id).is("deleted_at", null).order("created_at"),
     supabase.from("work_order_cost_lines").select("id,cost_phase,cost_type,description,quantity,unit,unit_rate,amount,worker_name,created_at").eq("work_order_id", id).order("created_at"),
     supabase.from("work_order_procurement_commitments").select("id,purchase_reference,description,currency,committed_amount,status,created_at").eq("work_order_id", id).order("created_at", { ascending: false }),
@@ -28,8 +28,10 @@ export async function GET(_: NextRequest, { params }: Context) {
     supabase.from("contractor_payment_assessments").select("id,status,assessed_amount,completed_work_accepted_at,invoice_received_at,invoice_reference,payment_term_started_at,payment_due_at,recommendation_note,recommended_by,recommended_at,approval_note,approved_by,approved_at,completion_notified_at,paid_amount,payment_reference,paid_by,paid_at,payment_note").eq("work_order_id", id).maybeSingle(),
     supabase.from("work_order_commercial_documents").select("id,document_type,quotation_id,payment_assessment_id,original_filename,content_type,byte_size,uploaded_at,uploaded_by").eq("work_order_id", id).is("deleted_at", null).order("uploaded_at"),
     supabase.from("work_order_document_corrections").select("id,status,reason,opened_at,closed_at").eq("work_order_id", id).eq("status", "open").maybeSingle(),
+    supabase.from("work_order_final_cost_submissions").select("id,status,actual_labour_hours,final_contractor_amount,confirmed_actual_cost,comments,submitted_by,submitted_at,variance_approved_at,variance_approval_note").eq("work_order_id", id).maybeSingle(),
+    supabase.from("work_order_final_cost_documents").select("id,final_cost_submission_id,original_filename,content_type,byte_size,uploaded_at").eq("work_order_id", id).is("deleted_at", null).order("uploaded_at"),
   ]);
-  const failed = [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction].find((item) => item.error);
+  const failed = [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction, finalCost, finalCostDocuments].find((item) => item.error);
   if (failed?.error) return transportFailure("load Release 1 workspace for");
   return NextResponse.json({
     ok: true,
@@ -47,6 +49,8 @@ export async function GET(_: NextRequest, { params }: Context) {
       payment: payment.data,
       documents: documents.data ?? [],
       correction: correction.data,
+      final_cost: finalCost.data,
+      final_cost_documents: finalCostDocuments.data ?? [],
     },
   });
 }
@@ -86,6 +90,8 @@ export async function POST(request: NextRequest, { params }: Context) {
     return_proposal: () => supabase.rpc("return_work_order_proposal", { p_work_order_id: id, p_quotation_id: payload.quotation_id, p_note: payload.note }),
     return_payment: () => supabase.rpc("return_work_order_payment", { p_work_order_id: id, p_note: payload.note }),
     reopen_payment_correction: () => supabase.rpc("reopen_work_order_payment_for_correction", { p_work_order_id: id, p_reason: payload.reason }),
+    save_final_cost: () => supabase.rpc("save_work_order_final_cost", { p_work_order_id: id, p_payload: payload }),
+    approve_final_cost_variance: () => supabase.rpc("approve_work_order_final_cost_variance", { p_work_order_id: id, p_note: payload.note }),
   };
   const call = calls[body.operation];
   if (!call) return errorResponse("VALIDATION_ERROR", "Unsupported Release 1 operation.", 400);

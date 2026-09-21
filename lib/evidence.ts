@@ -23,7 +23,7 @@ export function canMutateWorkOrderEvidence(input: {
     || input.requesterId === input.userId
     || input.creatorId === input.userId;
 }
-export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
+export const MAX_EVIDENCE_BYTES = 50 * 1024 * 1024;
 export const SIGNED_ACCESS_SECONDS = 300;
 
 export type EvidenceCleanupContext = { evidenceId: string; parentType: EvidenceParent; parentId: string; registrationCode: string };
@@ -42,6 +42,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const TYPES = new Map([
   ["image/jpeg", ["jpg", "jpeg"]], ["image/png", ["png"]],
   ["image/webp", ["webp"]], ["application/pdf", ["pdf"]],
+  ["video/mp4", ["mp4"]], ["video/webm", ["webm"]],
 ]);
 
 export function cleanFilename(value: string) {
@@ -61,6 +62,8 @@ export function validateEvidenceFile(file: File, bytes: Uint8Array): string | nu
   const png = bytes.slice(0, 8).every((value, index) => value === [137,80,78,71,13,10,26,10][index]);
   const webp = new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
   const pdf = new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-";
-  if (!({ "image/jpeg": jpeg, "image/png": png, "image/webp": webp, "application/pdf": pdf }[file.type])) return "File content does not match its declared type.";
+  const mp4 = new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
+  const webm = bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+  if (!({ "image/jpeg": jpeg, "image/png": png, "image/webp": webp, "video/mp4": mp4, "video/webm": webm, "application/pdf": pdf }[file.type])) return "File content does not match its declared type.";
   return null;
 }

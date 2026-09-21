@@ -91,6 +91,21 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
     }
   }
 
+  async function download(item: Item) {
+    setMessage("");
+    try {
+      const response = await fetch(`/api/evidence/${item.id}/access`, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message ?? "Evidence is unavailable.");
+      const file = await fetch(result.url);
+      if (!file.ok) throw new Error("Evidence download failed.");
+      const url = URL.createObjectURL(await file.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = result.filename ?? item.original_filename;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Evidence download failed."); }
+  }
+
   async function remove(item: Item) {
     if (deletingId) return;
     const confirmed = window.confirm(`Remove ${item.original_filename} from the active evidence record? The audit history will be retained.`);
@@ -146,6 +161,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button type="button" onClick={() => void open(item.id)} className="min-h-11 rounded-lg border border-blue-300 px-3 text-sm font-black text-blue-800">Open</button>
+                  <button type="button" onClick={() => void download(item)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-black text-slate-800">Download</button>
                   {canDelete && <button
                     type="button"
                     disabled={deletingId !== null}
@@ -174,14 +190,14 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
             {EVIDENCE_CATEGORIES.map((value) => <option key={value} value={value}>{label(value)}</option>)}
           </select>
         </label>
-        <label className="text-sm font-bold">Photo or PDF
-          <input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required className="mt-1 block min-h-12 w-full rounded-lg border bg-white p-2 text-sm" />
+        <label className="text-sm font-bold">Photo, video or PDF
+          <input name="file" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,application/pdf" required className="mt-1 block min-h-12 w-full rounded-lg border bg-white p-2 text-sm" />
         </label>
         <label className="text-sm font-bold sm:col-span-2">Short note (optional)
           <input name="description" maxLength={500} className="mt-1 min-h-12 w-full rounded-lg border px-3" placeholder="What does this Before or After evidence show?" />
         </label>
         <div className="sm:col-span-2">
-          <p className="mb-3 text-xs text-slate-600">Online connection required. Maximum 10 MB. Do not upload passwords, identity documents, or unrelated personal information.</p>
+          <p className="mb-3 text-xs text-slate-600">Online connection required. Maximum 50 MB. Upload a replacement before removing the final mandatory After item.</p>
           <button disabled={uploading} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50 sm:w-auto">{uploading ? "Uploading…" : "Add evidence"}</button>
         </div>
       </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Evidence is read-only. Authorized management must open a supporting-document correction before the assigned Technician can add missing field evidence.</p>}
