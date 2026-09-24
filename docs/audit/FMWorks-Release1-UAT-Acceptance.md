@@ -1,10 +1,15 @@
 # FMWorks Release-1 UAT Acceptance Report
 
-**Assessment date:** 24 September 2026  
-**Repository:** `engchianyeo-cmyk/facility-works-monitor`  
-**Branch:** `feature/playwright-authenticated-workflows`  
-**Candidate commit:** `26ff450bf736a32402fbe8c7134abdaa3eb18fbb`  
-**Authorized Preview Supabase project:** `pvajuywwwpjlikqjnvgv`  
+**Assessment date:** 24 September 2026
+
+**Repository:** `engchianyeo-cmyk/facility-works-monitor`
+
+**Branch:** `feature/playwright-authenticated-workflows`
+
+**Candidate application commit:** `26ff450bf736a32402fbe8c7134abdaa3eb18fbb`
+
+**Authorized Preview Supabase project:** `pvajuywwwpjlikqjnvgv`
+
 **Vercel Preview:** `https://facility-works-monitor-1xjpx61ud-aoai2.vercel.app`
 
 ## Acceptance decision
