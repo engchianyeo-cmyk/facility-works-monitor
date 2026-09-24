@@ -13,12 +13,12 @@
 | Assign | Approved/Assigned | Assigned | Approver, Supervisor, Administrator |
 | Accept | Assigned | Assigned | Assigned Technician or Administrator |
 | Start | Accepted assignment | In progress | Assigned Technician or Administrator |
-| Complete | In progress | Completed | Assigned Technician or Administrator |
-| Review | Completed | Reviewed | Approver or Administrator |
-| Close | Reviewed | Closed | Approver or Administrator |
+| Complete | In progress | Completed | Assigned Technician |
+| Review | Completed | Reviewed | Approver, Supervisor, Facility Manager, or Administrator; independent verification required |
+| Close | Reviewed | Closed | Approver, Supervisor, Facility Manager, or Administrator; resolved financial disposition required |
 | Cancel | Nonterminal | Cancelled | Approver, Supervisor, Administrator |
 
-Administrator self-approval requires an auditable override reason. Duplicate assignment is a successful `NO_CHANGE`, not a misleading mutation. Completion requires notes and non-negative labour hours. Terminal rows are immutable except through the reasoned administrative correction RPC.
+Administrator operational override requires an auditable reason where explicitly supported; financial self-approval remains prohibited. Duplicate assignment is a successful `NO_CHANGE`, not a misleading mutation. Physical completion requires work-performed notes, cumulative non-negative labour hours, confirmed execution costing, and active After evidence—not a final invoice. Verification is independent. Document-only correction does not rewrite verified physical-completion history. Closure additionally requires recorded reconciled payment or independently approved no payment required. Terminal rows are immutable except through the reasoned administrative correction RPC.
 
 ## Emergency incident lifecycle
 

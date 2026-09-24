@@ -32,11 +32,19 @@
 - Manual occurrence processing, Work Order generation, deferral/cancellation controls and operational outcome views.
 - Future work: separately approved automated scheduler/worker and broader regulatory reporting.
 
-## Inventory and commercial — planned
+## Release-1 commercial control — implemented/remediation
+
+- Procurement-qualified, facility-confirmed contractor eligibility.
+- Below-S$1,000 single quotation and at/above-S$1,000 three-quotation control.
+- Independent proposal and payment approval with self-approval denial.
+- Procurement commitments, actual-cost ledger, final-cost reconciliation, invoice-gated payment submission, Finance payment recording, and no-payment-required disposition.
+- Physical, documentary, financial, payment, and closure states remain separate.
+
+## Inventory and accounting integration — planned
 
 - Approve stock ledger and location model.
 - Link reservations/issues/returns to work orders.
-- Define cost, quotation, approval, tax, currency, and purchase-order boundaries.
+- Extend tax, currency, purchase-order, and cost-allocation boundaries beyond the Release-1 operational controls.
 - Establish accounting/ERP integration ownership.
 
 ## Commissioning — planned

@@ -132,6 +132,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-013 — Product documentation contradicts the implemented Release-1 scope
 
 - **Severity:** Medium
+- **Implementation status (2026-09-24):** **Verified.** `PRD.md`, `COMMERCIAL.md`, `TASKS.md`, and `WORKFLOW.md` now define Release-1 operational commercial control while preserving the boundary that FMWorks is not an accounting ledger. The documents explicitly separate physical completion, verification, documentary completion, actual-cost reconciliation, payment, no-payment disposition, and closure, and record the below/at-or-above S$1,000 quotation rules. `tests/release-one-governance-docs.test.ts` passes.
 - **Affected:** `docs/PRD.md`; `docs/TASKS.md`; `docs/COMMERCIAL.md`; Release-1 work-package documents and migrations
 - **Expected:** The controlling PRD/data model/workflow state whether commercial billing/payment is in Release 1 and define its acceptance criteria.
 - **Actual:** Core documents call commercial billing/inventory “planned” or out of scope, while dated migrations/UI implement quotation, final account, approval, payment, and closure-related behavior.
@@ -142,6 +143,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-014 — Build success can conceal skipped type/lint validation
 
 - **Severity:** Low
+- **Implementation status (2026-09-24):** **Verified.** `.github/workflows/ci.yml` runs TypeScript, ESLint, Vitest, and the Next.js production build as four explicit commands. The governance regression asserts all four remain present, and the checks pass locally.
 - **Affected:** Next.js build configuration/output; CI/release interpretation
 - **Expected:** Release reporting distinguishes compilation from type/lint quality gates.
 - **Actual:** `next build` reports “Skipping validation of types” and “Skipping linting.” This audit ran both separately and they passed, but build alone does not prove them.

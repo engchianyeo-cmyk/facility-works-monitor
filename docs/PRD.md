@@ -12,11 +12,11 @@ FMWorks is an authenticated facilities-operations platform for reporting, author
 - Preserve an auditable record of every material workflow action.
 - Let each role perform its work without gaining broader data or administrative access.
 - Keep emergency response separate from corrective maintenance while allowing linkage.
-- Support future inventory, commissioning, commercial, and integration modules on the same identity and audit foundations.
+- Support governed Release-1 commercial control while retaining future inventory, commissioning, and accounting integrations on the same identity and audit foundations.
 
 ## Current product scope
 
-The implemented baseline comprises Mission Control, Operations, authenticated user and department/team management, the Core Work Order Engine, Technician execution, completion review/rework, protected Evidence, Emergency Incident Management, the Asset Registry, Preventive Maintenance requirements and occurrence processing, Approval Centre, audit history, controlled CSV exports, deployment identity, and a provider-neutral notification foundation.
+The implemented Release-1 baseline comprises Mission Control, Operations, authenticated user and department/team management, the Core Work Order Engine, Technician execution, completion review/rework, protected Evidence, Emergency Incident Management, the Asset Registry, Preventive Maintenance requirements and occurrence processing, Approval Centre, governed contractor qualification/quotation/final-account/payment records, audit history, controlled CSV exports, deployment identity, and a provider-neutral notification foundation.
 
 ## Personas
 
@@ -41,6 +41,8 @@ Canonical stored roles are `reviewer`, `initiator`, `approver`, `technician`, `s
 6. KPI dashboard, filtering, priority ordering, and attention queues.
 7. Controlled user and department administration.
 8. Provider-neutral, non-blocking notifications.
+9. Procurement-qualified contractor proposals, independent expenditure approval, actual-cost reconciliation, payment proposal/approval/recording, and governed closure.
+10. Explicit separation between physical completion, verification, documentary completion, financial reconciliation, payment, and closure.
 
 ## Quality requirements
 
@@ -53,7 +55,7 @@ Canonical stored roles are `reviewer`, `initiator`, `approver`, `technician`, `s
 
 ## Out of current scope
 
-Live SMS/WhatsApp/email delivery, automated escalation scheduling, automated PM scheduling, inventory accounting, commissioning workflows, commercial billing, multi-tenancy, and autonomous AI actions are roadmap capabilities, not implied by the current build. Manual PM occurrence processing and Work Order generation remain part of the implemented product.
+Live SMS/WhatsApp/application-email delivery, automated escalation scheduling, automated PM scheduling, inventory accounting, commissioning workflows, customer invoicing/accounting-ledger integration, multi-tenancy, and autonomous AI actions remain roadmap capabilities. Release-1 contractor quotations, commitments, actual expenditure, final accounts, payment proposals, recorded payment references, and no-payment dispositions are operational control records; they do not make FMWorks an accounting ledger.
 
 ## Success measures
 
@@ -62,5 +64,7 @@ Live SMS/WhatsApp/email delivery, automated escalation scheduling, automated PM 
 - User provisioning creates an Auth user and matching active profile safely.
 - Operational dashboards reconcile with persisted records after refresh.
 - Emergency incidents remain valid even when no responder or notification provider is configured.
+- A physically completed Work Order remains financially outstanding until payment is recorded or an independently approved no-payment-required disposition exists.
+- Approved quotation, actual repair cost, final contractor charge, approved expenditure, payment proposal, and recorded payment remain distinct and auditable.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [WORKFLOW.md](WORKFLOW.md), [SECURITY.md](SECURITY.md), [ROADMAP.md](ROADMAP.md), and [TEST_PLAN.md](TEST_PLAN.md).
