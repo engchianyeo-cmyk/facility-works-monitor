@@ -8,6 +8,7 @@ const readinessRoute = readFileSync("app/api/work-orders/[id]/readiness/route.ts
 const approvalBasis = readFileSync("components/work-orders/approval-basis-control.tsx", "utf8");
 const paymentCorrection = readFileSync("supabase/migrations/20260921061036_correct_payment_assessment_actual_cost.sql", "utf8");
 const evidenceFinalCost = readFileSync("supabase/migrations/20260921122902_evidence_final_cost_completion_controls.sql", "utf8");
+const reconciliation = readFileSync("supabase/migrations/20260924040748_release_1_lifecycle_financial_reconciliation.sql", "utf8");
 const evidencePanel = readFileSync("components/evidence/evidence-panel.tsx", "utf8");
 
 describe("integrated Release 1 commercial lifecycle", () => {
@@ -61,10 +62,14 @@ describe("integrated Release 1 commercial lifecycle", () => {
     expect(paymentCorrection).toContain("result.reviewed_at+interval '30 days'");
   });
 
-  test("governs evidence replacement, completion withdrawal and final cost submission", () => {
-    for (const contract of ["void_work_order_evidence", "AFTER_EVIDENCE_REQUIRED", "withdraw_physical_completion", "save_work_order_final_cost", "approve_work_order_final_cost_variance", "FINAL_INVOICE_REQUIRED"]) expect(evidenceFinalCost).toContain(contract);
+  test("governs evidence replacement, completion withdrawal and separates final cost from physical completion", () => {
+    for (const contract of ["void_work_order_evidence", "AFTER_EVIDENCE_REQUIRED", "withdraw_physical_completion", "save_work_order_final_cost", "approve_work_order_final_cost_variance"]) expect(evidenceFinalCost).toContain(contract);
+    const correctedCompletion = reconciliation.split("create or replace function public.submit_physical_completion")[1]?.split("end;$function$;")[0] ?? "";
+    expect(correctedCompletion).not.toContain("FINAL_INVOICE_REQUIRED");
+    expect(correctedCompletion).not.toContain("FINAL_COST_REQUIRED");
+    expect(correctedCompletion).toContain("ACTUAL_COSTING_CONFIRMATION_REQUIRED");
     for (const control of ["Download", "video/mp4", "video/webm"]) expect(evidencePanel).toContain(control);
-    for (const control of ["Final Work Cost & Completion Submission", "Submit Final Work Cost", "Attach Final Invoice", "Authorize Final Cost Variance"]) expect(workspace).toContain(control);
+    for (const control of ["Final Cost Reconciliation", "Save Final Cost Reconciliation", "Attach Final Invoice", "Authorize Final Cost Variance"]) expect(workspace).toContain(control);
     expect(route).toContain("approve_final_cost_variance");
   });
 });

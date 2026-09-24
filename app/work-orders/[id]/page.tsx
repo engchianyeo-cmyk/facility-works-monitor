@@ -159,7 +159,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     }
   }
 
-  const [evidenceResult, incidentResult, approvalReadinessResult, verificationReadinessResult, finalCostResult, finalInvoiceResult] = await Promise.all([
+  const [evidenceResult, incidentResult, approvalReadinessResult, verificationReadinessResult, closureReadinessResult] = await Promise.all([
     supabase.from("evidence_items").select("id,category,deleted_at").eq("work_order_id", id),
     order.incident_id
       ? supabase.from("incidents").select("id,incident_number,severity,status").eq("id", order.incident_id).maybeSingle()
@@ -168,8 +168,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     status === "completed" && ["supervisor", "facility_manager", "administrator"].includes(identity.role)
       ? supabase.rpc("work_order_verification_readiness", { p_work_order_id: id })
       : Promise.resolve({ data: null, error: null }),
-    supabase.from("work_order_final_cost_submissions").select("id,status").eq("work_order_id",id).maybeSingle(),
-    supabase.from("work_order_final_cost_documents").select("id",{count:"exact",head:true}).eq("work_order_id",id).is("deleted_at",null),
+    status === "reviewed" ? supabase.rpc("work_order_closure_readiness", { p_work_order_id: id }) : Promise.resolve({ data: null, error: null }),
   ]);
   const evidenceItems = evidenceResult.error ? [] : evidenceResult.data ?? [];
   const evidenceCount = evidenceResult.error ? undefined : evidenceItems.filter((item) => !item.deleted_at).length;
@@ -185,14 +184,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     !String(order.completion_notes ?? "").trim() ? "Work-performed statement has not been recorded." : null,
     order.actual_labour_hours === null || Number(order.actual_labour_hours) < 0 ? "Valid cumulative labour hours have not been recorded." : null,
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
-    !finalCostResult.data || !["confirmed","variance_approved"].includes(finalCostResult.data.status) ? "Final Work Cost must be confirmed and any excess expenditure independently authorized." : null,
-    !finalInvoiceResult.count ? "A supporting final invoice is required." : null,
   ].filter((item): item is string => Boolean(item));
   if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => !["complete", "submit_physical_completion"].includes(action));
   const approvalReadiness = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ready: boolean; missing_requirements: string[]; required_authority: string; proposed_cost: number } | null;
   const verificationReadiness = verificationReadinessResult.error ? null : verificationReadinessResult.data as { verification_ready: boolean; missing_requirements: string[]; completion_event_found: boolean; legacy_completion_record: boolean; self_verification_reason_required: boolean } | null;
   if (status === "submitted" && approvalReadiness?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "approve");
   if (status === "completed" && verificationReadiness?.verification_ready !== true) allowedActions = allowedActions.filter((action) => action !== "review");
+  const closureReadiness = closureReadinessResult.error ? null : closureReadinessResult.data as { ready?: boolean; missing_requirements?: string[]; resolution?: string | null } | null;
+  if (status === "reviewed" && closureReadiness?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "close");
   if (identity.role === "administrator" && ["assigned", "in_progress"].includes(status)) {
     allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
   }
@@ -290,7 +289,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         nextAction={nextAction}
       />
 
-      <ReleaseOneWorkspace id={id} role={identity.role} status={status} />
+      <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />
 
       <WorkOrderActions
         id={id}

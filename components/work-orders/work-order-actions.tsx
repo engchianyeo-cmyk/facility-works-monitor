@@ -401,7 +401,7 @@ export default function WorkOrderActions(props: Props) {
           <form onSubmit={submitWorkRecord} aria-describedby="completion-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
             <div>
               <h3 className="font-black">Record Work Done</h3>
-              <p id="completion-help" className="mt-1 text-sm text-slate-600">Saving this execution record does not formally complete or close the Work Order. An authorised Administrator must review the record and mark the Work Order Completed.</p>
+              <p id="completion-help" className="mt-1 text-sm text-slate-600">Saving this execution record does not formally complete or close the Work Order. The assigned Technician submits physical completion; an independent authorised person verifies it afterward.</p>
             </div>
             <label className="block text-sm font-bold">Work performed statement <span aria-hidden="true">*</span>
               <textarea required rows={5} maxLength={4000} value={completionNotes} onChange={(event) => setCompletionNotes(event.target.value)} className="mt-1 min-h-32 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" placeholder="Summarize the work performed, test result and resulting equipment condition." />
