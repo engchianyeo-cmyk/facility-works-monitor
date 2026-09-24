@@ -228,6 +228,7 @@ begin
 end;$function$;
 
 revoke all on function public.work_order_financial_documentation_readiness(uuid),public.work_order_closure_readiness(uuid),public.propose_work_order_no_payment(uuid,text,text),public.approve_work_order_no_payment(uuid,text),public.submit_physical_completion(uuid,jsonb),public.save_work_order_final_cost(uuid,jsonb),public.save_work_order_payment_proposal(uuid,jsonb),public.register_work_order_final_cost_document(uuid,uuid,text,text,bigint,text),public.record_work_order_finance_payment(uuid,jsonb),public.transition_work_order(uuid,text,jsonb),public.transition_work_order_20260924_core(uuid,text,jsonb) from public,anon,service_role;
+revoke all on function public.transition_work_order_20260924_core(uuid,text,jsonb) from authenticated;
 grant execute on function public.work_order_financial_documentation_readiness(uuid),public.work_order_closure_readiness(uuid),public.propose_work_order_no_payment(uuid,text,text),public.approve_work_order_no_payment(uuid,text),public.submit_physical_completion(uuid,jsonb),public.save_work_order_final_cost(uuid,jsonb),public.save_work_order_payment_proposal(uuid,jsonb),public.register_work_order_final_cost_document(uuid,uuid,text,text,bigint,text),public.record_work_order_finance_payment(uuid,jsonb),public.transition_work_order(uuid,text,jsonb) to authenticated;
 
 do $postconditions$

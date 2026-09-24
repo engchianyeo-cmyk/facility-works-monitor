@@ -45,6 +45,11 @@ describe("WP-2A lifecycle and financial reconciliation", () => {
     expect(functionBody("record_work_order_finance_payment")).toContain("SELF_APPROVAL_DENIED");
   });
 
+  test("does not expose the renamed transition core to authenticated callers", () => {
+    expect(migration).toContain("revoke all on function public.transition_work_order_20260924_core(uuid,text,jsonb) from authenticated");
+    expect(migration).not.toMatch(/grant execute on function[^;]*transition_work_order_20260924_core[^;]*to authenticated/);
+  });
+
   test("uses the actual cost ledger as the authoritative reconciliation and never adds quotation", () => {
     const finalCost = functionBody("save_work_order_final_cost");
     const payment = functionBody("save_work_order_payment_proposal");

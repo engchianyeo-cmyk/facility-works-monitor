@@ -137,6 +137,22 @@ Release acceptance still requires a disposable PostgreSQL run of the complete mi
 9. Configure and verify approved email delivery or explicitly accept `NOT_CONFIGURED` as a release limitation with operational runbooks.
 10. Re-run disposable SQL, Vitest, TypeScript, ESLint, build, and synthetic Playwright/UAT across all roles before Production consideration.
 
+## WP-2A remediation verification — 24 September 2026
+
+The controlled remediation in commit `0351ffe6292f95fd11316b621fd43f7d84728fc0`, plus its follow-up ACL correction, was applied only to authorized Preview Supabase project `pvajuywwwpjlikqjnvgv`. The first migration attempt failed its own postcondition because the renamed internal transition core retained an `authenticated` EXECUTE grant; the transaction rolled back. The migration was corrected to revoke that inherited grant, reapplied successfully, and recorded as migration `20260924040748`.
+
+Rollback-only behavioral SQL regression `tests/sql/20260924040748_release_1_lifecycle_financial_reconciliation.test.sql` passed on PostgreSQL 17.6 and confirmed:
+
+- Assigned Technician physical completion succeeds without final cost or invoice when notes, labour, After evidence, and execution-cost confirmation are satisfied.
+- Invoice absence remains blocked at later payment-proposal submission.
+- Reviewed work with unresolved payment cannot close.
+- Independently approved no-payment disposition permits closure without fabricated payment.
+- Technician financial self-approval is denied.
+- WO-TEST-012 keeps S$650 quotation separate from S$620 actual, proposal, and recorded-payment basis.
+- The internal `transition_work_order_20260924_core` function is not executable by `authenticated`.
+
+The regression ended with `ROLLBACK`; a post-test query confirmed WO-TEST-012 remained `reviewed`, payment remained `approved_for_payment` for S$620 with no paid amount, and no financial-disposition row persisted. The repository-wide clean-install SQL gate remains incomplete because it still stops at migration `0027` and the Preview migration ledger contains historical alternate versions.
+
 ## Release recommendation
 
 **NO GO for Release 1 Production.** The application should remain in audit/remediation status until all Critical/High defects in `FMWorks-Defect-Register.md` are fixed and the complete isolated database/browser gate passes. No finding in this report authorizes modifying Production or the Development environment that shares Production’s Supabase configuration.

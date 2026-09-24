@@ -5,7 +5,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-001 — Physical completion requires final cost approval and final invoice
 
 - **Severity:** High
-- **Implementation status (2026-09-24):** **Implemented; verification pending SQL execution.** Migration `20260924040748_release_1_lifecycle_financial_reconciliation.sql` replaces the physical-completion wrapper without final-cost or invoice gates. The UI now requires the physical work statement, cumulative labour, confirmed execution-cost ledger, and After evidence only. TypeScript, ESLint, Vitest (including the new WP-2A contract regression), and the production build pass. The current disposable SQL gate does not apply this migration, so this defect is not yet marked verified.
+- **Implementation status (2026-09-24):** **Verified for WP-2A.** Migration `20260924040748_release_1_lifecycle_financial_reconciliation.sql` replaces the physical-completion wrapper without final-cost or invoice gates. The UI requires the physical work statement, cumulative labour, confirmed execution-cost ledger, and After evidence only. The rollback-only Preview SQL regression proved that the assigned Technician can submit physical completion with no final-cost record or invoice. TypeScript, ESLint, Vitest, build, and the targeted Preview database test pass.
 - **Affected:** `app/work-orders/[id]/page.tsx:184`; `components/work-orders/release-one-workspace.tsx:60`; `supabase/migrations/20260921122902_evidence_final_cost_completion_controls.sql:125`; `public.submit_physical_completion(uuid,jsonb)`
 - **Expected:** Assigned Technician may submit physical completion when work statement, labour/effort, After evidence, assignment, facility membership, and operational status are valid. Financial documents and payment proceed independently afterward.
 - **Actual:** UI removes completion actions until final cost is confirmed/variance-approved and a final invoice exists. PostgreSQL returns `FINAL_COST_REQUIRED` or `FINAL_INVOICE_REQUIRED` before invoking the physical completion core.
@@ -36,7 +36,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-004 — No first-class no-payment-required disposition
 
 - **Severity:** High
-- **Implementation status (2026-09-24):** **Implemented; verification pending SQL execution.** The WP-2A migration adds an audited `work_order_financial_dispositions` record, bounded reason taxonomy, proposal/independent-approval RPCs, self-approval denial, mutual exclusion with an active payment process, API operations, and UI controls. Static/route regression tests and all application gates pass; database behavioral execution remains outside the incomplete SQL gate.
+- **Implementation status (2026-09-24):** **Verified for WP-2A.** The migration adds an audited `work_order_financial_dispositions` record, bounded reason taxonomy, proposal/independent-approval RPCs, self-approval denial, mutual exclusion with an active payment process, API operations, and UI controls. The rollback-only Preview SQL regression proved that a Technician may propose but not approve the disposition, an independent Approver may approve it, and closure then succeeds without a fabricated payment.
 - **Affected:** `contractor_payment_assessments`; Release-1 payment RPCs/UI; closure transition
 - **Expected:** In-house, warranty, goodwill, zero-cost, or otherwise non-payable work can be independently classified `no_payment_required` with reason and evidence, then close without a fictitious payment.
 - **Actual:** Payment states are draft, awaiting approval, approved for payment, paid, and returned. No no-payment state, decision record, or UI exists.
@@ -47,7 +47,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-005 — Work Order can close while payment remains unresolved
 
 - **Severity:** High
-- **Implementation status (2026-09-24):** **Implemented; verification pending SQL execution.** `work_order_closure_readiness` and the new outer `transition_work_order` wrapper require either a fully reconciled recorded payment or independently approved no-payment disposition before `reviewed → closed`. The detail UI removes Close when readiness is false, and the API maps the database denial to HTTP 409. Application tests pass; SQL behavior has not yet run against a disposable latest-schema database.
+- **Implementation status (2026-09-24):** **Verified for WP-2A.** `work_order_closure_readiness` and the outer `transition_work_order` wrapper require either a fully reconciled recorded payment or independently approved no-payment disposition before `reviewed → closed`. The detail UI removes Close when readiness is false, and the API maps the database denial to HTTP 409. Preview SQL tests proved unresolved payment is blocked and both reconciled-payment and independently approved no-payment paths become closure-ready.
 - **Affected:** `supabase/migrations/0013_core_work_order_engine.sql:592`; later `transition_work_order` wrappers; `lib/work-orders/workflow.ts:15`; close UI action
 - **Expected:** Closure requires verified physical completion plus a resolved financial disposition: payment recorded/reconciled or independently approved no-payment-required.
 - **Actual:** The canonical transition permits `reviewed → closed` without querying payment assessment or financial disposition.
@@ -58,7 +58,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-006 — Completion authority and user guidance conflict
 
 - **Severity:** High
-- **Implementation status (2026-09-24):** **Implemented; verification pending SQL execution.** UI guidance now states that the assigned Technician submits physical completion and an independently authorized verifier performs verification. No-payment and Finance-payment controls also hide or reject self-approval. TypeScript, ESLint, Vitest, and build pass; the database role matrix still requires execution by the repaired SQL gate.
+- **Implementation status (2026-09-24):** **Verified for the corrected WP-2A authority paths.** UI guidance states that the assigned Technician submits physical completion and an independently authorized verifier performs verification. The Preview SQL regression exercised Technician physical completion, Technician financial-approval denial, independent Approver authorization, and distinct Administrator Finance recording. Existing role-matrix tests and all application gates also pass.
 - **Affected:** `components/work-orders/work-order-actions.tsx:404`; `app/work-orders/[id]/page.tsx:273`; `supabase/migrations/0037_governed_work_order_lifecycle.sql:356`; `0038_governed_technician_actual_costs.sql:125`
 - **Expected:** UI wording, visible controls, permission helpers, and RPC authority identify the same accountable actor.
 - **Actual:** UI tells the Technician that an Administrator must mark the Work Order Completed and treats Administrator as formal completion authority, while the governed RPC rejects every non-Technician and requires the assigned Technician.
@@ -69,7 +69,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-007 — Actual-cost sources can diverge
 
 - **Severity:** High
-- **Implementation status (2026-09-24):** **Implemented; verification pending SQL execution.** Actual expenditure is derived server-side from `work_order_cost_lines` entries in the `actual` phase and snapshotted in `work_order_final_cost_submissions`; labour is copied from the physical-completion record; the final contractor charge and approved quotation remain distinct. Payment proposal amount is the reconciled actual-cost snapshot. The WO-TEST-012 regression asserts quotation S$650 and actual/proposed/paid basis S$620 without summing them. Application tests pass; behavioral SQL verification remains pending.
+- **Implementation status (2026-09-24):** **Verified for WP-2A.** Actual expenditure is derived server-side from `work_order_cost_lines` entries in the `actual` phase and snapshotted in `work_order_final_cost_submissions`; labour is copied from physical completion; final contractor charge and approved quotation remain distinct. The rollback-only Preview SQL regression proved WO-TEST-012 retains quotation S$650, derives actual and payment proposal S$620, rejects a S$650 payment against the S$620 approved proposal, and accepts S$620.
 - **Affected:** `work_orders.actual_labour_hours`; `work_order_cost_lines`; `work_order_final_cost_submissions`; `contractor_payment_assessments`; `save_work_order_final_cost`; `submit_physical_completion`
 - **Expected:** A single governed reconciliation determines authoritative actual expenditure and labour, with immutable snapshots used by variance and payment.
 - **Actual:** Similar labour/cost values are independently entered across Work Order completion payloads, cost lines, final-cost submissions, and payment assessments. No database constraint proves they reconcile.
@@ -81,6 +81,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 
 - **Severity:** High
 - **Implementation status (2026-09-24):** **Open and confirmed as a verification blocker.** `scripts/release-verify.mjs` and its SQL runner still stop at migration `0027`; they do not apply `0028`–`0038`, the dated Release-1 migrations, or the WP-2A migration. The WP-2A Vitest suite explicitly asserts this limitation so the application test run cannot be misreported as a complete SQL release gate. No protected database was used as a substitute.
+- **Additional evidence (2026-09-24):** The committed WP-2A migration was applied transactionally to authorized Preview project `pvajuywwwpjlikqjnvgv`, recorded in its migration ledger, and behaviorally tested with `tests/sql/20260924040748_release_1_lifecycle_financial_reconciliation.test.sql`. That targeted evidence verifies WP-2A but does not cure the incomplete clean-install release gate or its historical migration-ledger drift.
 - **Affected:** `scripts/release-verify.mjs`; `tests/sql/`; migrations `0028`–`0038` and `20260918*`–`20260921*`
 - **Expected:** The isolated release gate applies the exact complete migration sequence and behaviorally tests current Release-1 RPCs, ACLs, RLS, and rollback safety.
 - **Actual:** The script constructs and applies only migrations `0012` through `0027`. Current Release-1 tests often read files and assert strings rather than execute SQL.
