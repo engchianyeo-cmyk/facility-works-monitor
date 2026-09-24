@@ -93,6 +93,7 @@ Severity scale: **Critical** permits material unauthorized access/loss or invali
 ## R1-009 — Browser acceptance cannot run standalone and was not completed
 
 - **Severity:** Medium
+- **Implementation status (2026-09-24):** **Open.** Candidate commit `26ff450` deployed successfully and its health endpoint and rendered login response pass through Vercel-authenticated CLI access. A normal background browser session reached Vercel's deployment-protection login wall before FMWorks, so authenticated Preview lifecycle UAT is not marked complete.
 - **Affected:** `playwright.config.ts`; `tests/e2e/pilot-helpers.ts`; `scripts/release-verify.mjs`
 - **Expected:** Documented command provisions isolated synthetic identities and runs browser acceptance without remote data.
 - **Actual:** `npm run test:e2e` fails collection when gate-only `E2E_ADMIN_EMAIL` variables are absent. The wrapper process remained alive after collection failure and required termination.
