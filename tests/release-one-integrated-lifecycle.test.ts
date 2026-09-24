@@ -13,8 +13,8 @@ const evidencePanel = readFileSync("components/evidence/evidence-panel.tsx", "ut
 
 describe("integrated Release 1 commercial lifecycle", () => {
   test("starts proposal and final-account workflows without seeded records", () => {
-    expect(workspace).toContain("technician&&!quote");
-    expect(workspace).toContain("Create Draft Proposal");
+    expect(workspace).toContain("canAddQuotation");
+    expect(workspace).toContain("Create Draft Quotation");
     expect(workspace).toContain("!data.payment||");
     expect(route).toContain('prepare_proposal: () => supabase.rpc("prepare_work_order_proposal"');
     expect(workspace).toContain('submit("save_payment_proposal"');

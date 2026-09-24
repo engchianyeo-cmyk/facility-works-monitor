@@ -36,7 +36,8 @@ describe("Release 1 markup and commercial workspace", () => {
     expect(controls).toContain("SGD_BELOW_1000_ONE_QUOTE");
     expect(controls).toContain("Technicians cannot approve expenditure.");
     expect(controls).toContain("financial_approved_by is distinct from recommended_by");
-    expect(component).toContain('quote?.status==="submitted"');
+    expect(component).toContain("approver&&recommendedQuote");
+    expect(component).toContain("item.vendor_id===data.order?.recommended_vendor_id");
     expect(component).toContain('["approver","supervisor","facility_manager","administrator"]');
   });
 
