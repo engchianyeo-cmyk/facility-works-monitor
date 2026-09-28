@@ -64,6 +64,7 @@ async function seedSyntheticIdentities(environment) {
     ["approver", "pilot.approver@example.test", password, "Pilot Approver"],
     ["initiator", "pilot.initiator@example.test", password, "Pilot Initiator"],
     ["technician", "pilot.technician@example.test", password, "Pilot Technician"],
+    ["facility_manager", "pilot.facility-manager@example.test", password, "Pilot Facility Manager"],
     ["reviewer", "pilot.reviewer@example.test", password, "Pilot Reviewer"],
     ["reviewer", "pilot.pending@example.test", pendingPassword, "Pilot Password Pending"],
   ];
@@ -171,6 +172,7 @@ async function main() {
   sql("supabase/uat/008_work_order_uat_dataset.sql");
   sql("supabase/uat/010_sla_document_staffing_dataset.sql");
   sql("supabase/uat/011_ai_document_gateway_dataset.sql");
+  sql("tests/sql/release_1_field_owner_isolation.test.sql");
   const env = {
     ...process.env,
     ...identities,
