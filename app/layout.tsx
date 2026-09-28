@@ -2,6 +2,7 @@
 import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import PresenceHeartbeat from "@/components/presence-heartbeat";
+import { getBuildInfo } from "@/lib/build-info";
 
 export const metadata: Metadata = {
   title: {
@@ -17,6 +18,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const build = getBuildInfo();
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
@@ -27,7 +29,11 @@ export default function RootLayout({
 
         <footer className="mt-16 border-t border-slate-200 bg-white">
           <div className="mx-auto max-w-7xl px-6 py-6 text-center text-xs text-slate-500">
-            FMWorks Practitioner Preview
+            <span>FMWorks v{build.version}</span>
+            <span className="mx-2" aria-hidden="true">·</span>
+            <span>Build {build.shortCommit}</span>
+            <span className="mx-2" aria-hidden="true">·</span>
+            <span>{build.environmentLabel}</span>
           </div>
         </footer>
       </body>

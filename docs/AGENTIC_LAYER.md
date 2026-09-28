@@ -1,39 +1,32 @@
-# Agentic Layer — Facility Works Monitor
+# FMWorks Agentic Automation Policy
 
-## Risk Levels & Actions
+## Status
 
-### Low — auto-execute (no approval needed)
-| Action | Trigger | Tool |
+No autonomous operational agent is part of the approved current baseline. This document defines the safety boundary for future automation.
+
+## Risk tiers
+
+| Tier | Examples | Default control |
 |---|---|---|
-| `score_priority` | Work order submitted | `openai_score_priority` |
-| `log_activity` | Any status change | `supabase_insert_activity_log` |
-| `tag_category` | Description parsed | `rule_based_categorise` |
+| Assistive | Draft summary, suggest category, identify missing fields | Human reviews before persistence |
+| Low-risk automation | Recalculate derived KPI, enqueue approved notification | Deterministic rules and audit |
+| Controlled operational | Draft assignment or schedule adjustment | Explicit authorized approval |
+| Prohibited autonomous | Approve work, spend money, delete records, declare emergency safe | Human-only authority |
 
-### Medium — draft shown, one-click approval
-| Action | Trigger | Tool |
-|---|---|---|
-| `auto_approve_low_priority` | Score ≤ 2, status submitted > 48 h | `supabase_update_work_order_status` |
+## Tool design
 
-### High — always requires explicit manager approval
-| Action | Trigger | Tool |
-|---|---|---|
-| `send_notification` | Status changes to approved/done | `email_send` (Sprint 5) |
+Future tools must be narrow, typed, role-aware, idempotent where possible, and incapable of arbitrary SQL, arbitrary messaging, or unrestricted execution. The service identity receives only the minimum permissions required.
 
-### Critical — human-only, no agent
-| Action | Notes |
-|---|---|
-| Delete work order | UI button only; no agent path |
-| Reject work order | Manager must type reason |
+## Audit contract
 
-## Named Tools (approved list)
-- `openai_score_priority` — POST to OpenAI, returns score + confidence
-- `supabase_insert_activity_log` — inserts row, no deletes
-- `supabase_update_work_order_status` — updates status field only
-- `rule_based_categorise` — deterministic keyword match, no external call
+Record actor/service, tool name and version, target record, sanitized input reference, decision/result code, human approval where required, and timestamp. Never log secrets or raw sensitive provider payloads.
 
-## Audit Log Fields (every agent action)
-`work_order_id, action, actor=system, ai_model, ai_confidence, created_at`
+## Failure and rollback
 
-## v1 vs Later
-- v1: only `score_priority` + `log_activity` auto-run
-- Later: `auto_approve_low_priority`, notifications
+Automation failure must be visible, contained, and unable to corrupt the authoritative workflow. Safety and work reporting continue without AI. Compensating actions must be explicit and audited rather than silently destructive.
+
+## Governance gate
+
+Before enabling an agent: threat model, privacy review, evaluation suite, role authorization tests, kill switch, cost controls, incident response, owner, and approved operating procedure.
+
+See [INTELLIGENCE_LAYER.md](INTELLIGENCE_LAYER.md), [SECURITY.md](SECURITY.md), and [COMMERCIAL.md](COMMERCIAL.md).
