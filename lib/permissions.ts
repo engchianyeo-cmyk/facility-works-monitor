@@ -48,6 +48,7 @@ export function canPerformWorkOrderAction(
   action: WorkOrderAction,
   context: PermissionContext,
 ): boolean {
+  if (action === "complete") return context.role === "administrator";
   if (["supervisor", "administrator"].includes(context.role)) return true;
 
   if (action === "approve" || action === "reject") {
