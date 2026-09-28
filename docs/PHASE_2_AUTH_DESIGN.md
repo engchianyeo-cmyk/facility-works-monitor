@@ -1,84 +1,42 @@
-# Phase 2B-2C Authentication and Authorization Design
+# Authentication and Authorization Decision Record
 
-This design is staged. The SQL in `0004_auth_foundation.sql` is review-only and
-must not be applied until the application rollout and recovery plan are
-approved.
+## Status
 
-## Roles and permissions
+Implemented baseline. This document preserves the decision history; current operational requirements are authoritative in [SECURITY.md](SECURITY.md).
 
-| Capability | Reviewer | Initiator | Approver | Technician | Supervisor | Administrator |
-|---|---:|---:|---:|---:|---:|---:|
-| Register and sign in | Yes | Assigned role | Assigned role | Assigned role | Assigned role | Assigned role |
-| Create work orders | Yes | Yes | Yes | No by default | Yes | Yes |
-| View own work orders | Yes | Yes | Yes | Assigned only | Yes | Yes |
-| Edit own submitted work | Yes | Yes | Authorized | No | Yes | Yes |
-| Approve or reject | No | No | Yes | No | Yes | Yes |
-| Assign personnel | No | No | Yes | No | Yes | Yes |
-| Accept/start assigned work | No | No | No | Yes | Yes | Yes |
-| Add progress notes | No | No | No | Yes | Yes | Yes |
-| Complete assigned work | No | No | No | Yes | Yes | Yes |
-| Verify completed work | No | Yes | No | No | Yes | Yes |
-| Manage roles/users | No | No | No | No | No | Yes |
-| Permanent deletion | No | No | No | No | No | Controlled admin workflow only |
+## Decision
 
-Self-registration always creates a `reviewer`. Higher roles are assigned by an
-administrator through a future controlled user-management interface.
+FMWorks moved from an anonymous demonstration model to an authenticated application with Supabase Auth, one matching profile per Auth user, six canonical roles, RLS, and RPC-enforced workflow authority.
 
-## Rollout stages
+## Canonical roles
 
-1. Review and back up the live database.
-2. Apply `0004_auth_foundation.sql` in a controlled non-production environment.
-3. Verify profiles, 24 deterministic work-order references, counters, indexes,
-   and policies.
-4. Create test users through Supabase Authentication; do not store passwords in
-   source control.
-5. Verify each role against both UI and API routes.
-6. Only then schedule the live migration and RLS cutover.
+`reviewer`, `initiator`, `approver`, `technician`, `supervisor`, `administrator`
 
-Stage C must authorize actions in API routes as well as hide unavailable UI
-controls. UI-only authorization is not security.
+Self-registration, where enabled, receives the least-privileged supported role. Elevated roles are assigned through controlled Administrator provisioning. “Requester” remains a business description for an Initiator.
 
-## Work-order references
+## Identity reconciliation
 
-References use `FW-YYYY-NNNN`. A per-year counter row is incremented atomically
-inside PostgreSQL, so concurrent inserts cannot receive the same reference.
-The UUID remains the primary key.
+Authenticated experience is allowed only when the Auth user has a matching active, non-deleted profile with a canonical role. Display-name fallback is profile name, Auth metadata name, email local part, then `Unknown user`.
 
-For the current 24 rows, deterministic ordering is `created_at ASC, id ASC`.
-If all current rows are from 2026, the proposed range is `FW-2026-0001` through
-`FW-2026-0024`. The migration calculates this from live data rather than
-assuming row order.
+## Defense in depth
 
-References are never renumbered after assignment.
+1. Middleware refreshes/guards sessions.
+2. Server identity helper validates Auth and profile state.
+3. Routes validate request shape and broad role capability.
+4. PostgreSQL RPCs enforce record-specific authority and transitions.
+5. RLS limits reads and direct operations.
+6. Activity logs provide evidence of protected actions.
 
-## Existing identities
+## Historical decisions retained
 
-Legacy `submitted_by` and `activity_logs.actor` text remains readable. New
-authenticated records use `user_id` for identity and cache the profile display
-name in the existing text fields for historical readability.
+- UI-only authorization is insufficient.
+- Human-readable references never replace UUID primary keys.
+- Legacy actor text may remain for historical readability.
+- Drawing document numbers are independent of work-order numbers.
+- Rollout must be rehearsed in a non-production environment before production.
 
-Fallback display order is:
+## Superseded assumptions
 
-1. Profile display name.
-2. Existing text identity.
-3. Email local part.
-4. `Unknown user`.
+Earlier notes described authentication and administration as future work and anonymous writes as the current model. Those assumptions are obsolete and must not guide implementation.
 
-## Drawings
-
-Drawing document numbers such as `FW-001` through `FW-004` remain independent
-document identifiers. A future attachments/drawings table should map them to a
-work-order UUID/reference. Drawing filenames must not become work-order primary
-keys, and no drawing is attached arbitrarily during this phase.
-
-## Security notes
-
-The current demo policies allow anonymous reads and writes to categories, work
-orders, and activity logs. The proposed policies require authenticated users,
-preserve transitional visibility of legacy work orders, scope reviewers and
-initiators to their own records, scope technicians to assigned records, and
-reserve deletion for administrators.
-
-RLS cannot by itself express every workflow transition or prevent all
-column-level changes. API-side role and transition authorization remains
-mandatory before Stage C is enabled.
+See [PRD.md](PRD.md), [DATA_MODEL.md](DATA_MODEL.md), [ADMIN_GUIDE.md](ADMIN_GUIDE.md), and the role guides.

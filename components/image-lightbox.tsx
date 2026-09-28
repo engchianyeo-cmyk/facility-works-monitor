@@ -16,6 +16,11 @@ type ImageLightboxProps = {
     sourceWidth: number;
     sourceHeight: number;
   };
+  marker?: {
+    x: number;
+    y: number;
+    label: string;
+  };
   open: boolean;
   onClose: () => void;
 };
@@ -26,6 +31,7 @@ export default function ImageLightbox({
   title,
   code,
   crop,
+  marker,
   open,
   onClose,
 }: ImageLightboxProps) {
@@ -51,6 +57,12 @@ export default function ImageLightbox({
   if (!open) return null;
 
   const accessibleTitle = code ? `${code}: ${title}` : title;
+  const markerPosition = crop && marker
+    ? {
+        left: `${(((marker.x / 100) * crop.sourceWidth - crop.x) / crop.width) * 100}%`,
+        top: `${(((marker.y / 100) * crop.sourceHeight - crop.y) / crop.height) * 100}%`,
+      }
+    : null;
 
   return (
     <div
@@ -78,6 +90,11 @@ export default function ImageLightbox({
           >
             {title}
           </h2>
+          {marker && (
+            <p className="mt-1 text-xs font-semibold text-amber-200">
+              Location focus: {marker.label}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -117,6 +134,21 @@ export default function ImageLightbox({
               }}
               priority
             />
+            {markerPosition && (
+              <div
+                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                style={markerPosition}
+                aria-label={`Highlighted location: ${marker?.label}`}
+              >
+                <span className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-4 border-red-500 bg-red-400/30" />
+                <span className="relative flex h-7 w-7 items-center justify-center rounded-full border-4 border-white bg-red-600 text-xs font-black text-white shadow-xl">
+                  !
+                </span>
+                <span className="absolute left-1/2 top-9 w-max max-w-56 -translate-x-1/2 rounded-md bg-slate-950/90 px-2 py-1 text-center text-xs font-bold text-white shadow-lg">
+                  {marker?.label}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative h-full w-full">

@@ -1,41 +1,32 @@
-# vibe-stack-supabase
+# FMWorks
 
-Next.js 15 + Supabase starter for shipping vibe-coded apps fast. Clone, provision, build.
+FMWorks is an authenticated facilities-operations platform for reporting, authorizing, assigning, executing, and auditing maintenance work.
 
-## Stack
+## Technology
 
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 15 (App Router, React 19, Server Actions) |
-| Language | TypeScript strict |
-| Styles | Tailwind CSS v4 (CSS-first, no config file) |
-| Auth + DB | Supabase (`@supabase/ssr`) |
-| Package manager | Bun |
-| Deploy | Vercel |
+Next.js 15, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, Vercel, Vitest, and Playwright for isolated authenticated browser testing.
 
-## Quick start
+## Local development
 
 ```bash
-bun install
-cp .env.example .env.local   # fill in your Supabase keys
-bun dev
+npm install
+npm run dev
 ```
 
-Open http://localhost:3000. Edit `app/page.tsx` to start building.
+Environment requirements are in [Security](docs/SECURITY.md). Never commit `.env.local` or expose the service-role key.
 
-## Provisioning a new project
+## Validation
 
-Use the `/new-vibe-project <name>` skill (see `claude-dotfiles` repo) which:
-1. Clones this template and renames it
-2. Creates a new GitHub repo and pushes
-3. Creates a Supabase project and injects URL + anon key
-4. Creates a Vercel project linked to the GitHub repo
-5. Triggers first deploy and returns the preview URL
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+git diff --check
+```
 
-## Working with AI
+## Documentation
 
-See [CLAUDE.md](CLAUDE.md) for conventions. This repo is pre-wired for gstack — start with `/office-hours`.
+The single documentation repository is [docs/](docs/README.md). Start with the [PRD](docs/PRD.md), [Architecture](docs/ARCHITECTURE.md), [Data Model](docs/DATA_MODEL.md), [Workflow](docs/WORKFLOW.md), and [Security](docs/SECURITY.md).
 
-## Switching to Neon
-
-If you need Postgres without Supabase (e.g. prefer Drizzle ORM + Clerk for auth), a `vibe-stack-neon` variant is planned. For now: fork this and swap `@supabase/ssr` for `drizzle-orm` + `@neondatabase/serverless`, add Clerk or NextAuth.
+Deployments are Git-driven. Schema changes use new numbered migrations tested in a disposable/non-production database; applied migrations are never rewritten.
