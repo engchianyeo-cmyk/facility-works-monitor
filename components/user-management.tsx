@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { operationalLabel } from "@/lib/product-terminology";
 
 const ROLES = [
   "reviewer",
@@ -18,11 +19,13 @@ type ManagedUser = {
   display_name: string;
   email: string | null;
   department: string | null;
+  department_id: string | null;
   trade_discipline: string | null;
   contact_number: string | null;
   role: Role;
   is_active: boolean;
   deleted_at: string | null;
+  password_change_required: boolean;
   created_at: string;
   updated_at: string;
   last_active_at: string | null;
@@ -33,32 +36,14 @@ type ManagedUser = {
   session_status: string;
 };
 
+type Department = { id: string; name: string };
+
 type AuditEntry = {
   id: string;
   action: string;
   actor: string | null;
   note: string | null;
   created_at: string;
-};
-
-type InviteForm = {
-  display_name: string;
-  email: string;
-  department: string;
-  trade_discipline: string;
-  contact_number: string;
-  role: Role;
-  is_active: boolean;
-};
-
-const EMPTY_INVITE: InviteForm = {
-  display_name: "",
-  email: "",
-  department: "",
-  trade_discipline: "",
-  contact_number: "",
-  role: "reviewer",
-  is_active: true,
 };
 
 function formatDate(value: string | null) {
@@ -98,9 +83,11 @@ export default function UserManagement({
   const [statusFilter, setStatusFilter] = useState("all");
   const [presenceFilter, setPresenceFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("last_activity");
-  const [invite, setInvite] = useState<InviteForm>(EMPTY_INVITE);
   const [editing, setEditing] = useState<Record<string, ManagedUser>>({});
   const [activityUserId, setActivityUserId] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [provisioningConfigured, setProvisioningConfigured] = useState(false);
+  const [authDirectoryAvailable, setAuthDirectoryAvailable] = useState(false);
 
   const loadUsers = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -111,6 +98,9 @@ export default function UserManagement({
       if (!response.ok) throw new Error(result.error ?? "Unable to load users.");
       setUsers(result.users);
       setAudit(result.audit);
+      setDepartments(result.departments ?? []);
+      setProvisioningConfigured(result.provisioning_configured === true);
+      setAuthDirectoryAvailable(result.auth_directory_available === true);
       if (!silent) {
         setEditing(
           Object.fromEntries(
@@ -129,6 +119,12 @@ export default function UserManagement({
 
   useEffect(() => {
     void loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    const refresh = () => void loadUsers(true);
+    window.addEventListener("fmworks:user-provisioned", refresh);
+    return () => window.removeEventListener("fmworks:user-provisioned", refresh);
   }, [loadUsers]);
 
   useEffect(() => {
@@ -183,32 +179,6 @@ export default function UserManagement({
     users,
   ]);
 
-  async function inviteUser(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(invite),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Invitation failed.");
-      setMessage(result.message);
-      setInvite(EMPTY_INVITE);
-      await loadUsers();
-    } catch (inviteError) {
-      setError(
-        inviteError instanceof Error
-          ? inviteError.message
-          : "Invitation failed.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   function updateDraft(
     userId: string,
@@ -246,11 +216,9 @@ export default function UserManagement({
     }
   }
 
-  async function deleteUser(user: ManagedUser, permanent: boolean) {
-    const action = permanent ? "permanently delete" : "archive";
-    const warning = permanent
-      ? `Permanently deleting ${user.display_name} cannot be undone. Historical work records will be retained. Continue?`
-      : `Archive ${user.display_name}? The account will be deactivated and blocked from new assignments.`;
+  async function archiveUser(user: ManagedUser) {
+    const action = "archive";
+    const warning = `Archive ${user.display_name}? The account will be deactivated and blocked from new assignments.`;
     if (!window.confirm(warning)) return;
 
     const confirmation = window.prompt(
@@ -265,15 +233,11 @@ export default function UserManagement({
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ permanent, confirmation }),
+        body: JSON.stringify({ confirmation }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? `${action} failed.`);
-      setMessage(
-        permanent
-          ? `${user.display_name} was permanently deleted.`
-          : `${user.display_name} was archived.`,
-      );
+      setMessage(`${user.display_name} was archived.`);
       await loadUsers();
     } catch (deleteError) {
       setError(
@@ -286,121 +250,50 @@ export default function UserManagement({
     }
   }
 
+  async function permanentlyDeleteUser(user: ManagedUser) {
+    const warning = `Permanently delete ${user.display_name} from Supabase Auth? This cannot be undone and is available only when retained operational records do not prevent profile removal. Archive is the normal account-retention action.`;
+    if (!window.confirm(warning)) return;
+    const confirmation = window.prompt(
+      `Type "${user.email ?? user.display_name}" to permanently delete this user.`,
+    );
+    if (confirmation === null) return;
+
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permanent: true, confirmation }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Permanent deletion failed.");
+      setMessage(`${user.display_name} was permanently deleted from Auth.`);
+      await loadUsers();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Permanent deletion failed.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200";
 
   return (
     <>
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <details>
-          <summary className="cursor-pointer text-lg font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-            Add or invite user
-          </summary>
-          <form
-            onSubmit={inviteUser}
-            className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <label className="text-sm font-medium text-slate-700">
-              Display name
-              <input
-                required
-                value={invite.display_name}
-                onChange={(event) =>
-                  setInvite({ ...invite, display_name: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Unique email
-              <input
-                required
-                type="email"
-                value={invite.email}
-                onChange={(event) =>
-                  setInvite({ ...invite, email: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Department/company
-              <input
-                required
-                value={invite.department}
-                onChange={(event) =>
-                  setInvite({ ...invite, department: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Role
-              <select
-                value={invite.role}
-                onChange={(event) =>
-                  setInvite({ ...invite, role: event.target.value as Role })
-                }
-                className={`mt-1 ${inputClass}`}
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role[0].toUpperCase() + role.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {invite.role === "technician" && (
-              <label className="text-sm font-medium text-slate-700">
-                Trade/discipline
-                <input
-                  required
-                  value={invite.trade_discipline}
-                  onChange={(event) =>
-                    setInvite({
-                      ...invite,
-                      trade_discipline: event.target.value,
-                    })
-                  }
-                  className={`mt-1 ${inputClass}`}
-                />
-              </label>
-            )}
-            <label className="text-sm font-medium text-slate-700">
-              Contact number
-              <input
-                type="tel"
-                value={invite.contact_number}
-                onChange={(event) =>
-                  setInvite({ ...invite, contact_number: event.target.value })
-                }
-                className={`mt-1 ${inputClass}`}
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <input
-                type="checkbox"
-                checked={invite.is_active}
-                onChange={(event) =>
-                  setInvite({ ...invite, is_active: event.target.checked })
-                }
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              Account active after invitation
-            </label>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {submitting ? "Sending invitation…" : "Send secure invitation"}
-              </button>
-            </div>
-          </form>
-        </details>
-      </section>
-
+      {!loading && !provisioningConfigured && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          The profile directory remains available, but privileged Auth and
+          mutation operations are not configured for this deployment. Ask the deployment
+          Administrator to configure privileged server access.
+        </div>
+      )}
       {(message || error) && (
         <div
           role={error ? "alert" : "status"}
@@ -433,7 +326,9 @@ export default function UserManagement({
             <option value="all">All roles</option>
             {ROLES.map((role) => (
               <option key={role} value={role}>
-                {role[0].toUpperCase() + role.slice(1)}
+                {role === "initiator"
+                  ? "Initiator / requester"
+                  : role[0].toUpperCase() + role.slice(1)}
               </option>
             ))}
           </select>
@@ -454,10 +349,10 @@ export default function UserManagement({
             onChange={(event) => setPresenceFilter(event.target.value)}
             className={inputClass}
           >
-            <option value="all">All presence</option>
-            <option value="online">Online</option>
-            <option value="idle">Idle</option>
-            <option value="offline">Offline</option>
+            <option value="all">All recorded activity</option>
+            <option value="online">Recent activity</option>
+            <option value="idle">Aging activity</option>
+            <option value="offline">No recent activity</option>
           </select>
           <select
             aria-label="Sort users"
@@ -485,10 +380,10 @@ export default function UserManagement({
                 <tr>
                   <th className="px-3 py-3">Display name / Email</th>
                   <th className="px-3 py-3">Role</th>
-                  <th className="px-3 py-3">Department/company</th>
+                  <th className="px-3 py-3">Department</th>
                   <th className="px-3 py-3">Trade/discipline</th>
                   <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Presence / Session</th>
+                  <th className="px-3 py-3">Recorded activity</th>
                   <th className="px-3 py-3">Activity / Sign-in</th>
                   <th className="px-3 py-3">Created</th>
                   <th className="px-3 py-3">Actions</th>
@@ -543,24 +438,33 @@ export default function UserManagement({
                           >
                             {ROLES.map((role) => (
                               <option key={role} value={role}>
-                                {role}
+                                {role === "initiator"
+                                  ? "Initiator / requester"
+                                  : role}
                               </option>
                             ))}
                           </select>
                         </td>
                         <td className="px-3 py-4">
-                          <input
+                          <select
                             aria-label={`Department for ${user.display_name}`}
-                            value={draft.department ?? ""}
+                            value={draft.department_id ?? ""}
                             onChange={(event) =>
                               updateDraft(
                                 user.id,
-                                "department",
+                                "department_id",
                                 event.target.value,
                               )
                             }
                             className={inputClass}
-                          />
+                          >
+                            <option value="">Select an active department</option>
+                            {departments.map((department) => (
+                              <option key={department.id} value={department.id}>
+                                {department.name}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="space-y-2 px-3 py-4">
                           <input
@@ -613,9 +517,14 @@ export default function UserManagement({
                                   : "Inactive"}
                             </span>
                           </label>
-                          {!user.email_confirmed_at && (
+                          {authDirectoryAvailable && !user.email_confirmed_at && (
                             <p className="mt-1 text-xs text-amber-700">
-                              Invitation pending
+                              Pending activation
+                            </p>
+                          )}
+                          {user.password_change_required && (
+                            <p className="mt-1 text-xs font-semibold text-blue-700">
+                              First password change required
                             </p>
                           )}
                         </td>
@@ -629,8 +538,11 @@ export default function UserManagement({
                                   : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {user.presence_status[0].toUpperCase() +
-                              user.presence_status.slice(1)}
+                            {user.presence_status === "online"
+                              ? "Recent activity"
+                              : user.presence_status === "idle"
+                                ? "Aging activity"
+                                : "No recent activity"}
                           </span>
                           <p className="mt-2 max-w-44 text-xs text-slate-500">
                             {user.session_status}
@@ -647,7 +559,10 @@ export default function UserManagement({
                         <td className="px-3 py-4 text-xs text-slate-500">
                           <p>Last active: {formatDate(user.last_active_at)}</p>
                           <p className="mt-1">
-                            Last sign-in: {formatDate(user.last_sign_in_at)}
+                            Last sign-in:{" "}
+                            {authDirectoryAvailable
+                              ? formatDate(user.last_sign_in_at)
+                              : "Auth directory unavailable"}
                           </p>
                         </td>
                         <td className="px-3 py-4 text-xs text-slate-500">
@@ -656,7 +571,7 @@ export default function UserManagement({
                         <td className="space-y-2 px-3 py-4">
                           <button
                             type="button"
-                            disabled={submitting}
+                            disabled={submitting || !provisioningConfigured}
                             onClick={() => void saveUser(user.id)}
                             className="block w-full rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                           >
@@ -678,16 +593,17 @@ export default function UserManagement({
                               <button
                                 type="button"
                                 disabled={submitting}
-                                onClick={() => void deleteUser(user, false)}
+                                onClick={() => void archiveUser(user)}
                                 className="block w-full rounded-md border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50"
                               >
                                 Archive
                               </button>
                               <button
                                 type="button"
-                                disabled={submitting}
-                                onClick={() => void deleteUser(user, true)}
-                                className="block w-full rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                disabled={submitting || !provisioningConfigured}
+                                onClick={() => void permanentlyDeleteUser(user)}
+                                className="block w-full rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                title="Requires privileged Auth access and no blocking retained references"
                               >
                                 Permanent delete
                               </button>
@@ -711,7 +627,7 @@ export default function UserManagement({
                                   <li key={entry.id}>
                                     {formatDate(entry.created_at)} ·{" "}
                                     {entry.actor ?? "Administrator"} ·{" "}
-                                    {entry.action.replaceAll("_", " ")}
+                                    {operationalLabel(entry.action)}
                                   </li>
                                 ))}
                               </ul>
@@ -730,3 +646,4 @@ export default function UserManagement({
     </>
   );
 }
+
