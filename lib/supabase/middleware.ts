@@ -46,7 +46,9 @@ export async function updateSession(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     const isProtectedWritePage =
       pathname === "/works/new" ||
-      /^\/works\/[^/]+\/edit$/.test(pathname);
+      /^\/works\/[^/]+\/edit$/.test(pathname) ||
+      pathname === "/work-orders/new" ||
+      /^\/work-orders\/[^/]+\/edit$/.test(pathname);
 
     if (isProtectedWritePage && !user) {
       const loginUrl = request.nextUrl.clone();

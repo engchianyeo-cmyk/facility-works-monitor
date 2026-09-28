@@ -1,3 +1,5 @@
+import { priorityLabel, workOrderStatusLabel } from "@/lib/product-terminology";
+
 export type WorkOrderStatus =
   | "submitted"
   | "approved"
@@ -32,16 +34,16 @@ export function nextStatus(
 }
 
 export const STATUS_LABEL: Record<WorkOrderStatus, string> = {
-  submitted: "Submitted",
-  approved: "Approved",
-  in_progress: "In Progress",
-  done: "Done",
-  rejected: "Rejected",
+  submitted: workOrderStatusLabel("submitted"),
+  approved: workOrderStatusLabel("approved"),
+  in_progress: workOrderStatusLabel("in_progress"),
+  done: workOrderStatusLabel("done"),
+  rejected: workOrderStatusLabel("rejected"),
 };
 
 export const PRIORITY_LABEL: Record<string, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
+  low: priorityLabel("low"),
+  medium: priorityLabel("medium"),
+  high: priorityLabel("high"),
+  critical: priorityLabel("critical"),
 };

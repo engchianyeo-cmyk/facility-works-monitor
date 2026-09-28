@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const USER_ROLES = [
   "reviewer",
@@ -6,6 +7,7 @@ export const USER_ROLES = [
   "approver",
   "technician",
   "supervisor",
+  "facility_manager",
   "administrator",
 ] as const;
 
@@ -17,45 +19,74 @@ export type AuthIdentity = {
   displayName: string;
   department: string | null;
   role: UserRole;
+  passwordChangeRequired: boolean;
 };
 
-function isUserRole(value: unknown): value is UserRole {
+export function isUserRole(value: unknown): value is UserRole {
   return USER_ROLES.includes(value as UserRole);
 }
 
-export async function getCurrentIdentity(): Promise<AuthIdentity | null> {
+async function loadCurrentAccountIdentity(
+  allowPasswordSetupProfileRead = false,
+): Promise<AuthIdentity | null> {
   const supabase = await createClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (userError || !user) return null;
 
-  const { data: profile } = await supabase
+  const profileClient = allowPasswordSetupProfileRead
+    ? createAdminClient()
+    : supabase;
+  const { data: profile, error: profileError } = await profileClient
     .from("profiles")
-    .select("display_name, email, department, role, is_active")
+    .select("display_name, email, department, role, is_active, deleted_at, password_change_required")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile && profile.is_active === false) return null;
+  if (
+    profileError ||
+    !profile ||
+    profile.is_active !== true ||
+    profile.deleted_at ||
+    !isUserRole(profile.role)
+  ) {
+    return null;
+  }
 
   const metadataName =
     typeof user.user_metadata?.display_name === "string"
       ? user.user_metadata.display_name.trim()
       : "";
-  const email = profile?.email ?? user.email ?? null;
+  const email = profile.email ?? user.email ?? null;
   const emailName = email?.split("@")[0] ?? "";
 
   return {
     userId: user.id,
     email,
     displayName:
-      profile?.display_name?.trim() || metadataName || emailName || "Unknown user",
-    department:
-      profile?.department ??
-      (typeof user.user_metadata?.department === "string"
-        ? user.user_metadata.department
-        : null),
-    role: isUserRole(profile?.role) ? profile.role : "reviewer",
+      profile.display_name?.trim() || metadataName || emailName || "Unknown user",
+    department: profile.department,
+    role: profile.role,
+    passwordChangeRequired: profile.password_change_required === true,
   };
+}
+
+export async function getCurrentAccountIdentity(): Promise<AuthIdentity | null> {
+  try {
+    return await loadCurrentAccountIdentity(true);
+  } catch {
+    return null;
+  }
+}
+
+export async function getCurrentIdentity(): Promise<AuthIdentity | null> {
+  try {
+    const identity = await loadCurrentAccountIdentity();
+    return identity?.passwordChangeRequired ? null : identity;
+  } catch {
+    return null;
+  }
 }
