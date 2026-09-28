@@ -1,137 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentIdentity } from "@/lib/auth";
-import { canPerformWorkOrderAction } from "@/lib/permissions";
-import { nextStatus, WorkOrderAction, WorkOrderStatus } from "@/lib/status";
+import { NextRequest } from "next/server";
+import { POST as transition } from "@/app/api/work-orders/[id]/transition/route";
 
-type RouteContext = {
-  params: Promise<{ id: string }>;
+type RouteContext = { params: Promise<{ id: string }> };
+const LEGACY_ACTIONS: Record<string, string> = {
+  approve: "approve",
+  start: "start",
+  complete: "complete",
+  reject: "cancel",
 };
 
-const ALLOWED_ACTIONS: WorkOrderAction[] = [
-  "approve",
-  "reject",
-  "start",
-  "complete",
-];
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: RouteContext,
-) {
-  try {
-    const identity = await getCurrentIdentity();
-    if (!identity) {
-      return NextResponse.json(
-        { error: "Authentication is required." },
-        { status: 401 },
-      );
-    }
-
-    const { id } = await params;
-    const body = await request.json();
-    const action = String(body.action ?? "").trim() as WorkOrderAction;
-    const note = typeof body.note === "string" ? body.note.trim() : "";
-
-    if (!ALLOWED_ACTIONS.includes(action)) {
-      return NextResponse.json(
-        { error: `Invalid action: ${action}` },
-        { status: 400 },
-      );
-    }
-
-    const supabase = await createClient();
-
-    const { data: existingOrder, error: fetchError } = await supabase
-      .from("work_orders")
-      .select("status, user_id, assigned_technician_id")
-      .eq("id", id)
-      .single();
-
-    if (fetchError || !existingOrder) {
-      return NextResponse.json(
-        { error: "Work order not found." },
-        { status: 404 },
-      );
-    }
-
-    const currentStatus = existingOrder.status as WorkOrderStatus;
-    if (
-      !canPerformWorkOrderAction(action, {
-        role: identity.role,
-        userId: identity.userId,
-        ownerId: existingOrder.user_id,
-        assignedTechnicianId: existingOrder.assigned_technician_id,
-        status: currentStatus,
-      })
-    ) {
-      return NextResponse.json(
-        { error: "Your role cannot perform this action." },
-        { status: 403 },
-      );
-    }
-
-    const transition = nextStatus(currentStatus, action);
-
-    if (!transition.ok) {
-      return NextResponse.json(
-        { error: transition.error },
-        { status: 400 },
-      );
-    }
-
-    if (action === "reject" && !note) {
-      return NextResponse.json(
-        { error: "Rejection reason is required." },
-        { status: 400 },
-      );
-    }
-
-    const { data, error } = await supabase
-      .from("work_orders")
-      .update({
-        status: transition.to,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return NextResponse.json(
-        { error: error?.message ?? "Unable to update work order status." },
-        { status: 500 },
-      );
-    }
-
-    const activityLog = {
-      user_id: identity.userId,
-      work_order_id: id,
-      action: "status_change",
-      from_status: currentStatus,
-      to_status: transition.to,
-      actor: identity.displayName,
-      note: action === "reject" ? note : note || null,
-    };
-
-    const { error: logError } = await supabase
-      .from("activity_logs")
-      .insert(activityLog);
-
-    if (logError) {
-      console.error("Activity log insert error:", logError);
-      return NextResponse.json(
-        { error: "Status updated but activity log failed." },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({ data });
-
-  } catch {
-  return NextResponse.json(
-    { error: "Internal Server Error" },
-    { status: 500 }
-  );
-}
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  let body: Record<string, unknown>;
+  try { body = (await request.json()) as Record<string, unknown>; }
+  catch {
+    body = {};
+  }
+  const action = LEGACY_ACTIONS[String(body.action ?? "")] ?? String(body.action ?? "");
+  const adapterRequest = new NextRequest(request.url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      ...body,
+      action,
+      reason: action === "cancel" ? body.note : body.reason,
+    }),
+  });
+  return transition(adapterRequest, context);
 }
