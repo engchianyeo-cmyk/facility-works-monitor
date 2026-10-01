@@ -140,10 +140,18 @@ function runSqlRegressions() {
     const name = `fmworks-release-${runner.match(/run_(.+)\.sh$/)[1].replaceAll("_", "-")}-${process.pid}`;
     try {
       run("docker", ["run", "--name", name, "--tmpfs", "/var/lib/postgresql/data:rw,noexec,nosuid,size=512m", "-e", "POSTGRES_PASSWORD=local-verification-only", "-v", `${root}:/workspace`, "-d", "postgres:15"], { label: `start disposable database for ${runner}` });
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        const ready = spawnSync("docker", ["exec", name, "pg_isready", "-U", "postgres"], { stdio: "ignore" });
-        if (ready.status === 0) break;
-        if (attempt === 29) throw new Error(`Disposable database for ${runner} did not become ready.`);
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        const logs = spawnSync("docker", ["logs", name], { encoding: "utf8" });
+        const output = `${logs.stdout ?? ""}\n${logs.stderr ?? ""}`;
+        const initComplete = output.includes("PostgreSQL init process complete; ready for start up.");
+        const finalReady = initComplete &&
+          output.slice(output.indexOf("PostgreSQL init process complete; ready for start up."))
+            .includes("database system is ready to accept connections");
+        const query = finalReady
+          ? spawnSync("docker", ["exec", name, "psql", "-X", "-U", "postgres", "-d", "postgres", "-c", "select 1;"], { stdio: "ignore" })
+          : null;
+        if (query?.status === 0) break;
+        if (attempt === 119) throw new Error(`Disposable database for ${runner} did not become stably ready.`);
         Atomics.wait(waitBuffer, 0, 0, 250);
       }
       run("docker", ["exec", name, "sh", `/workspace/${runner}`], { label: `SQL/security regression ${runner}` });
