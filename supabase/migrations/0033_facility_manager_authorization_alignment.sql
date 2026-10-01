@@ -40,7 +40,9 @@ begin
 
   select pg_catalog.pg_get_functiondef('public.pilot_account_ready(uuid)'::pg_catalog.regprocedure)
   into definition;
-  if pg_catalog.position($needle
+  if pg_catalog.strpos(definition, $needle$'reviewer', 'initiator', 'approver', 'technician',$needle$) = 0
+     or pg_catalog.strpos(definition, $needle$'supervisor', 'administrator'$needle$) = 0
+     or pg_catalog.strpos(definition, $needle$'facility_manager'$needle$) > 0 then
     raise exception '0033 refused: pilot_account_ready role contract is unexpected';
   end if;
 
