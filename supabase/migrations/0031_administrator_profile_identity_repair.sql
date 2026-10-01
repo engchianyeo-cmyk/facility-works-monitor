@@ -31,7 +31,8 @@ begin
   for update;
 
   if not found then
-    raise exception '0031 refused: expected Administrator profile is missing';
+    raise notice '0031 skipped: preserved Administrator profile is not present';
+    return;
   end if;
 
   if target_profile.role <> 'administrator'
