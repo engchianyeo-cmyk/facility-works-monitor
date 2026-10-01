@@ -1,0 +1,67 @@
+name: Release-1 Verification
+
+on:
+  push:
+    branches:
+      - reconciliation/release1-incremental-repair
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release1-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-verify:
+    name: Isolated Docker Release Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out Release-1 repair branch
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Confirm Docker availability
+        run: |
+          docker version
+          docker info
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run complete Release-1 verification
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run release:verify 2>&1 | tee release-verify.log
+
+      - name: Capture Docker state
+        if: always()
+        run: |
+          docker ps -a > docker-ps.txt || true
+          npx supabase status > supabase-status.txt 2>&1 || true
+
+      - name: Upload Release-1 verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release1-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            release-verify.log
+            docker-ps.txt
+            supabase-status.txt
+            playwright-report/
+            test-results/
