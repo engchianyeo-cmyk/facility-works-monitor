@@ -22,6 +22,16 @@ begin
     raise exception '0032 must be applied as postgres';
   end if;
 
+  if not exists (
+    select 1
+    from public.work_orders
+    where id = target_work_order_id
+       or work_order_number = 'WO-TEST-013'
+  ) then
+    raise notice '0032 skipped: controlled WO-TEST-013 is not present';
+    return;
+  end if;
+
   if to_regclass('public.facility_areas') is null then
     raise exception '0032 refused: facility_areas is missing';
   end if;
