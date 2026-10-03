@@ -144,6 +144,7 @@ function runSqlRegressions() {
     "tests/sql/run_0025_sla_reporting_foundation.sh",
     "tests/sql/run_0026_sla_document_intelligence_staffing.sh",
     "tests/sql/run_0027_enterprise_ai_document_gateway.sh",
+    "tests/sql/run_release_1_populated_preview_upgrade.sh",
   ];
   for (const runner of runners) {
     const name = `fmworks-release-${runner.match(/run_(.+)\.sh$/)[1].replaceAll("_", "-")}-${process.pid}`;
