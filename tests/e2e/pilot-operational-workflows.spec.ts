@@ -15,13 +15,13 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await login(page, adminEmail, adminPassword);
   });
 
-  test("Administrator registers an Asset and the persisted detail renders", async ({ page }) => {
-    assetTag = `PILOT-${runId}`;
+  test("Administrator registers an Asset and the persisted detail renders", async ({ page }, testInfo) => {
+    assetTag = `PILOT-${runId}-${testInfo.retry}`;
     await page.goto("/assets/new");
     await page.getByLabel("Asset tag *").fill(assetTag);
     await page.getByLabel("Asset name *").fill(`Pilot AHU ${runId}`);
     await page.getByLabel("Asset type *").fill("Air handling unit");
-    await page.getByLabel("Site *").fill("Synthetic Pilot Site");
+    await page.getByLabel("Site *").fill("Main Building");
     await page.getByLabel("Exact location *").fill("Level 3 synthetic plantroom");
     await page.getByRole("button", { name: "Create Asset" }).click();
     await expect(page).toHaveURL(/\/assets\/[0-9a-f-]+$/, { timeout: 20_000 });
@@ -60,13 +60,20 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     const workOrderForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Create and submit" }) });
     await workOrderForm.locator('[name="title"]').fill(`Pilot corrective work ${runId}`);
     await workOrderForm.locator('[name="description"]').fill("Synthetic end-to-end corrective maintenance acceptance record.");
-    await workOrderForm.locator('[name="site"]').fill("Synthetic Pilot Site");
+    await workOrderForm.locator('[name="site"]').fill("Main Building");
     await workOrderForm.locator('[name="location"]').fill("Level 3 synthetic plantroom");
     await selectContaining(page, "Asset", assetTag);
     await page.getByRole("button", { name: "Create and submit" }).click();
     await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+$/, { timeout: 20_000 });
     await expect(page.getByRole("heading", { name: `Pilot corrective work ${runId}`, exact: true }).first()).toBeVisible();
 
+    const basis=page.getByRole("region",{name:"Pre-work Approval Basis"});
+    await basis.getByLabel("Proposed cost (SGD)").fill("0");
+    await basis.getByLabel("Cost basis",{exact:true}).fill("In-house work; no contractor charge.");
+    await basis.getByLabel("Execution arrangement").fill("Assigned Technician using existing resources.");
+    await basis.getByLabel("Safety / isolation information").fill("Synthetic isolation and safe access confirmed.");
+    await basis.getByRole("button",{name:"Save Approval Basis"}).click();
+    await expect(basis.getByRole("status")).toContainText("Structured approval basis saved.");
     await page.getByRole("button", { name: "Approve Work to Proceed" }).click();
     await page.getByLabel("Override reason, when applicable").fill("Synthetic Administrator override for isolated acceptance only.");
     await page.getByRole("button", { name: "Confirm approval" }).click();
