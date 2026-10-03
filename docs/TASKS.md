@@ -65,3 +65,7 @@
 Approved requirements, migration review, automated tests, production build, security review, role-based UAT, operational guide updates, rollback plan, and release note.
 
 See [ROADMAP.md](ROADMAP.md), [TEST_PLAN.md](TEST_PLAN.md), and module specifications.
+
+## Company quotation policy
+
+The low-value threshold is configurable company policy, initially S$1,000. Only Facility Manager and Administrator may change it, with an audit reason. Each change creates immutable policy and quotation-band versions; existing Work Order financial controls retain their original version. One quotation is required below the pinned threshold and three distinct eligible-contractor quotations at or above it. The Procurement Policy administration screen exposes current policy and change history.
