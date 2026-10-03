@@ -18,7 +18,7 @@ describe("canonical non-Production Release-1 migration manifest", () => {
       ...migrations.map((name) => `supabase/migrations/${name}`),
     ]);
     expect(manifest.at(-1)).toBe(
-      "supabase/migrations/20260928000000_release1_governance_reconciliation.sql",
+      "supabase/migrations/20261003044000_assigned_owner_acceptance_and_start.sql",
     );
   });
 

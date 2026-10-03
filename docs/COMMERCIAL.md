@@ -36,3 +36,7 @@ Budget versus committed/actual, work-order and asset lifecycle cost, vendor perf
 Currency precision, tax rules, S$999.99/S$1,000.00 threshold tests, distinct-vendor quotation count, separation of duties, revision history, actual/payment reconciliation, secure exports, and audit.
 
 See [PRODUCT_EDITIONS.md](PRODUCT_EDITIONS.md), [INVENTORY.md](INVENTORY.md), and [SECURITY.md](SECURITY.md).
+
+## Company quotation policy
+
+The low-value threshold is configurable company policy, initially S$1,000. Only Facility Manager and Administrator may change it, with an audit reason. Each change creates immutable policy and quotation-band versions; existing Work Order financial controls retain their original version. One quotation is required below the pinned threshold and three distinct eligible-contractor quotations at or above it. The Procurement Policy administration screen exposes current policy and change history.

@@ -300,6 +300,11 @@ do $uat$
 declare w public.work_orders%rowtype; q public.contractor_quotations%rowtype; yang uuid;
 begin
   select * into w from public.work_orders where work_order_number='WO-TEST-012';
+  -- This Preview-only correction has no target on a fresh installation.
+  if not found then
+    raise notice 'Preview UAT correction skipped: WO-TEST-012 is absent';
+    return;
+  end if;
   select id into yang from public.profiles where email='koi.kpr@gmail.com' and role='technician' and is_active and deleted_at is null;
   if w.id is null or yang is null then raise exception 'WO-TEST-012 proposal/payment UAT prerequisite missing'; end if;
   select * into q from public.contractor_quotations where work_order_id=w.id order by created_at limit 1;

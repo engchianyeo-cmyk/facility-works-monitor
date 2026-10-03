@@ -40,35 +40,35 @@ begin
 
   select pg_catalog.pg_get_functiondef('public.pilot_account_ready(uuid)'::pg_catalog.regprocedure)
   into definition;
-  if pg_catalog.position('''reviewer'', ''initiator'', ''approver'', ''technician'',' in definition) = 0
-     or pg_catalog.position('''supervisor'', ''administrator''' in definition) = 0
-     or pg_catalog.position('''facility_manager''' in definition) > 0 then
+  if pg_catalog.strpos(definition, $needle$'reviewer', 'initiator', 'approver', 'technician',$needle$) = 0
+     or pg_catalog.strpos(definition, $needle$'supervisor', 'administrator'$needle$) = 0
+     or pg_catalog.strpos(definition, $needle$'facility_manager'$needle$) > 0 then
     raise exception '0033 refused: pilot_account_ready role contract is unexpected';
   end if;
 
   select pg_catalog.pg_get_functiondef('public.admin_update_profile(uuid,jsonb)'::pg_catalog.regprocedure)
   into definition;
-  if pg_catalog.position('''reviewer'',''initiator'',''approver'',''technician'',''supervisor'',''administrator''' in definition) = 0
-     or pg_catalog.position('''facility_manager''' in definition) > 0 then
+  if pg_catalog.strpos(definition, $needle$'reviewer','initiator','approver','technician','supervisor','administrator'$needle$) = 0
+     or pg_catalog.strpos(definition, $needle$'facility_manager'$needle$) > 0 then
     raise exception '0033 refused: admin_update_profile role contract is unexpected';
   end if;
 
   select pg_catalog.pg_get_functiondef('public.admin_finalize_provisioned_profile(uuid,jsonb,text)'::pg_catalog.regprocedure)
   into definition;
-  if pg_catalog.position('''reviewer'',''initiator'',''approver'',''technician'',''supervisor'',''administrator''' in definition) = 0
-     or pg_catalog.position('''facility_manager''' in definition) > 0 then
+  if pg_catalog.strpos(definition, $needle$'reviewer','initiator','approver','technician','supervisor','administrator'$needle$) = 0
+     or pg_catalog.strpos(definition, $needle$'facility_manager'$needle$) > 0 then
     raise exception '0033 refused: admin_finalize_provisioned_profile role contract is unexpected';
   end if;
 
   select pg_catalog.pg_get_functiondef('public.update_work_order(uuid,jsonb)'::pg_catalog.regprocedure)
   into definition;
-  if pg_catalog.position('actor_role <> ''administrator'' and not (actor_id = previous.requested_by' in definition) = 0 then
+  if pg_catalog.strpos(definition, $needle$actor_role <> 'administrator' and not (actor_id = previous.requested_by$needle$) = 0 then
     raise exception '0033 refused: update_work_order authorization contract is unexpected';
   end if;
 
   select pg_catalog.pg_get_functiondef('public.assign_work_order(uuid,text,uuid)'::pg_catalog.regprocedure)
   into definition;
-  if pg_catalog.position('actor_role not in (''approver'',''supervisor'',''administrator'')' in definition) = 0 then
+  if pg_catalog.strpos(definition, $needle$actor_role not in ('approver','supervisor','administrator')$needle$) = 0 then
     raise exception '0033 refused: assign_work_order authorization contract is unexpected';
   end if;
 end;
@@ -160,7 +160,7 @@ begin
     'public.assign_work_order(uuid,text,uuid)'
   ] loop
     select pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure(signature)) into definition;
-    if pg_catalog.position('''facility_manager''' in definition) = 0 then
+    if pg_catalog.strpos(definition, $needle$'facility_manager'$needle$) = 0 then
       raise exception '0033 postcondition failed: facility_manager is absent from %', signature;
     end if;
   end loop;

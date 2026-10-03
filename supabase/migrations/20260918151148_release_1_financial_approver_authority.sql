@@ -76,6 +76,11 @@ declare
   target_approver uuid;
 begin
   select id into target_work_order from public.work_orders where work_order_number = 'WO-TEST-012';
+  -- This Preview-only correction has no target on a fresh installation.
+  if not found then
+    raise notice 'Preview UAT correction skipped: WO-TEST-012 is absent';
+    return;
+  end if;
   select id into target_approver from public.profiles
   where email = 'sctpec2413@gmail.com' and role = 'approver' and is_active and deleted_at is null;
   if target_work_order is null or target_approver is null then

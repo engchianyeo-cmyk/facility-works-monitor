@@ -12,6 +12,7 @@ const localDatabaseContainer = `supabase_db_${localProject}`;
 const baseURL = "http://localhost:3099";
 const waitBuffer = new Int32Array(new SharedArrayBuffer(4));
 const verificationManifest = "supabase/bootstrap/fresh-install-manifest.txt";
+let localSupabaseStarted = false;
 
 function run(command, args, options = {}) {
   const label = options.label ?? `${command} ${args.join(" ")}`;
@@ -64,6 +65,7 @@ async function seedSyntheticIdentities(environment) {
     ["approver", "pilot.approver@example.test", password, "Pilot Approver"],
     ["initiator", "pilot.initiator@example.test", password, "Pilot Initiator"],
     ["technician", "pilot.technician@example.test", password, "Pilot Technician"],
+    ["facility_manager", "pilot.facility-manager@example.test", password, "Pilot Facility Manager"],
     ["reviewer", "pilot.reviewer@example.test", password, "Pilot Reviewer"],
     ["reviewer", "pilot.pending@example.test", pendingPassword, "Pilot Password Pending"],
   ];
@@ -97,6 +99,12 @@ from (values ${values}) as seed(id,role,display_name,password_pending)
 where profile.id = seed.id;
   select pg_catalog.set_config('fmworks.password_change_completion','off',true);
 select pg_catalog.set_config('fmworks.profile_admin_rpc','off',true);
+insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
+select site.id,seed.id,seed.role,
+  (select id from public.profiles where email='pilot.admin@example.test')
+from public.sites site cross join (values ${values}) as seed(id,role,display_name,password_pending)
+where site.is_active and seed.role in ('technician','supervisor','facility_manager')
+on conflict do nothing;
 commit;`;
   run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"], {
     label: "activate synthetic Pilot identities",
@@ -114,6 +122,8 @@ commit;`;
     E2E_INITIATOR_PASSWORD: password,
     E2E_TECHNICIAN_EMAIL: "pilot.technician@example.test",
     E2E_TECHNICIAN_PASSWORD: password,
+    E2E_FACILITY_MANAGER_EMAIL: "pilot.facility-manager@example.test",
+    E2E_FACILITY_MANAGER_PASSWORD: password,
     E2E_REVIEWER_EMAIL: "pilot.reviewer@example.test",
     E2E_REVIEWER_PASSWORD: password,
     E2E_PENDING_EMAIL: "pilot.pending@example.test",
@@ -134,15 +144,24 @@ function runSqlRegressions() {
     "tests/sql/run_0025_sla_reporting_foundation.sh",
     "tests/sql/run_0026_sla_document_intelligence_staffing.sh",
     "tests/sql/run_0027_enterprise_ai_document_gateway.sh",
+    "tests/sql/run_release_1_populated_preview_upgrade.sh",
   ];
   for (const runner of runners) {
     const name = `fmworks-release-${runner.match(/run_(.+)\.sh$/)[1].replaceAll("_", "-")}-${process.pid}`;
     try {
       run("docker", ["run", "--name", name, "--tmpfs", "/var/lib/postgresql/data:rw,noexec,nosuid,size=512m", "-e", "POSTGRES_PASSWORD=local-verification-only", "-v", `${root}:/workspace`, "-d", "postgres:15"], { label: `start disposable database for ${runner}` });
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        const ready = spawnSync("docker", ["exec", name, "pg_isready", "-U", "postgres"], { stdio: "ignore" });
-        if (ready.status === 0) break;
-        if (attempt === 29) throw new Error(`Disposable database for ${runner} did not become ready.`);
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        const logs = spawnSync("docker", ["logs", name], { encoding: "utf8" });
+        const output = `${logs.stdout ?? ""}\n${logs.stderr ?? ""}`;
+        const initComplete = output.includes("PostgreSQL init process complete; ready for start up.");
+        const finalReady = initComplete &&
+          output.slice(output.indexOf("PostgreSQL init process complete; ready for start up."))
+            .includes("database system is ready to accept connections");
+        const query = finalReady
+          ? spawnSync("docker", ["exec", name, "psql", "-X", "-U", "postgres", "-d", "postgres", "-c", "select 1;"], { stdio: "ignore" })
+          : null;
+        if (query?.status === 0) break;
+        if (attempt === 119) throw new Error(`Disposable database for ${runner} did not become stably ready.`);
         Atomics.wait(waitBuffer, 0, 0, 250);
       }
       run("docker", ["exec", name, "sh", `/workspace/${runner}`], { label: `SQL/security regression ${runner}` });
@@ -158,6 +177,7 @@ async function main() {
   run(npm, ["run", "test"]);
   runSqlRegressions();
   run(npm, ["run", "build"]);
+  localSupabaseStarted = true;
   run(npx, ["supabase", "start"], { label: "start isolated local Supabase" });
   run(npx, ["supabase", "db", "reset", "--local", "--no-seed"], { label: "reset isolated local Supabase" });
   const chain = readFileSync(verificationManifest, "utf8")
@@ -171,6 +191,13 @@ async function main() {
   sql("supabase/uat/008_work_order_uat_dataset.sql");
   sql("supabase/uat/010_sla_document_staffing_dataset.sql");
   sql("supabase/uat/011_ai_document_gateway_dataset.sql");
+  sql("tests/sql/release_1_field_owner_isolation.test.sql");
+  sql("tests/sql/configurable_procurement_policy.test.sql");
+  sql("tests/sql/audited_contractor_administration.test.sql");
+  sql("tests/sql/release_1_security_catalog.test.sql");
+  sql("tests/sql/release_1_three_quotation_current_schema.test.sql");
+  sql("tests/sql/release_1_financial_current_schema.test.sql");
+  sql("tests/sql/release_1_commercial_scope.test.sql");
   const env = {
     ...process.env,
     ...identities,
@@ -189,4 +216,12 @@ async function main() {
 main().catch((error) => {
   console.error(`\n[release:verify] FAIL -- ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
+}).finally(() => {
+  if (!localSupabaseStarted) return;
+  console.log("\n[release:verify] stop isolated local Supabase without retaining disposable data");
+  const stopped = spawnSync(npx, ["supabase", "stop", "--no-backup"], { cwd: root, encoding: "utf8", stdio: "inherit" });
+  if (stopped.error || stopped.status !== 0) {
+    console.error("[release:verify] Disposable Supabase cleanup failed.");
+    process.exitCode = 1;
+  }
 });

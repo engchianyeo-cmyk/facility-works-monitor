@@ -60,6 +60,35 @@ describe("authenticated customer CSV exports", () => {
     expect(csv).not.toContain('"target_profile_id"');
   });
 
+  test.each([
+    ["work-orders", "work_orders", "Work Order export is unavailable."],
+    ["incidents", "incidents", "Incident export is unavailable."],
+  ])("returns a controlled 503 when the %s register query fails", async (register, table, message) => {
+    const query = { select: vi.fn(), order: vi.fn() };
+    query.select.mockReturnValue(query);
+    query.order.mockResolvedValue({ data: null, error: { message: "database unavailable" } });
+    const from = vi.fn().mockReturnValue(query);
+    mocks.createClient.mockResolvedValue({ from });
+
+    const response = await GET(new Request(`http://localhost/api/exports/${register}`), context(register));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: message });
+    expect(from).toHaveBeenCalledWith(table);
+  });
+
+  test("returns a controlled 503 when the PM outcome occurrence query fails", async () => {
+    const occurrenceQuery = { select: vi.fn(), order: vi.fn() };
+    occurrenceQuery.select.mockReturnValue(occurrenceQuery);
+    occurrenceQuery.order.mockResolvedValue({ data: null, error: { message: "database unavailable" } });
+    const complianceQuery = { select: vi.fn() };
+    complianceQuery.select.mockResolvedValue({ data: [], error: null });
+    mocks.createClient.mockResolvedValue({ from: vi.fn((table: string) => table === "pm_occurrences" ? occurrenceQuery : complianceQuery) });
+
+    const response = await GET(new Request("http://localhost/api/exports/pm-outcomes"), context("pm-outcomes"));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "PM outcomes export is unavailable." });
+  });
+
   test("derives Work Order assignment type from authoritative assignment columns", async () => {
     const workOrder = {
       id: "22222222-2222-4222-8222-222222222222",
