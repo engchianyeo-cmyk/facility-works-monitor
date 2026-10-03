@@ -45,7 +45,10 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       .eq("id", item.incident_id)
       .maybeSingle();
     if (error || !visibleIncident) return fail("NOT_FOUND", "Incident was not found.", 404);
-    return fail("ACCESS_DENIED", "Incident evidence removal is not available through this Work Order control.", 403);
+    const { data, error: voidError } = await supabase.rpc("void_incident_evidence", { p_evidence_id: item.id, p_reason: reason });
+    if (voidError) return fail("EVIDENCE_DELETE_FAILED", "Evidence could not be removed.", 503);
+    if (!data?.ok) return fail(String(data?.code ?? "EVIDENCE_DELETE_FAILED"), String(data?.message ?? "Evidence could not be removed."), 403);
+    return NextResponse.json({ ok: true, message: "Evidence removed from the active record. The audit history is retained." });
   }
   const { data, error } = await supabase.rpc("void_work_order_evidence", { p_evidence_id: item.id, p_reason: reason });
   if (error) return fail("EVIDENCE_DELETE_FAILED", "Evidence could not be removed.", 503);
