@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe,expect,test,vi } from "vitest";
 import { cleanFilename,compensateEvidenceRegistrationFailure,MAX_EVIDENCE_BYTES,SIGNED_ACCESS_SECONDS,validateEvidenceFile,validParent } from "@/lib/evidence";
 const read=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
-const migration=read("supabase/migrations/0016_secure_field_evidence.sql"),route=read("app/api/evidence/route.ts"),access=read("app/api/evidence/[id]/access/route.ts"),panel=read("components/evidence/evidence-panel.tsx");
+const migration=read("supabase/migrations/0016_secure_field_evidence.sql"),lifecycle=read("supabase/migrations/20261003045000_incident_evidence_lifecycle.sql"),route=read("app/api/evidence/route.ts"),deleteRoute=read("app/api/evidence/[id]/route.ts"),access=read("app/api/evidence/[id]/access/route.ts"),panel=read("components/evidence/evidence-panel.tsx"),incidentPage=read("app/incidents/[id]/page.tsx");
 const compact=(value:string)=>value.replace(/\s+/g,"");
 const routeCompact=compact(route),panelCompact=compact(panel);
 const file=(name:string,type:string,size:number)=>({name,type,size} as File);
@@ -11,6 +11,7 @@ describe("secure field evidence",()=>{
   test("validates parent record authorization before storage operations",()=>{expect(routeCompact).toContain("parentVisible(type,parentId)");expect(routeCompact.indexOf("parentVisible(type,parentId)")).toBeLessThan(routeCompact.indexOf('storage.from("field-evidence")'))});
   test("lists metadata without exposing storage paths",()=>{expect(route).toContain('select("id,parent_type');expect(route).not.toContain('select("storage_path')});
   test("supports work order and incident evidence",()=>{expect(migration).toContain("parent_type in ('work_order','incident')");expect(panel).toContain("Evidence")});
+  test("keeps terminal Incident evidence immutable and delegates active removal to an audited RPC",()=>{expect(lifecycle).toContain("i.status not in ('closed','cancelled')");expect(lifecycle).toContain("'incident_evidence_voided'");expect(deleteRoute).toContain('supabase.rpc("void_incident_evidence"');expect(incidentPage).toContain('canMutate={active} canDelete={active}')});
   test("restricts technicians through parent visibility",()=>{expect(migration).toContain("w.assigned_technician_id=actor_id");expect(migration).toContain("i.assigned_technician_id=actor_id")});
   test("allows authorized supervisor visibility",()=>expect(migration).toContain("('approver','supervisor','administrator')"));
   test("rejects executable types and mismatched content",()=>{expect(validateEvidenceFile(file("bad.exe","application/octet-stream",3),new Uint8Array([1,2,3]))).toMatch(/JPEG/);expect(validateEvidenceFile(file("fake.jpg","image/jpeg",5),new Uint8Array([1,2,3,4,5]))).toMatch(/does not match/)});

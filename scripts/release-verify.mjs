@@ -198,6 +198,7 @@ async function main() {
   sql("tests/sql/release_1_three_quotation_current_schema.test.sql");
   sql("tests/sql/release_1_financial_current_schema.test.sql");
   sql("tests/sql/release_1_commercial_scope.test.sql");
+  sql("tests/sql/release_1_incident_evidence_lifecycle.test.sql");
   const env = {
     ...process.env,
     ...identities,
