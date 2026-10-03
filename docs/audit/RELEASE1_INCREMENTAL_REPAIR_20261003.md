@@ -41,3 +41,9 @@ A new migration restores the four-role assigned same-facility owner requirement 
 Continue the isolated Docker verification and authenticated browser workflows until technical failures are resolved. Recheck the current application against the whole existing defect register; no release acceptance is claimed by these repairs alone.
 
 Existing owner-controlled decisions remain: emergency commercial-exception authorizer/deadline (R1-003), operational email provider or acceptance of NOT_CONFIGURED (R1-012), legacy 0011 provenance/disposition, and final protected Preview UAT access where required. They do not prevent unrelated authorized technical rectification. PR #5 remains unmerged.
+
+## Full-chain privilege and browser-harness follow-up
+
+Catalog inspection found authenticated EXECUTE retained on `submit_physical_completion_20260921_core(uuid,jsonb)`. The new hardening migration revokes that inherited private-core entry point so callers cannot bypass costing confirmation. It also revokes inherited service-role INSERT/UPDATE/DELETE/TRUNCATE on policy bands and enables RLS on the two private counter tables. The counter tables already denied anon/authenticated table access.
+
+Browser acceptance is updated to use the assigned Technician for execution/evidence, then a separate Administrator for verification and independently approved no-payment disposition. Synthetic field identities receive active memberships on isolated active sites. A new browser test verifies persisted/audited Administrator and Facility Manager policy edits and Supervisor API denial. Administrator assigned owners retain ordinary field actions; the exception UI applies when the Administrator is not the owner.

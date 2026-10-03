@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { login, requiredEnvironment, selectContaining } from "./pilot-helpers";
+import { login, logout, requiredEnvironment, selectContaining } from "./pilot-helpers";
 
 const adminEmail = requiredEnvironment("E2E_ADMIN_EMAIL");
 const adminPassword = requiredEnvironment("E2E_ADMIN_PASSWORD");
+const technicianEmail=requiredEnvironment("E2E_TECHNICIAN_EMAIL");
+const technicianPassword=requiredEnvironment("E2E_TECHNICIAN_PASSWORD");
 const runId = requiredEnvironment("E2E_SYNTHETIC_RUN_ID").slice(0, 8);
 
 test.describe.serial("Pilot-critical operational workflows", () => {
@@ -77,11 +79,15 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await assignment.getByRole("button", { name: "Assign work order" }).click();
     await expect(assignment.getByRole("status")).toContainText("Technician assigned", { timeout: 20_000 });
 
+    const workOrderPath=new URL(page.url()).pathname;
+    await logout(page);
+    await login(page,technicianEmail,technicianPassword,workOrderPath);
     await page.getByRole("button", { name: "Accept assignment" }).click();
     await page.getByRole("button", { name: "Start work" }).click();
     await expect(page.getByText(/In Progress/i).first()).toBeVisible({ timeout: 20_000 });
 
     const evidence = page.locator("section").filter({ has: page.getByRole("heading", { name: "Evidence" }) });
+    await evidence.getByLabel("Category").selectOption("after");
     await evidence.getByLabel("Photo or PDF").setInputFiles({
       name: `pilot-${runId}.png`,
       mimeType: "image/png",
@@ -96,10 +102,19 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await page.getByLabel("Cumulative labour hours").fill("1.25");
     await page.getByRole("button", { name: "Save Work Record" }).click();
     await expect(page.getByRole("status")).toContainText("Work record saved. Awaiting authorised completion.");
-    await page.getByRole("button", { name: "Administrator Exception Completion" }).click();
-    await page.getByLabel("Exception reason").fill("Synthetic Administrator exception completion for isolated lifecycle verification.");
-    await page.getByRole("button", { name: "Submit Exception Completion" }).click();
+    await page.getByRole("button", { name: "Confirm Actual Costing" }).click();
+    await expect(page.getByRole("status").filter({hasText:"Actual costing confirmed"})).toBeVisible();
+    await page.getByRole("button", { name: "Submit Physical Completion" }).click();
     await expect(page.getByText(/Awaiting Verification/i).first()).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel("No-payment reason").selectOption("in_house");
+    await page.getByLabel("Explanation",{exact:true}).fill("Synthetic in-house work; no contractor expenditure.");
+    await page.getByRole("button",{name:"Propose No Payment Required"}).click();
+    await expect(page.getByRole("status").filter({hasText:"disposition proposed"})).toBeVisible();
+    await logout(page);
+    await login(page,adminEmail,adminPassword,workOrderPath);
+    await page.getByLabel("Independent no-payment approval note").fill("Independent verification of zero external expenditure.");
+    await page.getByRole("button",{name:"Approve No Payment Required"}).click();
+    await expect(page.getByRole("status").filter({hasText:"independently approved"})).toBeVisible();
 
     await page.getByRole("button", { name: "Verify Completed Work" }).click();
     await page.getByLabel("Verification / override reason, when applicable").fill("Synthetic verification confirms recorded evidence.");

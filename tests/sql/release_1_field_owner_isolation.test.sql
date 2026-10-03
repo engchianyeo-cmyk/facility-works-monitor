@@ -119,4 +119,5 @@ begin
 end;
 $test$;
 
+select pg_temp.assert_true(not has_function_privilege('authenticated','public.submit_physical_completion_20260921_core(uuid,jsonb)','EXECUTE'),'private completion core cannot bypass costing readiness');
 rollback;

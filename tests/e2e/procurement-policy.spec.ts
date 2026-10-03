@@ -1,0 +1,35 @@
+import { expect, test } from "@playwright/test";
+import { login, logout, requiredEnvironment } from "./pilot-helpers";
+const adminEmail=requiredEnvironment("E2E_ADMIN_EMAIL");
+const adminPassword=requiredEnvironment("E2E_ADMIN_PASSWORD");
+const supervisorEmail=requiredEnvironment("E2E_SUPERVISOR_EMAIL");
+const supervisorPassword=requiredEnvironment("E2E_SUPERVISOR_PASSWORD");
+const managerEmail=requiredEnvironment("E2E_FACILITY_MANAGER_EMAIL");
+const managerPassword=requiredEnvironment("E2E_FACILITY_MANAGER_PASSWORD");
+
+test("company policy persists, audits and restricts changes to Facility Manager and Administrator",async({page})=>{
+  await login(page,adminEmail,adminPassword,"/administration/procurement-policy");
+  await expect(page.getByRole("heading",{name:"Company procurement policy"})).toBeVisible();
+  await expect(page.getByLabel("Low-value threshold (S$)")).toHaveValue("1000");
+  await page.getByLabel("Low-value threshold (S$)").fill("2000");
+  const reason=`Synthetic policy change ${requiredEnvironment("E2E_SYNTHETIC_RUN_ID")}`;
+  await page.getByLabel("Reason for policy change").fill(reason);
+  await page.getByRole("button",{name:"Save company policy"}).click();
+  await expect(page.getByText(reason,{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Low-value threshold (S$)")).toHaveValue("2000");
+  await logout(page);
+  await login(page,supervisorEmail,supervisorPassword,"/administration/procurement-policy");
+  await expect(page.getByRole("heading",{name:"Access denied"})).toBeVisible();
+  const denied=await page.request.post("/api/administration/procurement-policy",{data:{threshold:500,reason:"Supervisor must not change company policy",expected_version:"10000000-0000-4000-8000-000000000001"}});
+  expect(denied.status()).toBe(403);
+  await logout(page);
+  await login(page,managerEmail,managerPassword,"/administration/procurement-policy");
+  await expect(page.getByLabel("Low-value threshold (S$)")).toHaveValue("2000");
+  await page.getByLabel("Low-value threshold (S$)").fill("1000");
+  await page.getByLabel("Reason for policy change").fill("Synthetic Facility Manager restores initial test policy");
+  await page.getByRole("button",{name:"Save company policy"}).click();
+  await expect(page.getByText("Synthetic Facility Manager restores initial test policy",{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Low-value threshold (S$)")).toHaveValue("1000");
+});

@@ -84,4 +84,5 @@ end;$test$;
 reset role;
 select pg_temp.assert_true(not has_function_privilege('anon','public.change_procurement_policy(numeric,text,uuid)','execute'),'anonymous RPC denied');
 select pg_temp.assert_true(not has_function_privilege('service_role','public.change_procurement_policy(numeric,text,uuid)','execute'),'service RPC denied');
+select pg_temp.assert_true(not has_table_privilege('service_role','public.commercial_approval_rules','INSERT'),'service cannot insert ungoverned policy bands');
 rollback;

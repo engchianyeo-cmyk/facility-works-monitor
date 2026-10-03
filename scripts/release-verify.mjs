@@ -98,6 +98,12 @@ from (values ${values}) as seed(id,role,display_name,password_pending)
 where profile.id = seed.id;
   select pg_catalog.set_config('fmworks.password_change_completion','off',true);
 select pg_catalog.set_config('fmworks.profile_admin_rpc','off',true);
+insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
+select site.id,seed.id,seed.role,
+  (select id from public.profiles where email='pilot.admin@example.test')
+from public.sites site cross join (values ${values}) as seed(id,role,display_name,password_pending)
+where site.is_active and seed.role in ('technician','supervisor','facility_manager')
+on conflict do nothing;
 commit;`;
   run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"], {
     label: "activate synthetic Pilot identities",
@@ -115,6 +121,8 @@ commit;`;
     E2E_INITIATOR_PASSWORD: password,
     E2E_TECHNICIAN_EMAIL: "pilot.technician@example.test",
     E2E_TECHNICIAN_PASSWORD: password,
+    E2E_FACILITY_MANAGER_EMAIL: "pilot.facility-manager@example.test",
+    E2E_FACILITY_MANAGER_PASSWORD: password,
     E2E_REVIEWER_EMAIL: "pilot.reviewer@example.test",
     E2E_REVIEWER_PASSWORD: password,
     E2E_PENDING_EMAIL: "pilot.pending@example.test",

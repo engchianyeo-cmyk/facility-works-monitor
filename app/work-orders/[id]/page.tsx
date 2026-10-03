@@ -192,7 +192,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   if (status === "completed" && verificationReadiness?.verification_ready !== true) allowedActions = allowedActions.filter((action) => action !== "review");
   const closureReadiness = closureReadinessResult.error ? null : closureReadinessResult.data as { ready?: boolean; missing_requirements?: string[]; resolution?: string | null } | null;
   if (status === "reviewed" && closureReadiness?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "close");
-  if (identity.role === "administrator" && ["assigned", "in_progress"].includes(status)) {
+  if (identity.role === "administrator" && order.assigned_technician_id !== identity.userId && ["assigned", "in_progress"].includes(status)) {
     allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
   }
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
@@ -305,7 +305,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         canEdit={canEdit(context)}
         canDuplicate={canCreate(identity.role)}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
-        formalCompletionAuthority={identity.role === "administrator"}
+        formalCompletionAuthority={identity.role === "administrator" && order.assigned_technician_id !== identity.userId}
         completionReadiness={operationalStage.completion}
         operationalStage={operationalStage.label}
         completionMissing={completionMissing}
