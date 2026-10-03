@@ -18,6 +18,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     } catch {
       return errorResponse("VALIDATION_ERROR", "Request body must be valid JSON.");
     }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return errorResponse("VALIDATION_ERROR", "Request body must be a JSON object.");
     const { id } = await params;
     if (invalidFinancialNumber(payload)) return errorResponse("VALIDATION_ERROR", "Labour hours must be a finite non-negative number.");
     const supabase = await createClient();

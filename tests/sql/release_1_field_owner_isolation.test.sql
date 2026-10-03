@@ -97,10 +97,18 @@ begin
   -- Each permitted role can perform the complete assigned-owner path. This
   -- prevents negative-only tests from passing when a repair denies everyone.
   foreach actor_id in array actors loop
-    update public.work_orders set assigned_technician_id=actor_id,status='in_progress',
+    update public.work_orders set assigned_technician_id=actor_id,status='assigned',accepted_at=null,started_at=null,
       completed_at=null,actual_costs_confirmed_at=null,actual_costs_confirmed_by=null where id=order_id;
     perform set_config('request.jwt.claim.sub',actor_id::text,true);
     perform set_config('request.jwt.claims',jsonb_build_object('sub',actor_id,'role','authenticated')::text,true);
+    perform pg_temp.assert_true(public.transition_work_order(order_id,'start','{}')->>'code'='INVALID_TRANSITION','assigned owner must accept before start');
+    perform pg_temp.assert_true((public.accept_work_responsibility(order_id)->>'ok')::boolean,'existing assignment can be accepted');
+    perform pg_temp.assert_true((select accepted_at is not null from public.work_orders where id=order_id),'acceptance records timestamp');
+    perform pg_temp.assert_true(public.accept_work_responsibility(order_id)->>'code'='NO_CHANGE','repeated acceptance is idempotent');
+    perform pg_temp.assert_true((select count(*)=1 from public.activity_logs where work_order_id=order_id and action='work_order_responsibility_accepted' and user_id=actor_id),'one acceptance audit');
+    perform pg_temp.assert_true((public.transition_work_order(order_id,'start','{}')->>'ok')::boolean,'assigned field role starts work');
+    perform pg_temp.assert_true(public.transition_work_order(order_id,'start','{}')->>'code'='NO_CHANGE','repeated start is idempotent');
+    perform pg_temp.assert_true((select count(*)=1 from public.activity_logs where work_order_id=order_id and action='work_order_start' and user_id=actor_id),'one start audit');
     completion_result:=public.submit_physical_completion(order_id,'{"completion_notes":"Synthetic field work","actual_labour_hours":1}');
     perform pg_temp.assert_true(completion_result->>'code'='ACTUAL_COSTING_CONFIRMATION_REQUIRED','assigned owner still requires costing');
     perform pg_temp.assert_true((public.manage_work_order_actual_cost(order_id,null,'{"operation":"confirm"}')->>'ok')::boolean,'assigned role confirms zero-cost execution ledger');

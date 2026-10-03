@@ -98,7 +98,7 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await evidence.getByLabel("Photo or PDF").setInputFiles({
       name: `pilot-${runId}.png`,
       mimeType: "image/png",
-      buffer: Buffer.from("89504e470d0a1a0a", "hex"),
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1cAAAAASUVORK5CYII=", "base64"),
     });
     await evidence.getByLabel("Short note (optional)").fill("Synthetic Pilot evidence; no personal data.");
     await evidence.getByRole("button", { name: "Add evidence" }).click();
@@ -108,7 +108,7 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await page.getByLabel("Work performed statement").fill("Synthetic corrective work completed and condition verified.");
     await page.getByLabel("Cumulative labour hours").fill("1.25");
     await page.getByRole("button", { name: "Save Work Record" }).click();
-    await expect(page.getByRole("status")).toContainText("Work record saved. Awaiting authorised completion.");
+    await expect(page.getByRole("status").filter({hasText:"Work record saved. Awaiting authorised completion."})).toBeVisible();
     await page.getByRole("button", { name: "Confirm Actual Costing" }).click();
     await expect(page.getByRole("status").filter({hasText:"Actual costing confirmed"})).toBeVisible();
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();

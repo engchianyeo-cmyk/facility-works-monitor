@@ -12,6 +12,7 @@ const localDatabaseContainer = `supabase_db_${localProject}`;
 const baseURL = "http://localhost:3099";
 const waitBuffer = new Int32Array(new SharedArrayBuffer(4));
 const verificationManifest = "supabase/bootstrap/fresh-install-manifest.txt";
+let localSupabaseStarted = false;
 
 function run(command, args, options = {}) {
   const label = options.label ?? `${command} ${args.join(" ")}`;
@@ -175,6 +176,7 @@ async function main() {
   run(npm, ["run", "test"]);
   runSqlRegressions();
   run(npm, ["run", "build"]);
+  localSupabaseStarted = true;
   run(npx, ["supabase", "start"], { label: "start isolated local Supabase" });
   run(npx, ["supabase", "db", "reset", "--local", "--no-seed"], { label: "reset isolated local Supabase" });
   const chain = readFileSync(verificationManifest, "utf8")
@@ -194,6 +196,7 @@ async function main() {
   sql("tests/sql/release_1_security_catalog.test.sql");
   sql("tests/sql/release_1_three_quotation_current_schema.test.sql");
   sql("tests/sql/release_1_financial_current_schema.test.sql");
+  sql("tests/sql/release_1_commercial_scope.test.sql");
   const env = {
     ...process.env,
     ...identities,
@@ -212,4 +215,12 @@ async function main() {
 main().catch((error) => {
   console.error(`\n[release:verify] FAIL -- ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
+}).finally(() => {
+  if (!localSupabaseStarted) return;
+  console.log("\n[release:verify] stop isolated local Supabase without retaining disposable data");
+  const stopped = spawnSync(npx, ["supabase", "stop", "--no-backup"], { cwd: root, encoding: "utf8", stdio: "inherit" });
+  if (stopped.error || stopped.status !== 0) {
+    console.error("[release:verify] Disposable Supabase cleanup failed.");
+    process.exitCode = 1;
+  }
 });

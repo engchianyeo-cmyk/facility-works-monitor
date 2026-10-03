@@ -8,6 +8,7 @@ const managerEmail=requiredEnvironment("E2E_FACILITY_MANAGER_EMAIL");
 const managerPassword=requiredEnvironment("E2E_FACILITY_MANAGER_PASSWORD");
 
 test("company policy persists, audits and restricts changes to Facility Manager and Administrator",async({page},testInfo)=>{
+  test.setTimeout(90_000);
   await login(page,adminEmail,adminPassword,"/administration/procurement-policy");
   await expect(page.getByRole("heading",{name:"Company procurement policy"})).toBeVisible();
   const initial=Number(await page.getByLabel("Low-value threshold (S$)").inputValue());

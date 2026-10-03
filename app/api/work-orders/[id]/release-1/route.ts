@@ -14,9 +14,13 @@ function rpcCollection(value: unknown, key: "quotations" | "rates") {
 }
 
 export async function GET(_: NextRequest, { params }: Context) {
+  try {
   if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;
   const supabase = await createClient();
+  const visible = await supabase.from("work_orders").select("id").eq("id", id).maybeSingle();
+  if (visible.error) return transportFailure("load Release 1 workspace for");
+  if (!visible.data) return errorResponse("NOT_FOUND", "Work Order was not found.", 404);
   const [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction, finalCost, finalCostDocuments, disposition, financialReadiness, closureReadiness] = await Promise.all([
     supabase.from("work_order_markups").select("id,source_type,source_reference,drawing_revision,page_number,x_percent,y_percent,annotation_type,geometry,note,created_at,created_by").eq("work_order_id", id).is("deleted_at", null).order("created_at"),
     supabase.from("work_order_cost_lines").select("id,cost_phase,cost_type,description,quantity,unit,unit_rate,amount,worker_name,created_at").eq("work_order_id", id).order("created_at"),
@@ -60,17 +64,22 @@ export async function GET(_: NextRequest, { params }: Context) {
       closure_readiness: closureReadiness.data,
     },
   });
+  } catch { return transportFailure("load Release 1 workspace for"); }
 }
 
 export async function POST(request: NextRequest, { params }: Context) {
+  try {
   if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;
   const body = await request.json().catch(() => null) as { operation?: string; payload?: Record<string, unknown> } | null;
-  if (!body?.operation || !body.payload) return errorResponse("VALIDATION_ERROR", "Operation and payload are required.", 400);
+  if (!body?.operation || !body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) return errorResponse("VALIDATION_ERROR", "Operation and payload are required.", 400);
   const payload = body.payload;
   const invalidNumber = invalidFinancialNumber(payload);
   if (invalidNumber) return errorResponse("VALIDATION_ERROR", `${invalidNumber} must be a finite non-negative number.`, 400);
   const supabase = await createClient();
+  const visible = await supabase.from("work_orders").select("id").eq("id", id).maybeSingle();
+  if (visible.error) return transportFailure("update Release 1 workspace for");
+  if (!visible.data) return errorResponse("NOT_FOUND", "Work Order was not found.", 404);
   const calls: Record<string, () => PromiseLike<{ data: unknown; error: unknown }>> = {
     markup: () => supabase.rpc("record_work_order_markup", { p_work_order_id: id, p_payload: payload }),
     actual_cost: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: null, p_payload: payload }),
@@ -110,4 +119,5 @@ export async function POST(request: NextRequest, { params }: Context) {
   const result = await call();
   if (result.error) return transportFailure("update Release 1 workspace for");
   return rpcResponse(result.data as RpcResult);
+  } catch { return transportFailure("update Release 1 workspace for"); }
 }
