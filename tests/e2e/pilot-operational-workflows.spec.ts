@@ -95,7 +95,7 @@ test.describe.serial("Pilot-critical operational workflows", () => {
 
     const evidence = page.locator("section").filter({ has: page.getByRole("heading", { name: "Evidence" }) });
     await evidence.getByLabel("Category").selectOption("after");
-    await evidence.getByLabel("Photo or PDF").setInputFiles({
+    await evidence.getByLabel("Photo, video or PDF", { exact: true }).setInputFiles({
       name: `pilot-${runId}.png`,
       mimeType: "image/png",
       buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1cAAAAASUVORK5CYII=", "base64"),

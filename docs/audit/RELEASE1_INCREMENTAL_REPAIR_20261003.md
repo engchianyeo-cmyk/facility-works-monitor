@@ -40,7 +40,7 @@ A new migration restores the four-role assigned same-facility owner requirement 
 
 Continue the isolated Docker verification and authenticated browser workflows until technical failures are resolved. Recheck the current application against the whole existing defect register; no release acceptance is claimed by these repairs alone.
 
-Existing owner-controlled decisions remain: emergency commercial-exception authorizer/deadline (R1-003), operational email provider or acceptance of NOT_CONFIGURED (R1-012), legacy 0011 provenance/disposition, and final protected Preview UAT access where required. They do not prevent unrelated authorized technical rectification. PR #5 remains unmerged.
+Existing owner-controlled decisions remain: emergency commercial-exception authorizer/deadline (R1-003), operational email provider or acceptance of NOT_CONFIGURED (R1-012), and final protected Preview UAT access where required. They do not prevent unrelated authorized technical rectification. PR #5 remains unmerged.
 
 ## Full-chain privilege and browser-harness follow-up
 
@@ -69,3 +69,26 @@ Run #15 (`37095804482`, commit `72f43c9`) passed full replay and all six current
 The whole-application financial data-access review identified broad active-account SELECT policies on actual cost lines, financial controls and payment assessments. A restrictive Work Order visibility policy now intersects those policies. Thirty-one commercial read/mutation RPCs preserve their existing domain implementations behind private cores and enforce the established Work Order visibility boundary before dispatch. The workspace API checks row visibility before loading child data or invoking mutations, rejects malformed payloads and contains transport exceptions. A new SQL regression denies direct financial reads and all 31 RPCs to unrelated Reviewer/Initiator and out-of-facility field/management actors, verifies unchanged audit/financial state, and proves authorized requester/facility/Approver/Administrator reads remain available.
 
 Browser invocation without gate identities now fails during configuration load, before a web server starts, with `npm run release:verify` as the setup instruction. The release runner stops disposable local Supabase without retaining test data on success or failure. The lifecycle fixture uses a complete synthetic PNG and precise status assertions. Local typecheck, lint, 757 unit tests, build, full supplementary replay and seven current-schema SQL suites pass. Native verification of the latest head is still required.
+
+## Whole-application defect-family review at the current candidate
+
+| Family / register items | Current evidence and limit |
+| --- | --- |
+| Physical completion, no-payment disposition, closure and actual reconciliation (R1-001/004/005/007) | Current-schema financial regression passes native Run #16: physical completion without invoice/final account, independent no-payment approval, both closure paths, ledger-derived final account and overpayment denial. |
+| Quotation boundaries and company policy (R1-002) | Current-schema three-quotation and policy regressions pass native Run #16; browser Administrator/Facility Manager policy changes and Supervisor denial pass. Version pinning preserves historical decisions. |
+| Field ownership and separation of duties (R1-006) | Four-role assigned-owner SQL regressions pass native Run #16; latest acceptance/start additions pass supplementary full replay and await native Run #17. Commercial approval authority remains independently enforced. |
+| Full migration gate and standalone browser setup (R1-008/009) | Canonical full replay passes native Runs #10–16. Missing browser identities now fail before server startup. End-to-end lifecycle at the latest code awaits Run #17; protected hosted Preview UAT is a separate access gate. |
+| Legacy security and exposed database entry points (R1-010) | Controlled fresh-install bootstrap explicitly excludes historical 0011. Full-schema RLS, anonymous ACL, pinned search-path, private-core and invoker-view assertions pass native Run #16. No historical artifact was implicitly executed and no hosted database was changed. |
+| Contractor/rate administration (R1-011) | Existing create flows have authenticated authorization, transactional audit and overlap protection; native SQL regressions pass Run #16. Unimplemented edit/deactivate flows are not declared verified. |
+| API/input and commercial data isolation | Finite numeric constraints/API checks pass native Run #16. Latest direct financial-read and 31-RPC isolation regression passes supplementary replay and awaits Run #17. Workspace transport errors are contained. |
+| Documentation and build gates (R1-013/014) | Controlling commercial documentation updated; separate typecheck, lint, 757 unit tests and production build pass at the current code. |
+| Emergency exception (R1-003) | Authorizing roles and retrospective regularisation deadline require the owner's business decision; no unsupported waiver policy was invented. |
+| Operational email (R1-012) | Provider/scope or explicit acceptance of NOT_CONFIGURED remains an owner decision; real delivery is not claimed. |
+
+Run #16 (`37096255139`, commit `8143048`) passed the complete native replay, six current-schema SQL suites and 28 browser tests, including the repaired procurement-policy journey. Its sole browser failure was assignment acceptance/Start; the current candidate addresses that exact evidence. Run #17 (`37097270110`, commit `22c19af`) verifies the expanded acceptance/start and commercial-isolation repairs.
+
+The connected Vercel account recognizes the AOAI team but lists no projects. The published deployment lookup returns 404 and deployment listing returns 403. GitHub's successful deployment status is not substituted for authenticated hosted Preview health/lifecycle UAT. This is an actual project-access blocker; the independent isolated verification continues.
+
+## Run #17: evidence locator correction
+
+Run #17 (`37097270110`, commit `22c19af`) passed complete native replay and all seven current-schema SQL suites, including four-role acceptance/start and all 31 commercial-RPC isolation checks. It recorded 28 browser passes, including policy changes/denial. Its sole failure advanced beyond acceptance and Start to evidence attachment: the test expected the obsolete label `Photo or PDF`, while the current input is labelled `Photo, video or PDF`. The test now targets that exact accessible label; application behavior is unchanged. Disposable Supabase stopped successfully without retaining data. Native browser confirmation of this test correction remains required.
