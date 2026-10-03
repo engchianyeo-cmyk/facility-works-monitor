@@ -182,6 +182,7 @@ async function main() {
   sql("supabase/uat/011_ai_document_gateway_dataset.sql");
   sql("tests/sql/release_1_field_owner_isolation.test.sql");
   sql("tests/sql/configurable_procurement_policy.test.sql");
+  sql("tests/sql/audited_contractor_administration.test.sql");
   const env = {
     ...process.env,
     ...identities,
