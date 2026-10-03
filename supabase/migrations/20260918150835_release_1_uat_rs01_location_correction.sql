@@ -9,6 +9,11 @@ begin
   select * into target_work_order
   from public.work_orders
   where work_order_number = 'WO-TEST-012';
+  -- This Preview-only correction has no target on a fresh installation.
+  if not found then
+    raise notice 'Preview UAT correction skipped: WO-TEST-012 is absent';
+    return;
+  end if;
 
   select * into loading_bay
   from public.facility_areas

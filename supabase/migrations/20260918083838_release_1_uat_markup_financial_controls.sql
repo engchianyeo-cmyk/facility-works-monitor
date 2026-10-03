@@ -188,6 +188,11 @@ do $uat$
 declare target_work_order uuid; yang uuid; loading_bay uuid; rule uuid; facility uuid;
 begin
   select id,facility_id into target_work_order,facility from public.work_orders where work_order_number='WO-TEST-012';
+  -- This Preview-only correction has no target on a fresh installation.
+  if not found then
+    raise notice 'Preview UAT correction skipped: WO-TEST-012 is absent';
+    return;
+  end if;
   select id into yang from public.profiles where email='koi.kpr@gmail.com' and role='technician' and is_active and deleted_at is null;
   select id into loading_bay from public.facility_areas where facility_id=facility and area_code='LDB-01';
   select id into rule from public.commercial_approval_rules where rule_code='SGD_BELOW_1000_ONE_QUOTE';

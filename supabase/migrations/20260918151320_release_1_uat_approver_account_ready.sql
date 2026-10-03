@@ -4,6 +4,10 @@ do $uat$
 declare
   target_approver uuid;
 begin
+  if not exists (select 1 from public.profiles where email = 'sctpec2413@gmail.com') then
+    raise notice 'Preview UAT account correction skipped: target identity is absent';
+    return;
+  end if;
   perform pg_catalog.set_config('fmworks.password_change_completion', 'on', true);
   update public.profiles
   set password_change_required = false,
