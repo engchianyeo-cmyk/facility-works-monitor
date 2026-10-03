@@ -1,6 +1,8 @@
 -- WP-FMW-026A: governed approval, field responsibility, physical completion and verification readiness.
 -- No historical Work Order, evidence, activity, cost, profile or Auth data is repaired here.
 
+begin;
+
 do $preflight$
 declare object_name text; config text[]; readiness_oid oid; actor_oid oid; error_oid oid;
 begin
@@ -537,3 +539,5 @@ begin
     raise exception '0037 profile authorization protection trigger missing';
   end if;
 end;$postconditions$;
+
+commit;
