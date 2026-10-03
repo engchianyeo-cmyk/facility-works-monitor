@@ -193,6 +193,7 @@ async function main() {
   sql("tests/sql/audited_contractor_administration.test.sql");
   sql("tests/sql/release_1_security_catalog.test.sql");
   sql("tests/sql/release_1_three_quotation_current_schema.test.sql");
+  sql("tests/sql/release_1_financial_current_schema.test.sql");
   const env = {
     ...process.env,
     ...identities,
