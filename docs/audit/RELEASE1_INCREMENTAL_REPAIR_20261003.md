@@ -92,3 +92,7 @@ The connected Vercel account recognizes the AOAI team but lists no projects. The
 ## Run #17: evidence locator correction
 
 Run #17 (`37097270110`, commit `22c19af`) passed complete native replay and all seven current-schema SQL suites, including four-role acceptance/start and all 31 commercial-RPC isolation checks. It recorded 28 browser passes, including policy changes/denial. Its sole failure advanced beyond acceptance and Start to evidence attachment: the test expected the obsolete label `Photo or PDF`, while the current input is labelled `Photo, video or PDF`. The test now targets that exact accessible label; application behavior is unchanged. Disposable Supabase stopped successfully without retaining data. Native browser confirmation of this test correction remains required.
+
+## Commercial workspace refresh after physical completion
+
+Source review of the remaining browser path found that the workspace loaded only on mount. A Work Order status refresh preserved its client component and stale `order.status`, so a newly completed order could retain execution controls and hide the no-payment form. A rendered-component regression reproduces this without a manual page reload: `in_progress` to `completed` leaves the no-payment form absent before the fix and exposes it after the fix. The workspace now reloads when the status prop changes. Vitest uses the installed OXC automatic JSX runtime for the new component test. Typecheck, lint, 758 tests and production build pass. Native verification of this UI repair remains required.
