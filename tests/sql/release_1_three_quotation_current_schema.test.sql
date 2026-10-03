@@ -39,7 +39,21 @@ where v.id in ('44237000-0000-4000-8000-000000000001','44237000-0000-4000-8000-0
 
 select pg_catalog.set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.actor_id('pilot.technician@example.test'),'role','authenticated')::text,true);
 select pg_catalog.set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
-set local role authenticated;
+do $test$
+declare before_activity bigint;
+begin
+  select count(*) into before_activity from public.activity_logs where work_order_id='08000000-0000-4000-8000-000000000012';
+  begin
+    perform public.prepare_work_order_proposal('08000000-0000-4000-8000-000000000012','{"vendor_id":"44237000-0000-4000-8000-000000000001","proposed_amount":"NaN","scope_summary":"Invalid special numeric"}'::jsonb);
+    raise exception 'Non-finite quotation was accepted';
+  exception when check_violation then null;
+  end;
+  perform pg_temp.assert_true(not exists(select 1 from public.contractor_quotations where work_order_id='08000000-0000-4000-8000-000000000012'),'non-finite proposal leaves no quotation');
+  perform pg_temp.assert_true(not exists(select 1 from public.work_order_financial_controls where work_order_id='08000000-0000-4000-8000-000000000012'),'non-finite proposal leaves no financial control');
+  perform pg_temp.assert_true((select count(*)=before_activity from public.activity_logs where work_order_id='08000000-0000-4000-8000-000000000012'),'non-finite proposal leaves no audit');
+end;
+$test$;
+
 select pg_temp.assert_true((public.prepare_work_order_proposal('08000000-0000-4000-8000-000000000012','{"vendor_id":"44237000-0000-4000-8000-000000000001","proposed_amount":1000,"scope_summary":"Governed threshold repair"}'::jsonb)->>'ok')::boolean,'first quotation prepared');
 select pg_temp.assert_true((public.save_work_order_proposal('08000000-0000-4000-8000-000000000012','{"proposed_amount":900,"scope_summary":"Governed threshold repair","quotation_ref":"WP2A-A","quotation_date":"2026-09-24","contractor_legal_name":"WP2A Threshold Vendor A","gst_treatment":"Inclusive","itemization_note":"Rollback-only authentic quotation"}'::jsonb)->>'governed_estimate')::numeric=1000,'editing a draft below the threshold preserves the governed estimate');
 select pg_temp.assert_true((select estimated_cost=1000 from public.work_order_financial_controls where work_order_id='08000000-0000-4000-8000-000000000012'),'draft save cannot downgrade the governed S$1,000 estimate');

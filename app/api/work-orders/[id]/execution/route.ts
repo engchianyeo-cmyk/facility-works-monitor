@@ -3,6 +3,7 @@ import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult, WorkOrderRecord } from "@/lib/work-orders/types";
+import { invalidFinancialNumber } from "@/lib/work-orders/numeric-validation";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return errorResponse("VALIDATION_ERROR", "Request body must be valid JSON.");
     }
     const { id } = await params;
+    if (invalidFinancialNumber(payload)) return errorResponse("VALIDATION_ERROR", "Labour hours must be a finite non-negative number.");
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("record_work_order_execution", {
       p_work_order_id: id,

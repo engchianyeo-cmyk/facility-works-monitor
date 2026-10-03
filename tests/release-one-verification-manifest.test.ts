@@ -18,7 +18,7 @@ describe("canonical non-Production Release-1 migration manifest", () => {
       ...migrations.map((name) => `supabase/migrations/${name}`),
     ]);
     expect(manifest.at(-1)).toBe(
-      "supabase/migrations/20261003035522_procurement_policy_privilege_hardening.sql",
+      "supabase/migrations/20261003042000_finite_release1_financial_values.sql",
     );
   });
 

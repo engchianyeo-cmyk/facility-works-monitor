@@ -3,6 +3,7 @@ import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult } from "@/lib/work-orders/types";
+import { invalidFinancialNumber } from "@/lib/work-orders/numeric-validation";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest, { params }: Context) {
   const body = await request.json().catch(() => null) as { operation?: string; payload?: Record<string, unknown> } | null;
   if (!body?.operation || !body.payload) return errorResponse("VALIDATION_ERROR", "Operation and payload are required.", 400);
   const payload = body.payload;
+  const invalidNumber = invalidFinancialNumber(payload);
+  if (invalidNumber) return errorResponse("VALIDATION_ERROR", `${invalidNumber} must be a finite non-negative number.`, 400);
   const supabase = await createClient();
   const calls: Record<string, () => PromiseLike<{ data: unknown; error: unknown }>> = {
     markup: () => supabase.rpc("record_work_order_markup", { p_work_order_id: id, p_payload: payload }),
