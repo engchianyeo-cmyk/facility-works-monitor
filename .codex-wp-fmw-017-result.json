@@ -1,0 +1,14 @@
+﻿{
+    "restore_result":  "PASS",
+    "auth_uuid":  "826e5c86-8734-4ae6-9e25-e72d8c7f23d5",
+    "email":  "sctpec2413@gmail.com",
+    "confirmed":  true,
+    "banned":  false,
+    "auth_deleted":  false,
+    "profile_role":  "approver",
+    "active":  true,
+    "profile_deleted":  false,
+    "password_change_required":  true,
+    "protected_profile_unchanged":  true,
+    "other_users_modified":  false
+}

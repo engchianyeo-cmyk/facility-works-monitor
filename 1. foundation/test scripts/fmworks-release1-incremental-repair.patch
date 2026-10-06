@@ -1,0 +1,176 @@
+diff --git a/scripts/release-verify.mjs b/scripts/release-verify.mjs
+index 3fa2bb0..1e7b1f0 100644
+--- a/scripts/release-verify.mjs
++++ b/scripts/release-verify.mjs
+@@ -64,6 +64,7 @@ async function seedSyntheticIdentities(environment) {
+     ["approver", "pilot.approver@example.test", password, "Pilot Approver"],
+     ["initiator", "pilot.initiator@example.test", password, "Pilot Initiator"],
+     ["technician", "pilot.technician@example.test", password, "Pilot Technician"],
++    ["facility_manager", "pilot.facility-manager@example.test", password, "Pilot Facility Manager"],
+     ["reviewer", "pilot.reviewer@example.test", password, "Pilot Reviewer"],
+     ["reviewer", "pilot.pending@example.test", pendingPassword, "Pilot Password Pending"],
+   ];
+@@ -171,6 +172,7 @@ async function main() {
+   sql("supabase/uat/008_work_order_uat_dataset.sql");
+   sql("supabase/uat/010_sla_document_staffing_dataset.sql");
+   sql("supabase/uat/011_ai_document_gateway_dataset.sql");
++  sql("tests/sql/release_1_field_owner_isolation.test.sql");
+   const env = {
+     ...process.env,
+     ...identities,
+diff --git a/tests/api/exports-route.test.ts b/tests/api/exports-route.test.ts
+index a8c639a..c347ff6 100644
+--- a/tests/api/exports-route.test.ts
++++ b/tests/api/exports-route.test.ts
+@@ -60,6 +60,35 @@ describe("authenticated customer CSV exports", () => {
+     expect(csv).not.toContain('"target_profile_id"');
+   });
+ 
++  test.each([
++    ["work-orders", "work_orders", "Work Order export is unavailable."],
++    ["incidents", "incidents", "Incident export is unavailable."],
++  ])("returns a controlled 503 when the %s register query fails", async (register, table, message) => {
++    const query = { select: vi.fn(), order: vi.fn() };
++    query.select.mockReturnValue(query);
++    query.order.mockResolvedValue({ data: null, error: { message: "database unavailable" } });
++    const from = vi.fn().mockReturnValue(query);
++    mocks.createClient.mockResolvedValue({ from });
++
++    const response = await GET(new Request(`http://localhost/api/exports/${register}`), context(register));
++    expect(response.status).toBe(503);
++    expect(await response.json()).toEqual({ error: message });
++    expect(from).toHaveBeenCalledWith(table);
++  });
++
++  test("returns a controlled 503 when the PM outcome occurrence query fails", async () => {
++    const occurrenceQuery = { select: vi.fn(), order: vi.fn() };
++    occurrenceQuery.select.mockReturnValue(occurrenceQuery);
++    occurrenceQuery.order.mockResolvedValue({ data: null, error: { message: "database unavailable" } });
++    const complianceQuery = { select: vi.fn() };
++    complianceQuery.select.mockResolvedValue({ data: [], error: null });
++    mocks.createClient.mockResolvedValue({ from: vi.fn((table: string) => table === "pm_occurrences" ? occurrenceQuery : complianceQuery) });
++
++    const response = await GET(new Request("http://localhost/api/exports/pm-outcomes"), context("pm-outcomes"));
++    expect(response.status).toBe(503);
++    expect(await response.json()).toEqual({ error: "PM outcomes export is unavailable." });
++  });
++
+   test("derives Work Order assignment type from authoritative assignment columns", async () => {
+     const workOrder = {
+       id: "22222222-2222-4222-8222-222222222222",
+diff --git a/tests/api/incident-actions.test.ts b/tests/api/incident-actions.test.ts
+index f2cc84e..5e3bcb9 100644
+--- a/tests/api/incident-actions.test.ts
++++ b/tests/api/incident-actions.test.ts
+@@ -12,7 +12,7 @@ describe("incident action APIs",()=>{
+   test("unrelated Technician database denial maps to 403",async()=>{mocks.createClient.mockResolvedValue({rpc:vi.fn().mockResolvedValue({data:{ok:false,code:"ACCESS_DENIED",message:"You cannot update this incident."},error:null})});expect((await acknowledge(new NextRequest("http://localhost/ack"),context)).status).toBe(403);});
+   test("valid phase maps to approved database action",async()=>{const rpc=vi.fn().mockResolvedValue({data:{ok:true,incident:{status:"on_site"}},error:null});mocks.createClient.mockResolvedValue({rpc});const response=await phase(new NextRequest("http://localhost/phase",{method:"POST",body:JSON.stringify({phase:"on_site"})}),context);expect(response.status).toBe(200);expect(rpc).toHaveBeenCalledWith("transition_incident",{p_incident_id:"incident-id",p_action:"arrive"});});
+   test("invalid phase is rejected before database call",async()=>{const response=await phase(new NextRequest("http://localhost/phase",{method:"POST",body:JSON.stringify({phase:"teleported"})}),context);expect(response.status).toBe(400);expect(mocks.createClient).not.toHaveBeenCalled();});
+-  test("database rejects out-of-sequence phase",async()=>{mocks.createClient.mockResolvedValue({rpc:vi.fn().mockResolvedValue({data:{ok:false,code:"INVALID_TRANSITION",message:"Not allowed."},error:null})});expect((await phase(new NextRequest("http://localhost/phase",{method:"POST",body:JSON.stringify({phase:"safe"})}),context)).status).toBe(409);});
++  test("out-of-sequence Recovery invokes start_recovery and maps INVALID_TRANSITION to 409",async()=>{const rpc=vi.fn().mockResolvedValue({data:{ok:false,code:"INVALID_TRANSITION",message:"Not allowed."},error:null});mocks.createClient.mockResolvedValue({rpc});const response=await phase(new NextRequest("http://localhost/phase",{method:"POST",body:JSON.stringify({phase:"recovery"})}),context);expect(response.status).toBe(409);expect(await response.json()).toMatchObject({ok:false,code:"INVALID_TRANSITION"});expect(rpc).toHaveBeenCalledWith("transition_incident",{p_incident_id:"incident-id",p_action:"start_recovery"});});
+   test("closure authorization remains database-authoritative",async()=>{mocks.createClient.mockResolvedValue({rpc:vi.fn().mockResolvedValue({data:{ok:false,code:"ACCESS_DENIED",message:"Denied."},error:null})});expect((await close(new NextRequest("http://localhost/close",{method:"POST",body:"{}"}),context)).status).toBe(403);});
+   test("permitted closure delegates to the database close action",async()=>{mocks.getCurrentIdentity.mockResolvedValue({userId:"admin",role:"administrator"});const rpc=vi.fn().mockResolvedValue({data:{ok:true,incident:{status:"closed"}},error:null});mocks.createClient.mockResolvedValue({rpc});expect((await close(new NextRequest("http://localhost/close",{method:"POST",body:JSON.stringify({closure_notes:"Recovery complete"})}),context)).status).toBe(200);expect(rpc).toHaveBeenCalledWith("transition_incident",{p_incident_id:"incident-id",p_action:"close"});});
+ });
+diff --git a/tests/sql/release_1_field_owner_isolation.test.sql b/tests/sql/release_1_field_owner_isolation.test.sql
+new file mode 100644
+index 0000000..ad69282
+--- /dev/null
++++ b/tests/sql/release_1_field_owner_isolation.test.sql
+@@ -0,0 +1,97 @@
++\set ON_ERROR_STOP on
++begin;
++
++create or replace function pg_temp.assert_true(value boolean, message text)
++returns void language plpgsql as $$
++begin
++  if value is not true then
++    raise exception 'Release-1 field-owner isolation regression failed: %', message;
++  end if;
++end;
++$$;
++
++do $test$
++declare
++  order_id uuid;
++  facility_id uuid;
++  technician_id uuid;
++  supervisor_id uuid;
++  facility_manager_id uuid;
++  administrator_id uuid;
++  actors uuid[];
++  owners uuid[];
++  actor_id uuid;
++  owner_id uuid;
++  before_order jsonb;
++  after_order jsonb;
++  before_activity jsonb;
++  after_activity jsonb;
++  before_evidence jsonb;
++  after_evidence jsonb;
++  completion_result jsonb;
++  evidence_result jsonb;
++  index integer;
++begin
++  select id into strict technician_id from public.profiles where email='pilot.technician@example.test';
++  select id into strict supervisor_id from public.profiles where email='pilot.supervisor@example.test';
++  select id into strict facility_manager_id from public.profiles where email='pilot.facility-manager@example.test';
++  select id into strict administrator_id from public.profiles where email='pilot.admin@example.test';
++  select id,facility_id into strict order_id,facility_id
++  from public.work_orders where work_order_number='WO-TEST-003';
++
++  insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
++  values
++    (facility_id,technician_id,'technician',administrator_id),
++    (facility_id,supervisor_id,'supervisor',administrator_id),
++    (facility_id,facility_manager_id,'facility_manager',administrator_id)
++  on conflict do nothing;
++
++  actors:=array[technician_id,supervisor_id,facility_manager_id,administrator_id];
++  owners:=array[supervisor_id,facility_manager_id,administrator_id,technician_id];
++
++  for index in 1..array_length(actors,1) loop
++    actor_id:=actors[index];
++    owner_id:=owners[index];
++    update public.work_orders
++    set assigned_technician_id=owner_id,status='in_progress',completed_at=null,updated_at=updated_at
++    where id=order_id;
++
++    select pg_catalog.to_jsonb(w) into before_order from public.work_orders w where id=order_id;
++    select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(a) order by a.id),'[]'::jsonb)
++      into before_activity from public.activity_logs a where a.work_order_id=order_id;
++    select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(e) order by e.id),'[]'::jsonb)
++      into before_evidence from public.evidence_items e where e.work_order_id=order_id;
++
++    perform pg_catalog.set_config('request.jwt.claim.sub',actor_id::text,true);
++    perform pg_catalog.set_config('request.jwt.claims',pg_catalog.jsonb_build_object('sub',actor_id,'role','authenticated')::text,true);
++    completion_result:=public.submit_physical_completion(order_id,pg_catalog.jsonb_build_object(
++      'completion_notes','Unauthorized completion attempt','actual_labour_hours',1
++    ));
++    evidence_result:=public.register_evidence_item(
++      'work_order',order_id,'unauthorized.jpg','image/jpeg',10,'after','Unauthorized evidence attempt',
++      'evidence/work-order/'||order_id::text||'/'||pg_catalog.gen_random_uuid()::text||'/unauthorized.jpg'
++    );
++
++    perform pg_temp.assert_true(
++      completion_result->>'code'='ACCESS_DENIED',
++      (select role from public.profiles where id=actor_id)||' submitted completion for another field owner'
++    );
++    perform pg_temp.assert_true(
++      evidence_result->>'code'='EVIDENCE_READ_ONLY',
++      (select role from public.profiles where id=actor_id)||' registered evidence for another field owner'
++    );
++
++    select pg_catalog.to_jsonb(w) into after_order from public.work_orders w where id=order_id;
++    select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(a) order by a.id),'[]'::jsonb)
++      into after_activity from public.activity_logs a where a.work_order_id=order_id;
++    select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(e) order by e.id),'[]'::jsonb)
++      into after_evidence from public.evidence_items e where e.work_order_id=order_id;
++    perform pg_temp.assert_true(
++      before_order=after_order and before_activity=after_activity and before_evidence=after_evidence,
++      (select role from public.profiles where id=actor_id)||' denial mutated the Work Order or its audit/evidence records'
++    );
++  end loop;
++end;
++$test$;
++
++rollback;
