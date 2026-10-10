@@ -57,7 +57,7 @@ begin
   perform pg_temp.assert_true((select count(*)=1 from public.activity_logs a where a.incident_id=target_incident_id and action='incident_evidence_voided' and user_id=supervisor_id),'removal writes one attributable audit event');
 
   insert into public.evidence_items(id,parent_type,incident_id,uploaded_by,original_filename,content_type,byte_size,category,storage_path)
-  values(terminal_evidence_id,'incident',target_incident_id,reporter_id,'terminal.jpg','image/jpeg',10,'after','evidence/incident/'||target_incident_id||'/terminal/terminal.jpg');
+  values(terminal_evidence_id,'incident',target_incident_id,reporter_id,'terminal.jpg','image/jpeg',10,'after','evidence/incident/'||target_incident_id||'/'||pg_catalog.gen_random_uuid()||'/terminal.jpg');
   update public.incidents set status='closed',closed_at=pg_catalog.now() where id=target_incident_id;
   result:=public.void_incident_evidence(terminal_evidence_id,'Late removal');
   perform pg_temp.assert_true(result->>'code'='ACCESS_DENIED','closed Incident evidence cannot be removed');
