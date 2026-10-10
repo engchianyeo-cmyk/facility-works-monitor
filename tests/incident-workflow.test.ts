@@ -10,6 +10,17 @@ describe("emergency incident workflow", () => {
   });
   const base = { role: "technician" as const, actorId: "assigned", status: "reported" as IncidentStatus, assignedTechnicianId: "assigned" };
   test("assigned responder can acknowledge", () => expect(canActOnIncident("acknowledge", base)).toBe(true));
+  test.each(["close", "cancel"] as const)("terminal %s requires management even for assigned responders", action => {
+    expect(canActOnIncident(action, base)).toBe(false);
+    expect(canActOnIncident(action, { ...base, assignedTechnicianId: null, assignedTeamMember: true })).toBe(false);
+    expect(canActOnIncident(action, { ...base, role: "supervisor" })).toBe(true);
+    expect(canActOnIncident(action, { ...base, role: "administrator" })).toBe(true);
+    expect(canActOnIncident(action, { ...base, role: "approver" })).toBe(false);
+  });
+  test.each(["acknowledge", "mobilise", "arrive", "start_rescue", "make_safe", "start_recovery"] as const)("assigned individual and team responders retain %s", action => {
+    expect(canActOnIncident(action, base)).toBe(true);
+    expect(canActOnIncident(action, { ...base, assignedTechnicianId: null, assignedTeamMember: true })).toBe(true);
+  });
   test("another technician cannot acknowledge", () => expect(canActOnIncident("acknowledge", { ...base, actorId: "other" })).toBe(false));
   test("team member can acknowledge", () => expect(canActOnIncident("acknowledge", { ...base, actorId: "member", assignedTechnicianId: null, assignedTeamMember: true })).toBe(true));
   test("administrator can override and supervisor manages operational roster", () => { expect(canActOnIncident("acknowledge", { ...base, role: "administrator", actorId: "admin" })).toBe(true); expect(canManageRoster("supervisor")).toBe(true); });

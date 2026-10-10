@@ -199,6 +199,7 @@ async function main() {
   sql("tests/sql/release_1_financial_current_schema.test.sql");
   sql("tests/sql/release_1_commercial_scope.test.sql");
   sql("tests/sql/release_1_incident_evidence_lifecycle.test.sql");
+  sql("tests/sql/release_1_incident_terminal_authority.test.sql");
   const env = {
     ...process.env,
     ...identities,

@@ -38,7 +38,7 @@ export default function ReleaseOneWorkspace({id,role,status,userId}:{id:string;r
   const technician=role==="technician";
   const fieldOwner=["technician","supervisor","facility_manager","administrator"].includes(role)&&data?.order?.assigned_technician_id===userId;
   const approver=["approver","supervisor","facility_manager","administrator"].includes(role);
-  const canProposeNoPayment=technician||approver;
+  const canProposeNoPayment=(technician&&data?.order?.assigned_technician_id===userId)||["supervisor","facility_manager","administrator"].includes(role);
   const actual=useMemo(()=>data?.costs.filter((line)=>line.cost_phase==="actual").reduce((sum,line)=>sum+Number(line.amount),0)??0,[data]);
   const quote=data?.quotations[0]??null;
   const contractor=Array.isArray(data?.contractor)?data?.contractor[0]:data?.contractor;

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - reconciliation/release1-incremental-repair
+      - codex/continue-release-1-defect-family-review
   workflow_dispatch:
 
 permissions:
