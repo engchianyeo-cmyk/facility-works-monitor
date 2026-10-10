@@ -18,6 +18,7 @@ describe("secure field evidence",()=>{
   test("rejects oversized files",()=>expect(validateEvidenceFile(file("large.pdf","application/pdf",MAX_EVIDENCE_BYTES+1),new Uint8Array())).toMatch(/50 MB/));
   test("accepts a file exactly at the server size limit",()=>expect(validateEvidenceFile(file("limit.pdf","application/pdf",MAX_EVIDENCE_BYTES),new Uint8Array([37,80,68,70,45]))).toBeNull());
   test("rejects empty files",()=>expect(validateEvidenceFile(file("empty.pdf","application/pdf",0),new Uint8Array())).toMatch(/1 byte/));
+  test.each([1,2,3,4,5,6,7])("rejects a PNG signature truncated to %i bytes",(length)=>{const bytes=new Uint8Array([137,80,78,71,13,10,26,10]).slice(0,length);expect(validateEvidenceFile(file("truncated.png","image/png",length),bytes)).toMatch(/does not match/)});
   test.each([
     ["executable renamed jpg","attack.jpg","image/jpeg",[77,90,144]],
     ["html renamed pdf","page.pdf","application/pdf",[60,33,68,79,67]],

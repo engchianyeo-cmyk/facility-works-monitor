@@ -55,7 +55,7 @@ export function validateEvidenceFile(file: File, bytes: Uint8Array): string | nu
   const extension = cleanFilename(file.name).split(".").pop()?.toLowerCase();
   if (!extensions || !extension || !extensions.includes(extension)) return "Use a JPEG, PNG, WebP, MP4, WebM, or PDF file.";
   const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  const png = bytes.slice(0, 8).every((value, index) => value === [137,80,78,71,13,10,26,10][index]);
+  const png = bytes.length >= 8 && bytes.slice(0, 8).every((value, index) => value === [137,80,78,71,13,10,26,10][index]);
   const webp = new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
   const pdf = new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-";
   const mp4 = new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
