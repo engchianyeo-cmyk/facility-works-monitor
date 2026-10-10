@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+const auth = vi.hoisted(() => ({ identity: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ getCurrentIdentity: auth.identity }));
 import { GET } from "@/app/api/internal/preview-environment-check/route";
 import { classifyLegacyRole, classifySupabaseUrl, diagnosePreviewNetwork, PREVIEW_HOSTNAME, PREVIEW_SUPABASE_URL } from "@/lib/preview-environment-identity";
 
@@ -13,6 +15,9 @@ describe("Preview network connectivity diagnostic", () => {
     expect(classifySupabaseUrl("https://pvajuywwwypjlikqjnvgv.supabase.co")).toBe("UNRECOGNIZED");
   });
   test("refuses endpoint outside Preview", async () => { process.env.VERCEL_ENV = "production"; expect((await GET()).status).toBe(404); });
+  test("denies anonymous Preview diagnostics before making outbound requests", async () => { process.env.VERCEL_ENV="preview";auth.identity.mockResolvedValue(null);const request=vi.spyOn(globalThis,"fetch");expect((await GET()).status).toBe(401);expect(request).not.toHaveBeenCalled();request.mockRestore(); });
+  test("denies non-Administrator Preview diagnostics", async () => { process.env.VERCEL_ENV="preview";auth.identity.mockResolvedValue({role:"supervisor"});const request=vi.spyOn(globalThis,"fetch");expect((await GET()).status).toBe(403);expect(request).not.toHaveBeenCalled();request.mockRestore(); });
+  test("allows Administrator to inspect Preview configuration", async () => { process.env.VERCEL_ENV="preview";auth.identity.mockResolvedValue({role:"administrator"});const previous=process.env.NEXT_PUBLIC_SUPABASE_URL;process.env.NEXT_PUBLIC_SUPABASE_URL="https://unrecognized.example.test";try{const response=await GET();expect(response.status).toBe(200);expect((await response.json()).conclusion).toBe("HOSTNAME_CONFIGURATION_ERROR");}finally{if(previous===undefined)delete process.env.NEXT_PUBLIC_SUPABASE_URL;else process.env.NEXT_PUBLIC_SUPABASE_URL=previous;} });
   test("hard-stops on Production hostname without networking", async () => { const request=vi.fn(),resolve=vi.fn();const result=await diagnosePreviewNetwork("preview","https://pyapukytcrsuowmgzqzh.supabase.co",jwt("anon"),jwt("service_role"),request,resolve);expect(result?.hostname).toBe("HOSTNAME_MISMATCH");expect(request).not.toHaveBeenCalled();expect(resolve).not.toHaveBeenCalled(); });
   test("resolves only the approved Preview hostname", async () => { const resolve=vi.fn(resolved),request=vi.fn(async()=>({ok:false,status:401}));await diagnosePreviewNetwork("preview",PREVIEW_SUPABASE_URL,jwt("anon"),jwt("service_role"),request,resolve);expect(resolve).toHaveBeenCalledWith(PREVIEW_HOSTNAME); });
   test("treats any no-key HTTP response as reachable then tests keys", async () => { const request=vi.fn().mockResolvedValueOnce({ok:true,status:200}).mockResolvedValueOnce({ok:false,status:401}).mockResolvedValueOnce({ok:true,status:200}).mockResolvedValueOnce({ok:true,status:200});const result=await diagnosePreviewNetwork("preview",PREVIEW_SUPABASE_URL,jwt("anon"),jwt("service_role"),request,resolved);expect(result?.previewEndpoint).toBe("PREVIEW_ENDPOINT_REACHABLE");expect(request).toHaveBeenCalledTimes(4);expect(result?.overall).toBe("PREVIEW_IDENTITY_CONFIRMED"); });
