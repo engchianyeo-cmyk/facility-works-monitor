@@ -1,0 +1,24 @@
+PASS tests/sql/0021_supabase_managed_prerequisite.sql
+PASS tests/sql/fixtures/preview_20261011_schema.sql
+PASS tests/sql/fixtures/preview_20261011_acl.sql
+PASS supabase/migrations/0024_department_master_data_baseline.sql
+PASS tests/sql/preview_reconciliation_seed.sql
+PASS supabase/uat/008_work_order_uat_dataset.sql
+PASS tests/sql/preview_reconciliation_populated_controls.sql
+PASS rejection: Explicit Preview target assertion required
+PASS rejection: ledger differs from reviewed baseline
+PASS rejection: function catalog differs from reviewed baseline
+PASS rejection: division by zero
+PASS rejection: Historical row preservation failed
+PASS atomic reconciliation with populated identity, Work Order, evidence, commercial and audit preservation
+PASS rejection: ledger differs from reviewed baseline
+PASS tests/sql/release_1_field_owner_isolation.test.sql
+PASS tests/sql/configurable_procurement_policy.test.sql
+PASS tests/sql/audited_contractor_administration.test.sql
+PASS tests/sql/release_1_security_catalog.test.sql
+PASS tests/sql/release_1_three_quotation_current_schema.test.sql
+PASS tests/sql/release_1_financial_current_schema.test.sql
+PASS tests/sql/release_1_commercial_scope.test.sql
+PASS tests/sql/release_1_incident_evidence_lifecycle.test.sql
+PASS tests/sql/release_1_incident_terminal_authority.test.sql
+PASS supplementary Preview reconciliation gate; NOT native Docker, hosted rollout or browser UAT
