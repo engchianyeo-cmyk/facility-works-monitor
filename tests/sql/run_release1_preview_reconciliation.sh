@@ -19,13 +19,13 @@ $PSQL -f "$TEMP_DIR/ledger.sql"
 if $PSQL -c "select set_config('fmworks.rollout_project_ref','WRONG_PROJECT',false)" -f "$TEMP_DIR/adapter.sql" > "$TEMP_DIR/wrong-target.log" 2>&1; then
  echo 'FAIL: wrong project assertion accepted'; exit 1
 fi
-rg -q 'Explicit Preview target assertion required' "$TEMP_DIR/wrong-target.log"
+grep -q 'Explicit Preview target assertion required' "$TEMP_DIR/wrong-target.log" || { cat "$TEMP_DIR/wrong-target.log"; exit 1; }
 echo 'PASS: wrong target rejected'
 awk '/^do \$preservation\$/{print "select 1/0;"} {print}' "$TEMP_DIR/adapter.sql" > "$TEMP_DIR/late-failure.sql"
 if $PSQL -c "select set_config('fmworks.rollout_project_ref','pvajuywwwpjlikqjnvgv',false)" -f "$TEMP_DIR/late-failure.sql" > "$TEMP_DIR/late-failure.log" 2>&1; then
  echo 'FAIL: injected late failure accepted'; exit 1
 fi
-rg -q 'division by zero' "$TEMP_DIR/late-failure.log"
+grep -q 'division by zero' "$TEMP_DIR/late-failure.log" || { cat "$TEMP_DIR/late-failure.log"; exit 1; }
 $PSQL -c "do \$check\$ begin if to_regclass('public.procurement_policy_versions') is not null or (select count(*) from supabase_migrations.schema_migrations)<>38 or md5(pg_get_functiondef('public.submit_physical_completion_20260921_core(uuid,jsonb)'::regprocedure))<>'cd2acebf0a8431824eae03b90e71a410' then raise exception 'Rollback failed'; end if; end; \$check\$;"
 echo 'PASS: late failure rolls back schema, function repair and ledger'
 $PSQL -c "select set_config('fmworks.rollout_project_ref','pvajuywwwpjlikqjnvgv',false)" -f "$TEMP_DIR/adapter.sql"
@@ -33,7 +33,7 @@ echo 'PASS: atomic adapter and populated row preservation'
 if $PSQL -c "select set_config('fmworks.rollout_project_ref','pvajuywwwpjlikqjnvgv',false)" -f "$TEMP_DIR/adapter.sql" > "$TEMP_DIR/repeat.log" 2>&1; then
  echo 'FAIL: repeated rollout accepted'; exit 1
 fi
-rg -q 'ledger differs from reviewed baseline' "$TEMP_DIR/repeat.log"
+grep -q 'ledger differs from reviewed baseline' "$TEMP_DIR/repeat.log" || { cat "$TEMP_DIR/repeat.log"; exit 1; }
 echo 'PASS: repeated rollout rejected'
 for file in release_1_field_owner_isolation configurable_procurement_policy audited_contractor_administration release_1_security_catalog release_1_three_quotation_current_schema release_1_financial_current_schema release_1_commercial_scope release_1_incident_evidence_lifecycle release_1_incident_terminal_authority; do
  $PSQL -f "$ROOT/tests/sql/$file.test.sql"
