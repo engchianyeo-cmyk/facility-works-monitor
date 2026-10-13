@@ -37,14 +37,23 @@ async function loadCurrentAccountIdentity(
 
   if (userError || !user) return null;
 
-  const profileClient = allowPasswordSetupProfileRead
-    ? createAdminClient()
-    : supabase;
-  const { data: profile, error: profileError } = await profileClient
+  let { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("display_name, email, department, role, is_active, deleted_at, password_change_required")
     .eq("id", user.id)
     .maybeSingle();
+
+  // An operational session must not depend on the service-role client just
+  // to display its own identity. Retain the trusted fallback for setup only.
+  if (allowPasswordSetupProfileRead && (profileError || !profile)) {
+    const result = await createAdminClient()
+      .from("profiles")
+      .select("display_name, email, department, role, is_active, deleted_at, password_change_required")
+      .eq("id", user.id)
+      .maybeSingle();
+    profile = result.data;
+    profileError = result.error;
+  }
 
   if (
     profileError ||

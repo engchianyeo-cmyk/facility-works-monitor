@@ -127,3 +127,7 @@ describe("Work Order decision header presentation", () => {
     expect(page.indexOf("<WorkOrderDecisionHeader")).toBeLessThan(page.indexOf("<WorkOrderActions"));
   });
 });
+
+ test("does not mistake a pending-assignment placeholder for a technician appointment",()=>{
+ expect(ownershipPresentation({recordedAssignee:"Unassigned pending management approval"})).toMatchObject({state:"unassigned",label:"Unassigned"});
+ });

@@ -25,7 +25,9 @@ export default async function SiteHeader() {
           {identity && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div className="text-right">
+                <p className="text-xs font-semibold text-emerald-700">Signed in as</p>
                 <p className="text-sm font-black text-slate-900">{identity.displayName}</p>
+                {identity.email && <p className="text-xs text-slate-600">{identity.email}</p>}
                 <p className="text-xs font-semibold text-slate-500">{operationalLabel(identity.role)}</p>
               </div>
               <form action="/auth/logout" method="post">

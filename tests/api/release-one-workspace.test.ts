@@ -14,6 +14,16 @@ function client(data:unknown=null,error:unknown=null){
 }
 beforeEach(()=>{vi.clearAllMocks();mocks.identity.mockResolvedValue({userId:"reviewer",role:"reviewer"});});
 describe("Release-1 workspace scope and request boundary",()=>{
+  it("dispatches an actual-cost edit to its original line through audited domain authority",async()=>{
+    const db=client({id:"visible"});mocks.client.mockResolvedValue(db);
+    const costLine="33333333-3333-4333-8333-333333333333";
+    expect((await POST(request({operation:"update_actual_cost",payload:{cost_line_id:costLine,quantity:2,unit_rate:120,operation:"confirm"}}),context)).status).toBe(200);
+    expect(db.rpc).toHaveBeenCalledWith("manage_work_order_actual_cost",expect.objectContaining({p_cost_line_id:costLine,p_payload:expect.objectContaining({operation:"upsert",quantity:2,unit_rate:120})}));
+  });
+  it("rejects a missing cost line before database access",async()=>{
+    expect((await POST(request({operation:"update_actual_cost",payload:{quantity:2}}),context)).status).toBe(400);
+    expect(mocks.client).not.toHaveBeenCalled();
+  });
   it("does not load child records or privileged RPCs for an invisible Work Order",async()=>{
     const db=client();mocks.client.mockResolvedValue(db);
     expect((await GET(new NextRequest(url),context)).status).toBe(404);

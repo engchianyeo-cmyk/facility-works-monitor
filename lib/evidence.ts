@@ -39,6 +39,10 @@ const TYPES = new Map([
   ["image/jpeg", ["jpg", "jpeg"]], ["image/png", ["png"]],
   ["image/webp", ["webp"]], ["application/pdf", ["pdf"]],
   ["video/mp4", ["mp4"]], ["video/webm", ["webm"]],
+  ["audio/mpeg", ["mp3"]], ["audio/wav", ["wav"]],
+  ["audio/x-wav", ["wav"]], ["audio/webm", ["webm"]],
+  ["audio/mp4", ["m4a", "mp4"]],
+  ["audio/x-m4a", ["m4a"]], ["audio/ogg", ["ogg", "oga", "opus"]],
 ]);
 
 export function cleanFilename(value: string) {
@@ -53,13 +57,21 @@ export function validateEvidenceFile(file: File, bytes: Uint8Array): string | nu
   if (!file.size || file.size > MAX_EVIDENCE_BYTES) return "File must be between 1 byte and 50 MB.";
   const extensions = TYPES.get(file.type);
   const extension = cleanFilename(file.name).split(".").pop()?.toLowerCase();
-  if (!extensions || !extension || !extensions.includes(extension)) return "Use a JPEG, PNG, WebP, MP4, WebM, or PDF file.";
+  if (!extensions || !extension || !extensions.includes(extension)) return "Use a JPEG, PNG, WebP, MP4, WebM, MP3, WAV, M4A, Ogg/Opus, or PDF file.";
   const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   const png = bytes.length >= 8 && bytes.slice(0, 8).every((value, index) => value === [137,80,78,71,13,10,26,10][index]);
   const webp = new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
   const pdf = new TextDecoder().decode(bytes.slice(0, 5)) === "%PDF-";
   const mp4 = new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
   const webm = bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
-  if (!({ "image/jpeg": jpeg, "image/png": png, "image/webp": webp, "video/mp4": mp4, "video/webm": webm, "application/pdf": pdf }[file.type])) return "File content does not match its declared type.";
+  const mp3 = new TextDecoder().decode(bytes.slice(0, 3)) === "ID3"
+    || (bytes.length >= 4 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0
+      && (bytes[1] & 0x06) !== 0 && (bytes[1] & 0x18) !== 0x08
+      && (bytes[2] & 0xf0) !== 0 && (bytes[2] & 0xf0) !== 0xf0 && (bytes[2] & 0x0c) !== 0x0c);
+  const wav = bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF"
+    && new TextDecoder().decode(bytes.slice(8, 12)) === "WAVE";
+  const ogg = bytes.length >= 4 && new TextDecoder().decode(bytes.slice(0, 4)) === "OggS";
+  if (!({ "image/jpeg": jpeg, "image/png": png, "image/webp": webp, "video/mp4": mp4, "video/webm": webm, "application/pdf": pdf,
+    "audio/mpeg": mp3, "audio/wav": wav, "audio/x-wav": wav, "audio/webm": webm, "audio/mp4": mp4, "audio/x-m4a": mp4, "audio/ogg": ogg }[file.type])) return "File content does not match its declared type.";
   return null;
 }

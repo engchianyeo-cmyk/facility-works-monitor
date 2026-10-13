@@ -396,7 +396,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <DocumentCorrectionControl workOrderId={id} role={identity.role} status={status} openReason={openDocumentCorrection?.reason ?? null} />
 
       <div id="work-order-evidence">
-        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} />
+        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} readOnlyReason={status==="submitted" ? "This Work Order is awaiting approval and assignment. Evidence upload becomes available to the assigned field owner after approval and assignment with active facility membership." : !order.assigned_technician_id ? "This Work Order has no assigned field owner. Authorized management must record an assignment before field evidence can be added." : undefined} />
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">

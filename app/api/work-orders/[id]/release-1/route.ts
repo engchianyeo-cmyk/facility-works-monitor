@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult } from "@/lib/work-orders/types";
 import { invalidFinancialNumber } from "@/lib/work-orders/numeric-validation";
+import { isUuidLike } from "@/lib/work-orders/decision-header";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -23,7 +24,7 @@ export async function GET(_: NextRequest, { params }: Context) {
   if (!visible.data) return errorResponse("NOT_FOUND", "Work Order was not found.", 404);
   const [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction, finalCost, finalCostDocuments, disposition, financialReadiness, closureReadiness] = await Promise.all([
     supabase.from("work_order_markups").select("id,source_type,source_reference,drawing_revision,page_number,x_percent,y_percent,annotation_type,geometry,note,created_at,created_by").eq("work_order_id", id).is("deleted_at", null).order("created_at"),
-    supabase.from("work_order_cost_lines").select("id,cost_phase,cost_type,description,quantity,unit,unit_rate,amount,worker_name,created_at").eq("work_order_id", id).order("created_at"),
+    supabase.from("work_order_cost_lines").select("id,cost_phase,cost_type,description,quantity,unit,unit_rate,amount,worker_name,entered_by,technician_certified_at,approved_at,created_at").eq("work_order_id", id).order("created_at"),
     supabase.from("work_order_procurement_commitments").select("id,purchase_reference,description,currency,committed_amount,status,created_at").eq("work_order_id", id).order("created_at", { ascending: false }),
     supabase.rpc("work_order_contractor_quotations", { p_work_order_id: id }),
     supabase.rpc("work_order_contractor_rate_items", { p_work_order_id: id }),
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   const body = await request.json().catch(() => null) as { operation?: string; payload?: Record<string, unknown> } | null;
   if (!body?.operation || !body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) return errorResponse("VALIDATION_ERROR", "Operation and payload are required.", 400);
   const payload = body.payload;
+  if (body.operation === "update_actual_cost" && !isUuidLike(payload.cost_line_id)) return errorResponse("VALIDATION_ERROR", "A valid actual-cost line is required.", 400);
   const invalidNumber = invalidFinancialNumber(payload);
   if (invalidNumber) return errorResponse("VALIDATION_ERROR", `${invalidNumber} must be a finite non-negative number.`, 400);
   const supabase = await createClient();
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   const calls: Record<string, () => PromiseLike<{ data: unknown; error: unknown }>> = {
     markup: () => supabase.rpc("record_work_order_markup", { p_work_order_id: id, p_payload: payload }),
     actual_cost: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: null, p_payload: payload }),
+    update_actual_cost: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: payload.cost_line_id, p_payload: { ...payload, operation: "upsert" } }),
     confirm_actual_costs: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: null, p_payload: { operation: "confirm" } }),
     procurement: () => supabase.rpc("record_work_order_procurement", { p_work_order_id: id, p_payload: payload }),
     delete_markup: () => supabase.rpc("delete_work_order_markup", { p_work_order_id: id, p_markup_id: payload.markup_id }),

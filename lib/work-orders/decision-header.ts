@@ -94,11 +94,13 @@ export function ownershipPresentation(input: {
   recordedAssignee?: unknown;
   resolvedAssignee?: unknown;
 }): OwnershipPresentation {
+  const recorded = safeHumanLabel(input.recordedAssignee);
+  const unassigned = recorded && /^(unassigned(?:\b|$)|not assigned$|pending (?:management )?(?:approval|assignment)$)/i.test(recorded);
   const hasAssignment = Boolean(
     input.assignedTechnicianId
       || input.assignedVendorId
       || input.assignedTeamId
-      || (typeof input.recordedAssignee === "string" && input.recordedAssignee.trim()),
+      || (recorded && !unassigned),
   );
   if (!hasAssignment) {
     return { state: "unassigned", label: "Unassigned", detail: "No primary owner is recorded." };

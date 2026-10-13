@@ -7,7 +7,7 @@ const baseline = JSON.parse(readFileSync(new URL('./preview-baseline.json', impo
 const manifest = readFileSync(path.join(root, 'supabase/bootstrap/fresh-install-manifest.txt'), 'utf8')
   .split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#'));
 const start = manifest.indexOf('supabase/migrations/20260928000000_release1_governance_reconciliation.sql');
-if (start < 0 || !manifest.at(-1).endsWith('20261010142142_incident_responder_membership_denial.sql')) {
+if (start < 0 || !manifest.at(-1).endsWith('20261013012309_field_evidence_media.sql')) {
   throw new Error('Candidate manifest changed; independently review the rollout baseline.');
 }
 const selected = manifest.slice(start);
@@ -30,7 +30,8 @@ const completionEnd = multirole.indexOf('create or replace function public.regis
 if (completionStart < 0 || completionEnd < 0) throw new Error('Canonical completion source changed');
 const completionRepair = multirole.slice(completionStart, completionEnd)
   .replace('public.submit_physical_completion(', 'public.submit_physical_completion_20260921_core(');
-const sql = `-- Preview-only incremental adapter; candidate ${baseline.candidate_sha}.
+const sql = `-- Preview-only incremental adapter; reviewed source baseline ${baseline.candidate_sha}.
+-- Latest included migration: ${path.basename(manifest.at(-1))}.
 -- Generated from immutable sources. NEVER bootstrap or run against Production.
 -- Caller must independently verify the connection host/project before setting
 -- fmworks.rollout_project_ref. This setting is an assertion, not server identity.
