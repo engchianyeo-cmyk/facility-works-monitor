@@ -105,7 +105,7 @@ export function ownershipPresentation(input: {
   if (!hasAssignment) {
     return { state: "unassigned", label: "Unassigned", detail: "No primary owner is recorded." };
   }
-  const assignee = safeHumanLabel(input.resolvedAssignee) ?? safeHumanLabel(input.recordedAssignee);
+  const assignee = safeHumanLabel(input.resolvedAssignee) ?? (unassigned ? null : recorded);
   if (!assignee) {
     return { state: "unavailable", label: "Assignment unavailable", detail: "A primary assignment exists, but its display name is unavailable." };
   }

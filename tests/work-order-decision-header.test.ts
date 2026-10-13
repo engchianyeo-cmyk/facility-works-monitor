@@ -131,3 +131,7 @@ describe("Work Order decision header presentation", () => {
  test("does not mistake a pending-assignment placeholder for a technician appointment",()=>{
  expect(ownershipPresentation({recordedAssignee:"Unassigned pending management approval"})).toMatchObject({state:"unassigned",label:"Unassigned"});
  });
+
+test("does not identify an assigned person using an unassigned placeholder",()=>{
+ expect(ownershipPresentation({assignedTechnicianId:"assigned-id",recordedAssignee:"Unassigned pending management approval"})).toMatchObject({state:"unavailable",label:"Assignment unavailable"});
+});
