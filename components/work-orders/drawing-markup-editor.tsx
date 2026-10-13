@@ -58,7 +58,7 @@ export default function DrawingMarkupEditor({ workOrderId, drawing, assetMarker,
   const [drafts, setDrafts] = useState<Annotation[]>([]);
   const [future, setFuture] = useState<Annotation[]>([]);
   const [tool, setTool] = useState<Tool>("marker");
-  const [note, setNote] = useState("Roller shutter repair location");
+  const [note, setNote] = useState(assetMarker?.label ?? "Work Order location");
   const [drawingNow, setDrawingNow] = useState<Annotation | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

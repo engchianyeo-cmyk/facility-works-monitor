@@ -119,6 +119,12 @@ describe("getCurrentIdentity", () => {
 });
 
 describe("getCurrentAccountIdentity", () => {
+  test("shows a valid session identity when the privileged profile client is unavailable", async () => {
+    mocks.createClient.mockResolvedValue(clientFor({ user, profile: activeProfile }));
+    mocks.createAdminClient.mockImplementation(() => { throw new Error("Preview privileged client unavailable"); });
+    await expect(getCurrentAccountIdentity()).resolves.toMatchObject({ userId: user.id, email: user.email });
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+  });
   test("uses a trusted own-profile read for mandatory password setup", async () => {
     mocks.createClient.mockResolvedValue(clientFor({ user, profile: null }));
     mocks.createAdminClient.mockReturnValue(

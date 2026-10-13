@@ -6,6 +6,7 @@ on:
       - reconciliation/release1-incremental-repair
       - codex/continue-release-1-defect-family-review
       - codex/preview-schema-reconciliation
+      - codex/uat-field-controls
   workflow_dispatch:
 
 permissions:

@@ -7,6 +7,17 @@ const compact=(value:string)=>value.replace(/\s+/g,"");
 const routeCompact=compact(route),panelCompact=compact(panel);
 const file=(name:string,type:string,size:number)=>({name,type,size} as File);
 describe("secure field evidence",()=>{
+  test.each([
+    ["voice.mp3","audio/mpeg",[73,68,51,4,0,0]],
+    ["voice.wav","audio/wav",[82,73,70,70,0,0,0,0,87,65,86,69]],
+    ["voice.webm","audio/webm",[26,69,223,163]],
+    ["voice.m4a","audio/mp4",[0,0,0,12,102,116,121,112]],
+    ["voice.m4a","audio/x-m4a",[0,0,0,12,102,116,121,112]],
+    ["voice.opus","audio/ogg",[79,103,103,83]],
+  ])("accepts supported voice container %s and rejects disguised content",(name,type,signature)=>{
+    expect(validateEvidenceFile(file(name,type,signature.length),new Uint8Array(signature))).toBeNull();
+    expect(validateEvidenceFile(file(name,type,4),new Uint8Array([60,104,116,109]))).toMatch(/does not match/);
+  });
   test("requires authentication for list upload and signed access",()=>{expect(route.match(/AUTHENTICATION_REQUIRED/g)?.length).toBeGreaterThanOrEqual(2);expect(access).toContain("AUTHENTICATION_REQUIRED")});
   test("validates parent record authorization before storage operations",()=>{expect(routeCompact).toContain("parentVisible(type,parentId)");expect(routeCompact.indexOf("parentVisible(type,parentId)")).toBeLessThan(routeCompact.indexOf('storage.from("field-evidence")'))});
   test("lists metadata without exposing storage paths",()=>{expect(route).toContain('select("id,parent_type');expect(route).not.toContain('select("storage_path')});

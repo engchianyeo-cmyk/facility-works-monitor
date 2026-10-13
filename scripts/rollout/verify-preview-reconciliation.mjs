@@ -59,7 +59,7 @@ try {
   await db.exec(adapter);
   console.log('PASS atomic reconciliation with populated identity, Work Order, evidence, commercial and audit preservation');
   await rejected(adapter, 'ledger differs from reviewed baseline');
-  for (const suite of ['release_1_field_owner_isolation', 'configurable_procurement_policy', 'audited_contractor_administration', 'release_1_security_catalog', 'release_1_three_quotation_current_schema', 'release_1_financial_current_schema', 'release_1_commercial_scope', 'release_1_incident_evidence_lifecycle', 'release_1_incident_terminal_authority']) {
+  for (const suite of ['release_1_field_owner_isolation', 'configurable_procurement_policy', 'audited_contractor_administration', 'release_1_security_catalog', 'release_1_three_quotation_current_schema', 'release_1_financial_current_schema', 'release_1_commercial_scope', 'release_1_incident_evidence_lifecycle', 'release_1_incident_terminal_authority', 'field_evidence_media']) {
     await apply(`tests/sql/${suite}.test.sql`);
   }
   console.log('PASS supplementary Preview reconciliation gate; NOT native Docker, hosted rollout or browser UAT');

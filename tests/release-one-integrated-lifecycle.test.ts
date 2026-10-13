@@ -37,7 +37,7 @@ describe("integrated Release 1 commercial lifecycle", () => {
 
   test("makes rejection, actual cost and procurement controls operational", () => {
     for (const operation of ["return_proposal", "return_payment", "reopen_payment_correction", "actual_cost", "confirm_actual_costs", "procurement"]) expect(route).toContain(operation);
-    for (const label of ["Return Proposal for Revision", "Return Payment Proposal", "Reopen Payment for Correction", "Add Actual Cost", "Confirm Actual Costing", "Record Procurement Commitment"]) expect(workspace).toContain(label);
+    for (const label of ["Return Proposal for Revision", "Return Payment Proposal", "Reopen Payment for Correction", "Add Actual Cost", "Confirm Actual Costing", "Record Procurement Commitment"]) expect(workspace + readFileSync("components/work-orders/actual-cost-editor.tsx", "utf8")).toContain(label);
     expect(migration).toContain("work_order_proposal_returned");
     expect(migration).toContain("contractor_payment_proposal_returned");
   });

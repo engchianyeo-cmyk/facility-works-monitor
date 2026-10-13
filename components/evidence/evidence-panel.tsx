@@ -16,7 +16,7 @@ type Item = {
 
 const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
-export default function EvidencePanel({ parentType, parentId, canMutate = true, canDelete = canMutate }: { parentType: EvidenceParent; parentId: string; canMutate?: boolean; canDelete?: boolean }) {
+export default function EvidencePanel({ parentType, parentId, canMutate = true, canDelete = canMutate, readOnlyReason }: { parentType: EvidenceParent; parentId: string; canMutate?: boolean; canDelete?: boolean; readOnlyReason?: string }) {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -141,7 +141,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
         <div>
           <p className="text-xs font-black uppercase tracking-widest text-blue-700">Field proof</p>
           <h2 id={`evidence-${parentId}`} className="text-xl font-black">Evidence</h2>
-          <p className="mt-1 text-sm text-slate-600">Before and After photos or PDFs prove the site condition and physical work performed.</p>
+          <p className="mt-1 text-sm text-slate-600">Before and After photos, videos, voice recordings or PDFs document the site condition and work performed.</p>
         </div>
         {state === "ready" && <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-800">{items.length} item{items.length === 1 ? "" : "s"}</span>}
       </div>
@@ -190,8 +190,8 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
             {EVIDENCE_CATEGORIES.map((value) => <option key={value} value={value}>{label(value)}</option>)}
           </select>
         </label>
-        <label className="text-sm font-bold">Photo, video or PDF
-          <input name="file" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,application/pdf" required className="mt-1 block min-h-12 w-full rounded-lg border bg-white p-2 text-sm" />
+        <label className="text-sm font-bold">Photo, video, voice recording or PDF
+          <input name="file" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/wav,audio/x-wav,audio/webm,audio/mp4,audio/x-m4a,audio/ogg,application/pdf" required className="mt-1 block min-h-12 w-full rounded-lg border bg-white p-2 text-sm" />
         </label>
         <label className="text-sm font-bold sm:col-span-2">Short note (optional)
           <input name="description" maxLength={500} className="mt-1 min-h-12 w-full rounded-lg border px-3" placeholder="What does this Before or After evidence show?" />
@@ -200,7 +200,7 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
           <p className="mb-3 text-xs text-slate-600">Online connection required. Maximum 50 MB. Upload a replacement before removing the final mandatory After item.</p>
           <button disabled={uploading} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50 sm:w-auto">{uploading ? "Uploading…" : "Add evidence"}</button>
         </div>
-      </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Evidence is read-only. Authorized management must open a supporting-document correction before the assigned Technician can add missing field evidence.</p>}
+      </form> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{readOnlyReason ?? "Evidence is read-only for your current role, assignment or Work Order state. Authorized management must open a supporting-document correction for completed work before missing field evidence can be added."}</p>}
 
       {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 text-sm font-semibold ${messageKind === "error" ? "text-red-800" : "text-blue-800"}`}>{message}</p>}
     </section>
