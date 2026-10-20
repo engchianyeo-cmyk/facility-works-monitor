@@ -203,6 +203,7 @@ async function main() {
   sql("tests/sql/field_evidence_media.test.sql");
   sql("tests/sql/lifecycle_v2_foundations.test.sql");
   sql("tests/sql/lifecycle_v2_creation_approval.test.sql");
+  sql("tests/sql/lifecycle_v2_review_finance.test.sql");
   const env = {
     ...process.env,
     ...identities,
