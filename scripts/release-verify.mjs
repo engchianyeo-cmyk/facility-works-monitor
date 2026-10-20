@@ -222,9 +222,15 @@ main().catch((error) => {
 }).finally(() => {
   if (!localSupabaseStarted) return;
   console.log("\n[release:verify] stop isolated local Supabase without retaining disposable data");
-  const stopped = spawnSync(npx, ["supabase", "stop", "--no-backup"], { cwd: root, encoding: "utf8", stdio: "inherit" });
+  const stopped = spawnSync(npx, ["supabase", "stop", "--no-backup"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
   if (stopped.error || stopped.status !== 0) {
-    console.error("[release:verify] Disposable Supabase cleanup failed.");
+    const reason = stopped.error ? stopped.error.message : `exit code ${stopped.status}`;
+    console.error(`[release:verify] Disposable Supabase cleanup failed (${reason}). Run: npx supabase stop --no-backup`);
     process.exitCode = 1;
   }
 });

@@ -1,0 +1,3 @@
+# Store and check out text files with LF on every platform.
+# Migration SQL and source-text tests depend on byte-exact LF content.
+* text=auto eol=lf
