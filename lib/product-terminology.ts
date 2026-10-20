@@ -52,6 +52,7 @@ const ENUM_LABELS: Readonly<Record<string, string>> = {
   technician: "Technician",
   initiator: "Initiator",
   reviewer: "Reviewer",
+  finance: "Finance",
 };
 
 /** Convert a stored enum or audit action into restrained, user-facing text. */

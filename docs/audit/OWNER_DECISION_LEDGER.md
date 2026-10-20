@@ -23,7 +23,7 @@ decision still outstanding.
 | B-06 | 18–19 Sep | Technician records/recommends cost and quotation; must not approve own expenditure; independent Facility Manager/Approver approval. | Proposal and payment approval with self-approval denial (20260919064024 onward). | IMPLEMENTED |
 | B-07 | 18 Sep, configurable 3 Oct | Below S$1,000 one quotation; at/above, three distinct eligible-contractor quotations. Threshold is company policy changeable only by Facility Manager/Administrator with audit; past Work Orders keep their version. | 20261003033514, 20260924044237–045239. | IMPLEMENTED |
 | B-08 | 19 & 24 Sep | Approved quotation (S$650) distinct from actual cost (S$620); never summed. Payment proposal and Finance payment recorded separately. | Ledger-derived actual cost; WO-TEST-012 reconciles 650/620/620/620. | IMPLEMENTED |
-| B-09 | 19 Sep | Previously agreed 30-day payment commencement rule. | `interval '30 days'` in 0030 payment assessment. | PREVIEW CHECK |
+| B-09 | 19 Sep | Previously agreed 30-day payment commencement rule. | `interval '30 days'` in 0030 payment assessment. | SUPERSEDED by D-05.3 |
 | B-10 | 21 Sep | Final cost above approved expenditure requires additional authorization. | Variance approval in final-cost submission (20260921122902). | PREVIEW CHECK |
 | B-11 | 21 Sep | Verified Work Orders: document-only correction without reversing physical completion; Closed: authorized reopening. | Supporting-document corrections (20260920223606). | IMPLEMENTED |
 | B-12 | 24 Sep | Physical completion must not require final invoice; closure requires recorded payment or approved no-payment disposition. | R1-001, R1-004, R1-005 verified. | IMPLEMENTED |
@@ -110,6 +110,30 @@ completion of a Work Order who has not yet been assigned a specific position
    Contractor payments are recorded by the Finance role (D-03.2), not by Approver.
 4. Independence still applies: nobody approves a Work Order they requested or are
    assigned to carry out (existing self-approval/self-review denial).
+
+### D-05 Lifecycle design questions — 20 October 2026
+
+1. **Emergency:** the Technician may tell the contractor to start immediately; approvers
+   are notified.
+2. **Only Technicians create Work Orders.** (System-generated PM/Incident Work Orders
+   are assigned to a Technician, who completes them — confirmed by approval 13:41.)
+   **Amended 13:38:** when the Technician is unavailable, **his superior can open the Work
+   Order**, so the process need not depend only on the Technician. (Design: Approver,
+   Supervisor, Facility Manager, Administrator; a creating superior cannot also approve it.)
+3. **Invoice:** the contractor issues the invoice when final approval ("Completed") is
+   received and gives it to the Technician, who uploads it. Payment starts when
+   **Finance receives the invoice**, according to the stipulated payment terms — **not**
+   on the completion date. The invoice amount must tally with the approved revised
+   quotation. The upload goes to Finance and copies the Technician, the Approver,
+   Supervisor/Facility Manager, Administrator, or whichever parties were copied on the
+   Work Order. (Supersedes B-09's 30-day-from-completion rule.)
+4. **Rate differences:** owner gave no preference; default adopted — allowed with a
+   written reason, clearly flagged to the approver.
+5. **Finance scope:** not asked; default adopted — company-wide.
+
+### D-06 Design sign-off — 20 October 2026 13:41
+
+`docs/design/WORK_ORDER_LIFECYCLE_V2.md` approved by the owner.
 
 ## D. Decisions still open (not recoverable locally)
 

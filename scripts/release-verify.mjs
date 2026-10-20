@@ -201,6 +201,8 @@ async function main() {
   sql("tests/sql/release_1_incident_evidence_lifecycle.test.sql");
   sql("tests/sql/release_1_incident_terminal_authority.test.sql");
   sql("tests/sql/field_evidence_media.test.sql");
+  sql("tests/sql/lifecycle_v2_foundations.test.sql");
+  sql("tests/sql/lifecycle_v2_creation_approval.test.sql");
   const env = {
     ...process.env,
     ...identities,

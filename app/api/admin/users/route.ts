@@ -7,7 +7,9 @@ const ADMIN_USER_ROLES = [
   "approver",
   "technician",
   "supervisor",
+  "facility_manager",
   "administrator",
+  "finance",
 ] as const;
 
 type AdminUserRole = (typeof ADMIN_USER_ROLES)[number];

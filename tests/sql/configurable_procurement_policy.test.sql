@@ -20,11 +20,11 @@ declare version uuid; next_version uuid; result jsonb; actor uuid; n integer; ol
 begin
   select version_id into version from public.procurement_company_policy;
   perform pg_temp.assert_true((select low_value_threshold=1000 from public.procurement_policy_versions where id=version),'initial S$1,000 policy');
-  for n in 1..5 loop
+  for n in 1..6 loop
     actor:=('aa000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid;
     perform set_config('request.jwt.claim.sub',actor::text,true);
     result:=public.change_procurement_policy(2000,'Unauthorized attempt',version);
-    perform pg_temp.assert_true(result->>'code'='ACCESS_DENIED','non-FM/non-Administrator policy change denied');
+    perform pg_temp.assert_true(result->>'code'='ACCESS_DENIED','non-Administrator policy change denied (D-03.4: Administrator only)');
   end loop;
   actor:='aa000000-0000-4000-8000-000000000007';
   perform set_config('request.jwt.claim.sub',actor::text,true);
@@ -38,9 +38,8 @@ begin
   perform pg_temp.assert_true(public.change_procurement_policy(2000,'',version)->>'code'='VALIDATION_ERROR','missing reason denied');
   perform pg_temp.assert_true(public.change_procurement_policy(2000.001,'Invalid precision',version)->>'code'='VALIDATION_ERROR','fractional cent denied');
   perform pg_temp.assert_true(public.change_procurement_policy('NaN'::numeric,'Invalid number',version)->>'code'='VALIDATION_ERROR','NaN denied');
-  perform set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000006',true);
   result:=public.change_procurement_policy(2000,'Updated company procurement policy',version);
-  perform pg_temp.assert_true((result->>'ok')::boolean,'Facility Manager changes policy');
+  perform pg_temp.assert_true((result->>'ok')::boolean,'Administrator changes policy');
   next_version:=(result->>'version_id')::uuid;
   perform pg_temp.assert_true((select to_jsonb(c)=old_control from public.work_order_financial_controls c where work_order_id=old_order),'historical control unchanged');
   perform pg_temp.assert_true(public.change_procurement_policy(3000,'Stale edit',version)->>'code'='POLICY_CONFLICT','stale change denied');

@@ -22,7 +22,8 @@ set local role authenticated;
 do $test$
 declare actor uuid; function_row record; call_arguments text; result jsonb; actor_number integer;
 begin
-  for actor_number in 1..5 loop
+  -- Approver (6) has no facility membership yet: denied like other unrelated actors (D-04).
+  for actor_number in 1..6 loop
     actor:=('ca000000-0000-4000-8000-'||lpad(actor_number::text,12,'0'))::uuid;
     perform set_config('request.jwt.claim.sub',actor::text,true);
     perform set_config('request.jwt.claims',jsonb_build_object('sub',actor,'role','authenticated')::text,true);
@@ -58,7 +59,7 @@ select pg_temp.assert_true((select estimated_cost=650 from public.work_order_fin
 update public.work_orders set requested_by='ca000000-0000-4000-8000-000000000001' where id='08000000-0000-4000-8000-000000000003';
 insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
 select w.facility_id,p.id,p.role,'ca000000-0000-4000-8000-000000000007' from public.work_orders w cross join public.profiles p
-where w.id='08000000-0000-4000-8000-000000000003' and p.id in ('ca000000-0000-4000-8000-000000000003','ca000000-0000-4000-8000-000000000004','ca000000-0000-4000-8000-000000000005');
+where w.id='08000000-0000-4000-8000-000000000003' and p.id in ('ca000000-0000-4000-8000-000000000003','ca000000-0000-4000-8000-000000000004','ca000000-0000-4000-8000-000000000005','ca000000-0000-4000-8000-000000000006');
 set local role authenticated;
 do $test$
 declare actor_number integer; actor uuid;

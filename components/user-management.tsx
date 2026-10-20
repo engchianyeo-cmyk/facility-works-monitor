@@ -9,7 +9,9 @@ const ROLES = [
   "approver",
   "technician",
   "supervisor",
+  "facility_manager",
   "administrator",
+  "finance",
 ] as const;
 
 type Role = (typeof ROLES)[number];
