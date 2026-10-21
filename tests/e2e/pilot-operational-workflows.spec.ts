@@ -1,10 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { login, logout, requiredEnvironment, selectContaining } from "./pilot-helpers";
+import { login, requiredEnvironment, selectContaining } from "./pilot-helpers";
 
 const adminEmail = requiredEnvironment("E2E_ADMIN_EMAIL");
 const adminPassword = requiredEnvironment("E2E_ADMIN_PASSWORD");
-const technicianEmail=requiredEnvironment("E2E_TECHNICIAN_EMAIL");
-const technicianPassword=requiredEnvironment("E2E_TECHNICIAN_PASSWORD");
 const runId = requiredEnvironment("E2E_SYNTHETIC_RUN_ID").slice(0, 8);
 
 test.describe.serial("Pilot-critical operational workflows", () => {
@@ -54,79 +52,5 @@ test.describe.serial("Pilot-critical operational workflows", () => {
     await expect(page).toHaveURL(/\/incidents\/[0-9a-f-]+$/, { timeout: 20_000 });
     await expect(page.getByText(`Synthetic smoke detector activation ${runId}`)).toBeVisible();
   });
-
-  test("Work Order persists, advances through the lifecycle and accepts protected evidence", async ({ page }) => {
-    await page.goto("/work-orders/new");
-    const workOrderForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Create and submit" }) });
-    await workOrderForm.locator('[name="title"]').fill(`Pilot corrective work ${runId}`);
-    await workOrderForm.locator('[name="description"]').fill("Synthetic end-to-end corrective maintenance acceptance record.");
-    await workOrderForm.locator('[name="site"]').fill("Main Building");
-    await workOrderForm.locator('[name="location"]').fill("Level 3 synthetic plantroom");
-    await selectContaining(page, "Asset", assetTag);
-    await page.getByRole("button", { name: "Create and submit" }).click();
-    await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+$/, { timeout: 20_000 });
-    await expect(page.getByRole("heading", { name: `Pilot corrective work ${runId}`, exact: true }).first()).toBeVisible();
-
-    const basis=page.getByRole("region",{name:"Pre-work Approval Basis"});
-    await basis.getByLabel("Proposed cost (SGD)").fill("0");
-    await basis.getByLabel("Cost basis",{exact:true}).fill("In-house work; no contractor charge.");
-    await basis.getByLabel("Execution arrangement").fill("Assigned Technician using existing resources.");
-    await basis.getByLabel("Safety / isolation information").fill("Synthetic isolation and safe access confirmed.");
-    await basis.getByRole("button",{name:"Save Approval Basis"}).click();
-    await expect(basis.getByRole("status")).toContainText("Structured approval basis saved.");
-    await page.getByRole("button", { name: "Approve Work to Proceed" }).click();
-    await page.getByLabel("Override reason, when applicable").fill("Synthetic Administrator override for isolated acceptance only.");
-    await page.getByRole("button", { name: "Confirm approval" }).click();
-    await expect(page.getByText(/approved/i).first()).toBeVisible({ timeout: 20_000 });
-
-    const assignment = page.locator("form").filter({ has: page.getByRole("button", { name: "Assign work order" }) });
-    const technicianValue = await assignment.locator("select").nth(1).locator("option").filter({ hasText: "Pilot Technician" }).getAttribute("value");
-    if (!technicianValue) throw new Error("Synthetic Pilot Technician was not available for assignment.");
-    await assignment.locator("select").nth(1).selectOption(technicianValue);
-    await assignment.getByRole("button", { name: "Assign work order" }).click();
-    await expect(assignment.getByRole("status")).toContainText("Technician assigned", { timeout: 20_000 });
-
-    const workOrderPath=new URL(page.url()).pathname;
-    await logout(page);
-    await login(page,technicianEmail,technicianPassword,workOrderPath);
-    await page.getByRole("button", { name: "Accept assignment" }).click();
-    await page.getByRole("button", { name: "Start work" }).click();
-    await expect(page.getByText(/In Progress/i).first()).toBeVisible({ timeout: 20_000 });
-
-    const evidence = page.locator("section").filter({ has: page.getByRole("heading", { name: "Evidence" }) });
-    await evidence.getByLabel("Category").selectOption("after");
-    await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({
-      name: `pilot-${runId}.png`,
-      mimeType: "image/png",
-      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1cAAAAASUVORK5CYII=", "base64"),
-    });
-    await evidence.getByLabel("Short note (optional)").fill("Synthetic Pilot evidence; no personal data.");
-    await evidence.getByRole("button", { name: "Add evidence" }).click();
-    await expect(evidence.getByText(`pilot-${runId}.png`)).toBeVisible({ timeout: 20_000 });
-
-    await page.getByRole("button", { name: "Record Work Done" }).click();
-    await page.getByLabel("Work performed statement").fill("Synthetic corrective work completed and condition verified.");
-    await page.getByLabel("Cumulative labour hours").fill("1.25");
-    await page.getByRole("button", { name: "Save Work Record" }).click();
-    await expect(page.getByRole("status").filter({hasText:"Work record saved. Awaiting authorised completion."})).toBeVisible();
-    await page.getByRole("button", { name: "Confirm Actual Costing" }).click();
-    await expect(page.getByRole("status").filter({hasText:"Actual costing confirmed"})).toBeVisible();
-    await page.getByRole("button", { name: "Submit Physical Completion" }).click();
-    await expect(page.getByText(/Awaiting Verification/i).first()).toBeVisible({ timeout: 20_000 });
-    await page.getByLabel("No-payment reason").selectOption("in_house");
-    await page.getByLabel("Explanation",{exact:true}).fill("Synthetic in-house work; no contractor expenditure.");
-    await page.getByRole("button",{name:"Propose No Payment Required"}).click();
-    await expect(page.getByRole("status").filter({hasText:"disposition proposed"})).toBeVisible();
-    await logout(page);
-    await login(page,adminEmail,adminPassword,workOrderPath);
-    await page.getByLabel("Independent no-payment approval note").fill("Independent verification of zero external expenditure.");
-    await page.getByRole("button",{name:"Approve No Payment Required"}).click();
-    await expect(page.getByRole("status").filter({hasText:"independently approved"})).toBeVisible();
-
-    await page.getByRole("button", { name: "Verify Completed Work" }).click();
-    await page.getByLabel("Verification / override reason, when applicable").fill("Synthetic verification confirms recorded evidence.");
-    await page.getByRole("button", { name: "Confirm Verification" }).click();
-    await page.getByRole("button", { name: "Close Work Order" }).click();
-    await expect(page.getByText(/^Closed$/).first()).toBeVisible({ timeout: 20_000 });
-  });
+  // The Work Order lifecycle journey is covered by tests/e2e/lifecycle-v2.spec.ts (Lifecycle v2).
 });

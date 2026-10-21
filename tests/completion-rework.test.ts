@@ -26,7 +26,7 @@ const returned = {
 describe("completion review and rework interaction", () => {
   test("offers separate verify and reopen decisions only when authorized", () => {
     expect(authorizedExecutionActions("completed", ["review", "return_for_rework"]))
-      .toEqual([{ action: "review", label: "Verify Completed Work" }, { action: "return_for_rework", label: "Reject & Reopen" }]);
+      .toEqual([{ action: "review", label: "Approve as Completed" }, { action: "return_for_rework", label: "Reject & Reopen" }]);
     expect(authorizedExecutionActions("completed", [])).toEqual([]);
   });
 

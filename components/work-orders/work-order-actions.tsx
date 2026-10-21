@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { priorityLabel, workOrderStatusLabel } from "@/lib/product-terminology";
+import { priorityLabel, roleLabel, workOrderStatusLabel } from "@/lib/product-terminology";
 import {
   authorizedExecutionActions,
   EXECUTION_SUCCESS,
@@ -14,7 +14,7 @@ import type { WorkOrderAction, WorkOrderStatus } from "@/lib/work-orders/types";
 import type { CompletionSnapshot } from "@/lib/work-orders/rework";
 import type { CompletionReadiness } from "@/lib/work-orders/operational-stage";
 
-type Interaction = "approve" | "record_work" | "exception_complete" | "review" | "return_for_rework" | "cancel" | null;
+type Interaction = "approve" | "return" | "record_work" | "exception_complete" | "review" | "return_for_rework" | "cancel" | null;
 type SubmissionState = "online" | "submitting" | "failed" | "unavailable";
 
 type Props = {
@@ -48,6 +48,9 @@ type Props = {
     evidence: string;
     relatedIncident: string | null;
     priorCycles: CompletionSnapshot[];
+    finalCost?: number | null;
+    inHouse?: boolean;
+    approvedAmount?: number | null;
   };
   currentRework?: CompletionSnapshot | null;
 };
@@ -80,6 +83,7 @@ export default function WorkOrderActions(props: Props) {
   const [cancellationReason, setCancellationReason] = useState("");
   const [reviewReason, setReviewReason] = useState("");
   const [reworkReason, setReworkReason] = useState("");
+  const [returnReason, setReturnReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submissionState, setSubmissionState] = useState<SubmissionState>("online");
@@ -90,7 +94,8 @@ export default function WorkOrderActions(props: Props) {
     [props.allowedActions, props.status],
   );
   const decisionActions = actions.filter(({ action }) => action === "review" || action === "return_for_rework");
-  const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework"
+  const returnAction = actions.find(({ action }) => action === "return") ?? null;
+  const primary = actions.find(({ action }) => action !== "review" && action !== "return_for_rework" && action !== "return"
     && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && ["accept", "start", "complete", "submit_physical_completion"].includes(action))) ?? null;
 
   useEffect(() => {
@@ -107,7 +112,7 @@ export default function WorkOrderActions(props: Props) {
   function openAction(action: WorkOrderAction) {
     setError(null);
     setMessage(null);
-    if (["cancel", "approve", "review", "return_for_rework"].includes(action)) {
+    if (["cancel", "approve", "return", "review", "return_for_rework"].includes(action)) {
       setInteraction(action as Interaction);
       return;
     }
@@ -190,7 +195,17 @@ export default function WorkOrderActions(props: Props) {
   function submitApproval(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const reason = approvalReason.trim();
-    void transition("approve", reason ? { reason } : {});
+    void transition("approve", reason ? { reason, note: reason } : {});
+  }
+
+  function submitReturn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = returnReason.trim();
+    if (!reason) {
+      setError("State what the preparer must revise before resubmitting.");
+      return;
+    }
+    void transition("return", { reason });
   }
 
   function submitCancellation(event: React.FormEvent<HTMLFormElement>) {
@@ -216,7 +231,7 @@ export default function WorkOrderActions(props: Props) {
   function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const reason = reviewReason.trim();
-    void transition("review", reason ? { reason } : {});
+    void transition("review", reason ? { reason, note: reason } : {});
   }
 
   function submitRework(event: React.FormEvent<HTMLFormElement>) {
@@ -284,11 +299,11 @@ export default function WorkOrderActions(props: Props) {
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
-        {props.status === "submitted" && props.approvalReadiness && (
+        {["draft", "submitted"].includes(props.status) && props.approvalReadiness && (
           <section className={`rounded-xl border-2 p-4 ${props.approvalReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
-            <p className="text-xs font-black uppercase tracking-wide">Approval readiness</p>
-            <h3 className="mt-1 font-black">{props.approvalReadiness.ready ? "Ready for governed approval" : "Not ready for approval"}</h3>
-            <p className="mt-2 text-sm">Structured proposed cost: S${Number(props.approvalReadiness.proposed_cost).toLocaleString("en-SG")} · Required authority: {props.approvalReadiness.required_authority}</p>
+            <p className="text-xs font-black uppercase tracking-wide">{props.status === "draft" ? "Ready to submit?" : "Approval readiness"}</p>
+            <h3 className="mt-1 font-black">{props.approvalReadiness.ready ? (props.status === "draft" ? "Ready to submit for approval" : "Ready for approval") : (props.status === "draft" ? "Complete these items before submitting" : "Not ready for approval")}</h3>
+            {props.approvalReadiness.proposed_cost > 0 && <p className="mt-2 text-sm">Quotation: S${Number(props.approvalReadiness.proposed_cost).toLocaleString("en-SG", { minimumFractionDigits: 2 })} · Lowest approval level: {roleLabel(props.approvalReadiness.required_authority)}</p>}
             {props.approvalReadiness.missing_requirements.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm">{props.approvalReadiness.missing_requirements.map((item) => <li key={item}>{item.replaceAll("_", " ")}</li>)}</ul>}
           </section>
         )}
@@ -314,8 +329,8 @@ export default function WorkOrderActions(props: Props) {
         {props.reviewContext && decisionActions.length > 0 && (
           <section aria-labelledby="completion-decision-title" className="space-y-4 rounded-xl border-2 border-violet-200 bg-violet-50 p-4 text-violet-950">
             <div>
-              <p className="text-xs font-black uppercase tracking-wide text-violet-700">Completed Work verification</p>
-              <h3 id="completion-decision-title" className="mt-1 text-lg font-black">Verify Completed Work</h3>
+              <p className="text-xs font-black uppercase tracking-wide text-violet-700">Review submitted work</p>
+              <h3 id="completion-decision-title" className="mt-1 text-lg font-black">Approve work, cost and documents</h3>
             </div>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div><dt className="font-bold text-violet-700">Requested work</dt><dd className="mt-1 whitespace-pre-wrap">{props.reviewContext.requestedWork}</dd></div>
@@ -324,6 +339,8 @@ export default function WorkOrderActions(props: Props) {
               <div><dt className="font-bold text-violet-700">Cumulative labour</dt><dd className="mt-1">{props.reviewContext.cumulativeLabourHours ?? "Unavailable"} hours</dd></div>
               <div><dt className="font-bold text-violet-700">Completed</dt><dd className="mt-1">{dateTimeLabel(props.reviewContext.completedAt)}</dd></div>
               <div><dt className="font-bold text-violet-700">Evidence</dt><dd className="mt-1">{props.reviewContext.evidence}</dd></div>
+              <div><dt className="font-bold text-violet-700">Final cost</dt><dd className="mt-1">{props.reviewContext.inHouse ? "Not required — in-house services, pricing waived" : props.reviewContext.finalCost === null || props.reviewContext.finalCost === undefined ? "Not yet entered — required before approval" : `S$${Number(props.reviewContext.finalCost).toFixed(2)}`}</dd></div>
+              <div><dt className="font-bold text-violet-700">Approved amount</dt><dd className="mt-1">{props.reviewContext.approvedAmount === null || props.reviewContext.approvedAmount === undefined ? "None (emergency or in-house)" : `S$${Number(props.reviewContext.approvedAmount).toFixed(2)}`}{props.reviewContext.finalCost !== null && props.reviewContext.finalCost !== undefined && props.reviewContext.approvedAmount !== null && props.reviewContext.approvedAmount !== undefined && Number(props.reviewContext.finalCost) > Number(props.reviewContext.approvedAmount) ? " · Variance: a review note is required" : ""}</dd></div>
               {props.reviewContext.relatedIncident && <div className="sm:col-span-2"><dt className="font-bold text-violet-700">Related incident</dt><dd className="mt-1">{props.reviewContext.relatedIncident}</dd></div>}
             </dl>
             <a href="#work-order-evidence" className="inline-flex min-h-11 items-center font-black text-violet-800 underline decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-200">Review evidence record</a>
@@ -342,7 +359,7 @@ export default function WorkOrderActions(props: Props) {
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               {decisionActions.some(({ action }) => action === "review") && (
-                <button type="button" disabled={busy !== null} onClick={() => openAction("review")} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">Verify Completed Work</button>
+                <button type="button" disabled={busy !== null} onClick={() => openAction("review")} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">Approve as Completed</button>
               )}
               {decisionActions.some(({ action }) => action === "return_for_rework") && (
                 <button type="button" disabled={busy !== null} onClick={() => openAction("return_for_rework")} className="min-h-12 rounded-xl border-2 border-orange-400 bg-white px-5 font-black text-orange-900 disabled:opacity-50">Reject & Reopen</button>
@@ -392,6 +409,11 @@ export default function WorkOrderActions(props: Props) {
             <button type="button" disabled={busy !== null} onClick={() => openAction(primary.action)} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white shadow-sm hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50">
               {busy === primary.action ? "Submitting…" : primary.label}
             </button>
+            {returnAction && (
+              <button type="button" disabled={busy !== null} onClick={() => openAction("return")} className="mt-3 min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
+                {returnAction.label}
+              </button>
+            )}
           </div>
         ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No workflow action is currently available for your role and this Work Order state.</p>
@@ -420,14 +442,14 @@ export default function WorkOrderActions(props: Props) {
         {interaction === "review" && (
           <form onSubmit={submitReview} aria-describedby="review-help execution-error" className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <div>
-              <h3 className="font-black text-emerald-950">Verify Completed Work</h3>
-              <p id="review-help" className="mt-1 text-sm text-emerald-900">Supervisor, Facility Manager or Administrator authority is required. Administrator self-verification requires an override reason when indicated by verification readiness.</p>
+              <h3 className="font-black text-emerald-950">Approve as Completed</h3>
+              <p id="review-help" className="mt-1 text-sm text-emerald-900">You are approving the work done, the final cost and the supporting documents together. Your monetary limit applies to the final cost. If the final cost exceeds the approved amount, state why it is accepted. The contractor invoice follows after this approval.</p>
             </div>
-            <label className="block text-sm font-bold text-emerald-950">Verification / override reason, when applicable
+            <label className="block text-sm font-bold text-emerald-950">Review note (required for a cost variance or Administrator self-review)
               <textarea rows={3} maxLength={2000} value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="mt-1 w-full rounded-lg border border-emerald-300 bg-white p-3" placeholder="For Administrator self-verification, state the reason for exercising Administrator authority." />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">{busy === "review" ? "Recording verification…" : "Confirm Verification"}</button>
+              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">{busy === "review" ? "Recording approval…" : "Approve as Completed"}</button>
               <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>
@@ -451,12 +473,25 @@ export default function WorkOrderActions(props: Props) {
 
         {interaction === "approve" && (
           <form onSubmit={submitApproval} aria-describedby="approval-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
-            <div><h3 className="font-black">Confirm approval</h3><p id="approval-help" className="mt-1 text-sm text-slate-600">An override reason is required by the server only for an Administrator approving their own request.</p></div>
-            <label className="block text-sm font-bold">Override reason, when applicable
+            <div><h3 className="font-black">Approve work and quotation</h3><p id="approval-help" className="mt-1 text-sm text-slate-600">This approves the Work Order and its recommended quotation so the contractor may proceed. Your monetary approval limit applies to the quotation amount. You cannot approve a Work Order you raised or are assigned to; an Administrator doing so must state a reason.</p></div>
+            <label className="block text-sm font-bold">Approval note (reason required for Administrator self-approval)
               <textarea rows={3} maxLength={1000} value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50">{busy === "approve" ? "Submitting approval…" : "Confirm approval"}</button>
+              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
+            </div>
+          </form>
+        )}
+
+        {interaction === "return" && (
+          <form onSubmit={submitReturn} aria-describedby="return-help execution-error" className="space-y-4 rounded-xl border border-orange-200 bg-orange-50 p-4">
+            <div><h3 className="font-black text-orange-950">Return to Draft</h3><p id="return-help" className="mt-1 text-sm text-orange-900">The preparer revises the Work Order or quotation and resubmits it for approval.</p></div>
+            <label className="block text-sm font-bold text-orange-950">What must be revised <span aria-hidden="true">*</span>
+              <textarea required rows={3} maxLength={2000} value={returnReason} onChange={(event) => setReturnReason(event.target.value)} className="mt-1 w-full rounded-lg border border-orange-300 bg-white p-3" />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-orange-700 px-5 font-black text-white disabled:opacity-50">{busy === "return" ? "Returning…" : "Return to Draft"}</button>
               <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>

@@ -135,6 +135,54 @@ completion of a Work Order who has not yet been assigned a specific position
 
 `docs/design/WORK_ORDER_LIFECYCLE_V2.md` approved by the owner.
 
+### D-07 In-house work — 20 October 2026 16:53
+
+Owner: "Work order will be carried out as per normal and the pricing part will be waived. I think
+we can create the same workflow except to declare that services are provided in-house. No
+pricing is required."
+
+Design: the preparer declares **Services provided in-house** on the Work Order. The same
+approval, execution and review apply (approval authority, facility, independence). No quotation,
+final cost, invoice or payment is required; after the review to "Completed" the Work Order closes
+automatically with an audited in-house no-payment record. (Resolves KNOWN_ISSUES LC2-001.)
+
+### D-08 Site location, Before evidence and final quotation — 20 October 2026 22:32
+
+1. **Layout plan (owner):** marking the location on the layout plan is **required**, "as we do
+   not assume everyone is familiar with the factory layout, eg. a finance person". Required before
+   submission; for emergency work (which starts on submission) owner gave no answer — default
+   adopted: required before the review to "Completed".
+2. **Before evidence:** owner "no preference"; default adopted (consistent with D-01.1, the
+   Technician creates the Work Order with photos/video/voice): at least one Before photo, video,
+   voice note or PDF is required before submission; emergency work exempt.
+3. **Variation (owner):** "usually the variation will not be too significant … we have the
+   contractor's labour and materials rates to justify the work variation and hence the final
+   quotations will be submitted based on the actual work performed with variations." Adopted:
+   the variation is approved **at the review**; when the final cost differs from the approved
+   quotation, the contractor's final quotation for the work actually performed must be attached;
+   the reviewer's limit applies to the final cost and the invoice must equal it.
+4. Work duration (start → submitted as done) and overall duration are shown on the Work Order.
+
+Owner clarification, 22:42 (supersedes the defaults above where different):
+"When the work order is issued, the location of work to be performed will be highlighted, eg
+utility block, electrical room … the app will be intelligent enough to point to the correct
+specific location. In an emergency … the technician in charge will add in the work order plus a
+quotation that is site-verified by him upon submission … the photos before and after work have to
+be uploaded … Good to show the before work photo uploaded by the technician. The revised final
+quotation will be submitted and verified by the technician who supervises the work to ensure
+that the quoted materials and labour are properly accounted for."
+
+- The creator chooses the **area/room**; an area already placed on the layout plan is
+  highlighted automatically and satisfies the location requirement; otherwise the spot is marked
+  by hand. The area must belong to the Work Order's facility.
+- Emergency: Before **and** After evidence and the location are required before the review (the
+  work is not delayed at the start).
+- Before (then After) photos are shown inline on the Work Order.
+- The final quotation is saved with the supervising Technician's site-verification declaration
+  (materials and labour match the work actually performed).
+- Follow-up: areas need their layout-plan positions configured by an Administrator for automatic
+  highlighting (currently none of the 25 standard areas are placed).
+
 ## D. Decisions still open (not recoverable locally)
 
 1. ~~Emergency commercial exception (R1-003)~~ resolved by D-01.6 and D-03.3.

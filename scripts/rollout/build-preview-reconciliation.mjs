@@ -7,7 +7,9 @@ const baseline = JSON.parse(readFileSync(new URL('./preview-baseline.json', impo
 const manifest = readFileSync(path.join(root, 'supabase/bootstrap/fresh-install-manifest.txt'), 'utf8')
   .split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#'));
 const start = manifest.indexOf('supabase/migrations/20260928000000_release1_governance_reconciliation.sql');
-if (start < 0 || !manifest.at(-1).endsWith('20261013012309_field_evidence_media.sql')) {
+// Release-1 reconciliation through 20261013012309, then Work Order Lifecycle v2 (20261020*).
+if (start < 0 || !manifest.includes('supabase/migrations/20261013012309_field_evidence_media.sql')
+  || !manifest.at(-1).endsWith('20261020110000_lifecycle_v2_site_location.sql')) {
   throw new Error('Candidate manifest changed; independently review the rollout baseline.');
 }
 const selected = manifest.slice(start);
@@ -75,7 +77,10 @@ begin
   where (n.nspname='public' and c.relkind='r') or (n.nspname='auth' and c.relname='users') order by n.nspname,c.relname loop
   execute format('lock table %I.%I in share row exclusive mode',item.nspname,item.relname);
   ignored:=case when item.relname='work_order_financial_controls' then array['policy_version_id','updated_at']
-    when item.relname='commercial_approval_rules' then array['policy_version_id'] else array[]::text[] end;
+    when item.relname='commercial_approval_rules' then array['policy_version_id']
+    when item.relname='work_orders' then array['approval_limit_version_id','in_house_work']
+    when item.relname='contractor_payment_assessments' then array['invoice_amount','invoice_uploaded_at','invoice_uploaded_by','invoice_received_by']
+    else array[]::text[] end;
   execute format('select count(*),md5(coalesce(string_agg((to_jsonb(t)-$1)::text,E''\\n'' order by (to_jsonb(t)-$1)::text),'''')) from %I.%I t',item.nspname,item.relname)
     into count_rows,digest_rows using ignored;
   insert into release1_rollout_snapshot values(format('%I.%I',item.nspname,item.relname),count_rows,digest_rows);
@@ -93,7 +98,11 @@ declare item record; ignored text[]; count_rows bigint; digest_rows text;
 begin
  for item in select * from release1_rollout_snapshot loop
   ignored:=case when item.relation='public.work_order_financial_controls' then array['policy_version_id','updated_at']
-    when item.relation='public.commercial_approval_rules' then array['policy_version_id'] else array[]::text[] end;
+    when item.relation='public.commercial_approval_rules' then array['policy_version_id']
+    -- Lifecycle v2 adds nullable columns only; existing values must be unchanged.
+    when item.relation='public.work_orders' then array['approval_limit_version_id','in_house_work']
+    when item.relation='public.contractor_payment_assessments' then array['invoice_amount','invoice_uploaded_at','invoice_uploaded_by','invoice_received_by']
+    else array[]::text[] end;
   execute format('select count(*),md5(coalesce(string_agg((to_jsonb(t)-$1)::text,E''\\n'' order by (to_jsonb(t)-$1)::text),'''')) from %s t',item.relation)
     into count_rows,digest_rows using ignored;
   if count_rows is distinct from item.row_count or digest_rows is distinct from item.digest then

@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 async function createWorkOrder(request: Request) {
   const identity = await getCurrentIdentity();
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
-  if (!canCreate(identity.role)) return errorResponse("ACCESS_DENIED", "Your role cannot create work orders.", 403);
+  if (!canCreate(identity.role)) return errorResponse("ACCESS_DENIED", "Only a Technician, or a superior when the Technician is unavailable, may create Work Orders.", 403);
 
   let body: Record<string, unknown>;
   try {
@@ -118,13 +118,16 @@ async function createWorkOrder(request: Request) {
   const rangeError = validatePredictiveRanges(body);
   if (rangeError) return errorResponse("VALIDATION_ERROR", rangeError);
 
+  const { submit: _submit, ...fields } = body;
+  void _submit;
   const payload = {
-    ...body,
+    ...fields,
     title,
     location,
     priority: String(body.priority ?? "medium").toLowerCase(),
     source: String(body.source ?? "manual").toLowerCase(),
-    status: body.status === "submitted" || body.submit === true ? "submitted" : "draft",
+    // Lifecycle v2: always created as Draft; submission (with quotation) uses the transition API.
+    status: "draft",
   };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_work_order", { p_payload: payload });

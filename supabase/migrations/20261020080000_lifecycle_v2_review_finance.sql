@@ -13,6 +13,8 @@
 -- * Finance records payment; the Work Order closes automatically. An approved no-payment
 --   disposition also closes a Completed Work Order.
 
+begin;
+
 do $preflight$
 begin
   if current_user <> 'postgres' then raise exception 'LC2-M3 must be applied as postgres'; end if;
@@ -776,3 +778,5 @@ begin
   if not exists(select 1 from pg_catalog.pg_proc where oid='public.transition_work_order(uuid,text,jsonb)'::regprocedure and prosrc like '%if action=''review'' then return public.verify_completed_work%') then
     raise exception 'LC2-M3 review routing missing'; end if;
 end;$post$;
+
+commit;

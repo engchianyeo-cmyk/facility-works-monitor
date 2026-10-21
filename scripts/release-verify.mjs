@@ -67,6 +67,7 @@ async function seedSyntheticIdentities(environment) {
     ["technician", "pilot.technician@example.test", password, "Pilot Technician"],
     ["facility_manager", "pilot.facility-manager@example.test", password, "Pilot Facility Manager"],
     ["reviewer", "pilot.reviewer@example.test", password, "Pilot Reviewer"],
+    ["finance", "pilot.finance@example.test", password, "Pilot Finance"],
     ["reviewer", "pilot.pending@example.test", pendingPassword, "Pilot Password Pending"],
   ];
   const created = [];
@@ -103,7 +104,7 @@ insert into public.facility_memberships(facility_id,profile_id,membership_role,c
 select site.id,seed.id,seed.role,
   (select id from public.profiles where email='pilot.admin@example.test')
 from public.sites site cross join (values ${values}) as seed(id,role,display_name,password_pending)
-where site.is_active and seed.role in ('technician','supervisor','facility_manager')
+where site.is_active and seed.role in ('technician','approver','supervisor','facility_manager')
 on conflict do nothing;
 commit;`;
   run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"], {
@@ -126,6 +127,8 @@ commit;`;
     E2E_FACILITY_MANAGER_PASSWORD: password,
     E2E_REVIEWER_EMAIL: "pilot.reviewer@example.test",
     E2E_REVIEWER_PASSWORD: password,
+    E2E_FINANCE_EMAIL: "pilot.finance@example.test",
+    E2E_FINANCE_PASSWORD: password,
     E2E_PENDING_EMAIL: "pilot.pending@example.test",
     E2E_PENDING_PASSWORD: pendingPassword,
     E2E_PENDING_NEW_PASSWORD: "Pilot-Pending-Private-2026!",
@@ -191,6 +194,7 @@ async function main() {
   sql("supabase/uat/008_work_order_uat_dataset.sql");
   sql("supabase/uat/010_sla_document_staffing_dataset.sql");
   sql("supabase/uat/011_ai_document_gateway_dataset.sql");
+  sql("supabase/uat/012_lifecycle_v2_dataset.sql");
   sql("tests/sql/release_1_field_owner_isolation.test.sql");
   sql("tests/sql/configurable_procurement_policy.test.sql");
   sql("tests/sql/audited_contractor_administration.test.sql");
@@ -204,6 +208,9 @@ async function main() {
   sql("tests/sql/lifecycle_v2_foundations.test.sql");
   sql("tests/sql/lifecycle_v2_creation_approval.test.sql");
   sql("tests/sql/lifecycle_v2_review_finance.test.sql");
+  sql("tests/sql/lifecycle_v2_screen_support.test.sql");
+  sql("tests/sql/lifecycle_v2_in_house.test.sql");
+  sql("tests/sql/lifecycle_v2_site_location.test.sql");
   const env = {
     ...process.env,
     ...identities,

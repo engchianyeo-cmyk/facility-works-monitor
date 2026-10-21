@@ -5,6 +5,8 @@
 -- threshold changes, company terminology labels, Work Order copied parties, and one
 -- approval-authority helper used by later lifecycle migrations.
 
+begin;
+
 do $preflight$
 begin
   if current_user <> 'postgres' then raise exception 'LC2-M1 must be applied as postgres'; end if;
@@ -476,3 +478,5 @@ begin
     raise exception 'LC2-M1 procurement policy restriction missing';
   end if;
 end;$post$;
+
+commit;

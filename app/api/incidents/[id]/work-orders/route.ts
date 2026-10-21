@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!existingId) {
     const title = String(body.title ?? "").trim(); const location = String(body.location ?? "").trim(); const priority = String(body.priority ?? "high").toLowerCase();
     if (!title || !location || !isWorkOrderPriority(priority)) return errorResponse("VALIDATION_ERROR", "Title, location, and a valid priority are required to create corrective work.");
-    const { data, error } = await supabase.rpc("create_work_order", { p_payload: { title, location, description: String(body.description ?? "").trim() || null, priority, source: "reactive", status: body.submit === true ? "submitted" : "draft" } });
+    const { data, error } = await supabase.rpc("create_work_order", { p_payload: { title, location, description: String(body.description ?? "").trim() || null, priority, source: "reactive", status: "draft" } });
     if (error) return incidentTransportFailure("create corrective work for"); const result = data as RpcResult<WorkOrderRecord> | null;
     if (!result?.ok || !result.work_order) return errorResponse(String(result?.code ?? "INTERNAL_ERROR"), String(result?.message ?? "Corrective work could not be created."));
     created = result.work_order; workOrderId = created.id;

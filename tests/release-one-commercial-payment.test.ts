@@ -8,8 +8,8 @@ const upload = readFileSync("app/api/work-orders/[id]/commercial-documents/route
 
 describe("Release 1 proposal and contractor payment workflow", () => {
   test("exposes each real UI transition", () => {
-    for (const label of ["Proposal / Quotation", "Prepare Proposal", "Save Draft", "Submit for Approval", "Independent Approval", "Contractor Final Account / Payment Proposal", "Prepare Final Account", "Attach Invoice", "Submit Payment Proposal", "Independent Payment Approval", "Record Finance Payment"]) expect(workspace).toContain(label);
-    for (const operation of ["save_proposal", "submit_proposal", "approve_proposal", "save_payment_proposal", "submit_payment_proposal", "approve_payment", "record_finance_payment"]) expect(route).toContain(operation);
+    for (const label of ["Proposal / Quotation", "Prepare Proposal", "Save Draft", "Submit for Approval", "Independent Approval", "Contractor Invoice and Payment", "Upload Invoice", "Confirm Invoice Received", "Record Payment and Close", "Prepare Final Account", "Attach Invoice", "Submit Payment Proposal", "Independent Payment Approval"]) expect(workspace).toContain(label);
+    for (const operation of ["save_proposal", "submit_proposal", "approve_proposal", "save_payment_proposal", "submit_payment_proposal", "approve_payment", "record_finance_payment", "invoice_received"]) expect(route).toContain(operation);
   });
 
   test("keeps known amounts distinct and authentic quotation fields empty", () => {
@@ -18,7 +18,7 @@ describe("Release 1 proposal and contractor payment workflow", () => {
     expect(migration).toContain("actual_cost_preserved',620");
     for (const field of ["quotation_ref=null", "quotation_date=null", "contractor_legal_name=null", "gst_treatment=null", "itemization_note=null"]) expect(migration).toContain(field);
     expect(workspace).toContain("Pending authentic quotation");
-    expect(workspace).toContain("Pending authentic invoice");
+    expect(workspace).toContain("Not yet uploaded");
     expect(workspace).toContain('`S$${new Intl.NumberFormat');
   });
 

@@ -33,7 +33,8 @@ describe("copy and terminology integrity", () => {
 
   test("canonical labels preserve operational distinctions", () => {
     expect(workOrderStatusLabel("submitted")).toBe("Awaiting Approval");
-    expect(workOrderStatusLabel("completed")).toBe("Completed — Awaiting Verification");
+    expect(workOrderStatusLabel("completed")).toBe("Submitted for Review");
+    expect(workOrderStatusLabel("reviewed")).toBe("Completed");
     expect(workOrderStatusLabel("closed")).toBe("Closed");
     expect(workOrderStatusLabel("cancelled")).toBe("Cancelled");
     expect(incidentStatusLabel("rescue_in_progress")).toBe("Rescue In Progress");

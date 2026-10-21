@@ -14,6 +14,11 @@ export function canMutateWorkOrderEvidence(input: {
   requesterId?: string | null;
   creatorId?: string | null;
 }) {
+  // Lifecycle v2: the preparer attaches photos, video and voice notes while drafting.
+  const drafting = ["draft", "submitted"].includes(input.status)
+    && ((input.role === "technician" && input.assignedTechnicianId === input.userId)
+      || (["approver", "supervisor", "facility_manager", "administrator"].includes(input.role) && input.requesterId === input.userId));
+  if (drafting) return input.hasActiveFacilityMembership === true || input.role !== "technician";
   return FIELD_EXECUTION_ROLES.has(input.role)
     && (MUTABLE_WORK_ORDER_EVIDENCE_STATUSES.has(input.status) || input.correctionOpen === true)
     && input.assignedTechnicianId === input.userId

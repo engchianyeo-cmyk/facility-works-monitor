@@ -31,6 +31,7 @@ export const WORK_ORDER_PRIORITIES = [
 export const WORK_ORDER_ACTIONS = [
   "submit",
   "approve",
+  "return",
   "accept_responsibility",
   "accept",
   "start",

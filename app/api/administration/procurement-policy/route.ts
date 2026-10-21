@@ -7,8 +7,8 @@ import type { RpcResult } from "@/lib/work-orders/types";
 export async function POST(request: NextRequest) {
   const identity = await getCurrentIdentity();
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication required.", 401);
-  if (!["facility_manager", "administrator"].includes(identity.role)) {
-    return errorResponse("ACCESS_DENIED", "Only Facility Manager and Administrator may change procurement policy.", 403);
+  if (identity.role !== "administrator") {
+    return errorResponse("ACCESS_DENIED", "Only the Administrator may change procurement policy.", 403);
   }
   const body = await request.json().catch(() => null);
   if (!body || typeof body.threshold !== "number" || !Number.isFinite(body.threshold) || body.threshold <= 0 || body.threshold > 999999999999.99 || Math.abs(body.threshold * 100 - Math.round(body.threshold * 100)) > 0.001 || typeof body.reason !== "string" || !body.reason.trim() || body.reason.trim().length > 1000 || typeof body.expected_version !== "string" || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.expected_version)) {

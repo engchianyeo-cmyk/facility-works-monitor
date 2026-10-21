@@ -13,6 +13,8 @@
 -- * return: an approval authority returns a submitted Work Order to Draft with a reason.
 -- Existing functions are replaced in full below with only the commented changes.
 
+begin;
+
 do $preflight$
 begin
   if current_user <> 'postgres' then raise exception 'LC2-M2 must be applied as postgres'; end if;
@@ -767,3 +769,5 @@ begin
   if has_function_privilege('authenticated','public.work_order_notify(uuid,text,boolean,boolean,uuid)','EXECUTE') then
     raise exception 'LC2-M2 notification helper exposed'; end if;
 end;$post$;
+
+commit;

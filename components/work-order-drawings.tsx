@@ -74,6 +74,22 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
   }, [workOrderId]);
 
   const locationDrawing = useMemo(() => configuredDrawing(locationContext), [locationContext]);
+  // D-08: the location must be marked on a layout plan; when no facility area is configured,
+  // the user chooses the plan. Default to the plan that already carries this Work Order's markup.
+  const [chosenCode, setChosenCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (!workOrderId) return;
+    let active = true;
+    fetch(`/api/work-orders/${encodeURIComponent(workOrderId)}/release-1`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((body: { data?: { markups?: Array<{ source_reference?: string }> } } | null) => {
+        const code = body?.data?.markups?.[0]?.source_reference;
+        if (active && code) setChosenCode((current) => current ?? code);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [workOrderId]);
+  const markupDrawing = WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === chosenCode) ?? locationDrawing ?? WORK_ORDER_DRAWINGS[0] ?? null;
   const mapX = calibratedCoordinate(locationContext?.facility_area?.map_x);
   const mapY = calibratedCoordinate(locationContext?.facility_area?.map_y);
   const marker = locationDrawing && mapX !== null && mapY !== null && locationContext?.facility_area
@@ -155,13 +171,22 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
         </div>
       )}
 
-      {workOrderId && locationDrawing && contextState === "ready" && (
-        <DrawingMarkupEditor
-          workOrderId={workOrderId}
-          drawing={locationDrawing}
-          assetMarker={marker}
-          canMutate={canMutateMarkup}
-        />
+      {workOrderId && markupDrawing && contextState === "ready" && (
+        <div className="mt-4">
+          <div className="rounded-lg border border-blue-200 bg-white p-3 text-sm">
+            <label className="font-bold text-slate-900" htmlFor="markup-layout-plan">Layout plan</label>
+            <select id="markup-layout-plan" className="ml-3 rounded border border-slate-300 px-2 py-1" value={markupDrawing.code} onChange={(event) => setChosenCode(event.target.value)}>
+              {WORK_ORDER_DRAWINGS.map((drawing) => <option key={drawing.code} value={drawing.code}>{drawing.code} · {drawing.title}</option>)}
+            </select>
+            <p className="mt-2 text-slate-600">Mark where the work is on the layout plan so anyone unfamiliar with the site — for example Finance — can see the location. This is required before the Work Order is submitted (for emergencies, before the review).</p>
+          </div>
+          <DrawingMarkupEditor
+            workOrderId={workOrderId}
+            drawing={markupDrawing}
+            assetMarker={markupDrawing.code === locationDrawing?.code ? marker : undefined}
+            canMutate={canMutateMarkup}
+          />
+        </div>
       )}
 
       {contextState === "unavailable" && (

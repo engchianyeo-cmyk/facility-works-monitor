@@ -24,13 +24,22 @@ export async function POST(request: NextRequest, { params }: Context) {
     const { data: order, error } = await supabase.from("work_orders").select("id,status,assigned_technician_id,facility_id").eq("id", id).maybeSingle();
     if (error) return fail("COMMERCIAL_DOCUMENT_UNAVAILABLE", "Commercial document service is unavailable.", 503);
     if (!order) return fail("NOT_FOUND", "Work Order was not found.", 404);
-    if (!["technician", "supervisor", "facility_manager", "administrator"].includes(identity.role) || (documentType === "final_invoice" && identity.role !== "technician")) return fail("ACCESS_DENIED", "Commercial document authority is required.", 403);
+    if (!["technician", "approver", "supervisor", "facility_manager", "administrator"].includes(identity.role) || (documentType === "final_invoice" && identity.role !== "technician")) return fail("ACCESS_DENIED", "Commercial document authority is required.", 403);
     if (identity.role === "technician") {
       const membership = await supabase.rpc("technician_facility_read_permitted", { p_facility_id: order.facility_id });
       if (order.assigned_technician_id !== identity.userId || membership.error || membership.data !== true) return fail("ACCESS_DENIED", "Assigned same-facility Technician authority is required.", 403);
     }
-    const table = documentType === "quotation" ? "contractor_quotations" : documentType === "invoice" ? "contractor_payment_assessments" : "work_order_final_cost_submissions";
-    const record = await supabase.from(table).select("id,status").eq("id", recordId).eq("work_order_id", id).maybeSingle();
+    let record: { data: { id: string; status: string } | null; error: unknown };
+    if (documentType === "quotation") {
+      // contractor_quotations has no direct table grant (0041); read through the scoped RPC.
+      const listed = await supabase.rpc("work_order_contractor_quotations", { p_work_order_id: id });
+      const body = listed.data as { ok?: boolean; code?: string; quotations?: Array<{ id: string; status: string }> } | null;
+      if (body?.ok === false && body.code === "ACCESS_DENIED") return fail("ACCESS_DENIED", "Commercial document authority is required.", 403);
+      record = { data: body?.quotations?.find((item) => item.id === recordId) ?? null, error: listed.error ?? (body?.ok ? null : body) };
+    } else {
+      const table = documentType === "invoice" ? "contractor_payment_assessments" : "work_order_final_cost_submissions";
+      record = await supabase.from(table).select("id,status").eq("id", recordId).eq("work_order_id", id).maybeSingle();
+    }
     if (record.error) return fail("COMMERCIAL_DOCUMENT_UNAVAILABLE", "Commercial document service is unavailable.", 503);
     if (!record.data) return fail("NOT_FOUND", "Commercial record was not found.", 404);
     if (documentType === "quotation" && !["draft", "returned"].includes(record.data.status)) return fail("APPROVED_DOCUMENT_IMMUTABLE", "Only draft or returned quotations accept documents.", 403);

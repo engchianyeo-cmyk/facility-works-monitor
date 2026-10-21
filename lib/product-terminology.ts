@@ -5,10 +5,10 @@ const ENUM_LABELS: Readonly<Record<string, string>> = {
   assigned: "Assigned",
   accepted: "Accepted",
   in_progress: "In Progress",
-  completion_submitted: "Completed — Awaiting Verification",
-  completed: "Completed — Awaiting Verification",
+  completion_submitted: "Submitted for Review",
+  completed: "Completed",
   done: "Completed",
-  reviewed: "Completed — Verified",
+  reviewed: "Completed",
   verified: "Verified",
   closed: "Closed",
   cancelled: "Cancelled",
@@ -55,17 +55,53 @@ const ENUM_LABELS: Readonly<Record<string, string>> = {
   finance: "Finance",
 };
 
+const ROLE_CODES = new Set(["reviewer", "initiator", "approver", "technician", "supervisor", "facility_manager", "administrator", "finance"]);
+
+/** Lifecycle v2 Work Order stage names (design §2). Stored status codes never change. */
+const WORK_ORDER_STATUS_LABELS: Readonly<Record<string, string>> = {
+  draft: "Draft",
+  submitted: "Awaiting Approval",
+  approved: "Approved",
+  assigned: "Approved — Contractor to Proceed",
+  in_progress: "Work in Progress",
+  completed: "Submitted for Review",
+  reviewed: "Completed",
+  closed: "Closed",
+  cancelled: "Cancelled",
+};
+
+/**
+ * Company terminology chosen by the Administrator (table terminology_labels), keyed as
+ * "role:<code>" or "status:<code>". Applied on the server by the root layout and on the
+ * client by TerminologyBootstrap. One customer per deployment (PILOT_BOUNDARY.md).
+ */
+let terminologyOverrides: Readonly<Record<string, string>> = {};
+export function applyTerminologyOverrides(labels: Record<string, string> | null | undefined) {
+  terminologyOverrides = Object.freeze({ ...(labels ?? {}) });
+}
+export function terminologyOverride(code: string): string | undefined {
+  return terminologyOverrides[code];
+}
+export function defaultWorkOrderStatusLabel(status: string): string {
+  return WORK_ORDER_STATUS_LABELS[status] ?? operationalLabel(status);
+}
+export function defaultRoleLabel(role: string): string {
+  return ENUM_LABELS[role] ?? operationalLabel(role);
+}
+
 /** Convert a stored enum or audit action into restrained, user-facing text. */
 export function operationalLabel(value: string | null | undefined): string {
   if (!value) return "Not recorded";
   const normalized = value.trim().toLowerCase();
+  if (ROLE_CODES.has(normalized) && terminologyOverrides[`role:${normalized}`]) return terminologyOverrides[`role:${normalized}`];
   if (ENUM_LABELS[normalized]) return ENUM_LABELS[normalized];
   const words = normalized.replaceAll("_", " ").replace(/\s+/g, " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export function workOrderStatusLabel(status: string): string {
-  return operationalLabel(status);
+  const normalized = status.trim().toLowerCase();
+  return terminologyOverrides[`status:${normalized}`] ?? defaultWorkOrderStatusLabel(normalized);
 }
 
 export function priorityLabel(priority: string): string {
@@ -83,3 +119,6 @@ export function incidentTypeLabel(type: string): string {
 export function roleLabel(role: string): string {
   return operationalLabel(role);
 }
+
+export const TERMINOLOGY_ROLE_CODES = [...ROLE_CODES];
+export const TERMINOLOGY_STATUS_CODES = Object.keys(WORK_ORDER_STATUS_LABELS);

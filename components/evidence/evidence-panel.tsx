@@ -9,6 +9,7 @@ type Item = {
   original_filename: string;
   byte_size: number;
   category: string;
+  content_type?: string;
   description: string | null;
   uploaded_at: string;
   uploader_name: string;
@@ -41,6 +42,27 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
   }, [parentId, parentType]);
 
   useEffect(() => { void load().catch(() => undefined); }, [load]);
+
+  // Show site photos inline (Before first) so approvers, reviewers and Finance see the condition (D-08).
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    const photos = items.filter((item) => item.content_type?.startsWith("image/") && !previews[item.id]).slice(0, 12);
+    if (!photos.length) return;
+    void Promise.all(photos.map(async (item) => {
+      try {
+        const response = await fetch(`/api/evidence/${item.id}/access`, { method: "POST" });
+        const result = await response.json() as { url?: string };
+        return response.ok && result.url ? [item.id, result.url] as const : null;
+      } catch { return null; }
+    })).then((loaded) => {
+      if (!active) return;
+      const next = Object.fromEntries(loaded.filter((entry): entry is readonly [string, string] => entry !== null));
+      if (Object.keys(next).length) setPreviews((current) => ({ ...current, ...next }));
+    });
+    return () => { active = false; };
+  }, [items, previews]);
+  const ordered = [...items].sort((a, b) => (a.category === "before" ? 0 : a.category === "after" ? 1 : 2) - (b.category === "before" ? 0 : b.category === "after" ? 1 : 2));
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -152,8 +174,13 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
         <p role="alert" className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Evidence is temporarily unavailable. Existing work remains accessible.</p>
       ) : items.length ? (
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-          {items.map((item) => (
-            <li key={item.id} className="rounded-xl border p-4">
+          {ordered.map((item) => (
+            <li key={item.id} className={`rounded-xl border p-4 ${item.category === "before" ? "border-amber-300 bg-amber-50/40" : ""}`}>
+              {previews[item.id] && (
+                // Signed, short-lived storage URL; next/image cannot optimise it.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={previews[item.id]} alt={`${label(item.category)} photo: ${item.description ?? item.original_filename}`} className="mb-3 max-h-64 w-full rounded-lg border object-contain bg-white" />
+              )}
               <div className="flex justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase text-blue-700">{label(item.category)}</p>

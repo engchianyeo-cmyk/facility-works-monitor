@@ -166,6 +166,12 @@ select pg_temp.assert_true(
   public.verify_completed_work('08000000-0000-4000-8000-000000000012','{}'::jsonb)->>'code'='ACCESS_DENIED',
   'Technician cannot review their own work'
 );
+-- D-08: S$620 differs from the S$650 quotation, so the contractor's final quotation must be attached.
+reset role;
+insert into public.work_order_final_cost_documents(final_cost_submission_id,work_order_id,uploaded_by,original_filename,content_type,byte_size,storage_path)
+select fc.id,w.id,w.assigned_technician_id,'final-quotation.pdf','application/pdf',100,'commercial/work-order/'||w.id::text||'/final-quotation-d08.pdf'
+from public.work_orders w join public.work_order_final_cost_submissions fc on fc.work_order_id=w.id where w.id='08000000-0000-4000-8000-000000000012';
+set local role authenticated;
 select pg_catalog.set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.actor_id('pilot.supervisor@example.test'),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
 select pg_temp.assert_true(

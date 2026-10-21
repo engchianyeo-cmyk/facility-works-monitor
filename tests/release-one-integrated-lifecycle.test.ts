@@ -69,7 +69,7 @@ describe("integrated Release 1 commercial lifecycle", () => {
     expect(correctedCompletion).not.toContain("FINAL_COST_REQUIRED");
     expect(correctedCompletion).toContain("ACTUAL_COSTING_CONFIRMATION_REQUIRED");
     for (const control of ["Download", "video/mp4", "video/webm"]) expect(evidencePanel).toContain(control);
-    for (const control of ["Final Cost Reconciliation", "Save Final Cost Reconciliation", "Attach Final Invoice", "Authorize Final Cost Variance"]) expect(workspace).toContain(control);
+    for (const control of ["Final Cost Reconciliation", "Save Final Cost Reconciliation", "Attach Final Quotation", "Authorize Final Cost Variance"]) expect(workspace).toContain(control);
     expect(route).toContain("approve_final_cost_variance");
   });
 });

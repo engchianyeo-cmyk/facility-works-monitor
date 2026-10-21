@@ -3,6 +3,8 @@ import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import PresenceHeartbeat from "@/components/presence-heartbeat";
 import { getBuildInfo } from "@/lib/build-info";
+import TerminologyBootstrap from "@/components/terminology-bootstrap";
+import { loadTerminology } from "@/lib/terminology";
 
 export const metadata: Metadata = {
   title: {
@@ -13,15 +15,17 @@ export const metadata: Metadata = {
     "FMWorks — Built with Facility Managers. Designed for Service Teams.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const build = getBuildInfo();
+  const terminology = await loadTerminology();
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+        <TerminologyBootstrap labels={terminology} />
         <PresenceHeartbeat />
         <SiteHeader />
 

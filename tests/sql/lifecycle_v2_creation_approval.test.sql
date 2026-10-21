@@ -2,6 +2,16 @@
 -- WP-LC2-M2: creation, Draft quotation, submit, single approval, return, emergency start.
 -- Self-contained synthetic identities and data; everything rolls back.
 begin;
+-- D-08 (M6): location markup and Before evidence, registered as postgres for rollback-only tests.
+create function pg_temp.site(wo uuid) returns void language plpgsql security definer as $site$
+declare who uuid;
+begin
+  select coalesce(assigned_technician_id,requested_by) into who from public.work_orders where id=wo;
+  insert into public.work_order_markups(work_order_id,source_type,source_reference,drawing_revision,x_percent,y_percent,annotation_type,geometry,note,created_by)
+  values(wo,'drawing','FW-001','A (25 May 2024)',23.1,37.4,'marker','{"points":[{"x":23.1,"y":37.4}]}','Work location',who);
+  insert into public.evidence_items(parent_type,work_order_id,uploaded_by,original_filename,content_type,byte_size,category,storage_path)
+  values('work_order',wo,who,'before.jpg','image/jpeg',100,'before','evidence/work-order/'||wo::text||'/'||gen_random_uuid()::text||'/before.jpg');
+end;$site$;
 create function pg_temp.assert_true(value boolean,message text) returns void language plpgsql as $$
 begin if value is not true then raise exception 'Lifecycle v2 creation/approval regression: %',message; end if; end;$$;
 create function pg_temp.act(p uuid) returns void language sql as $$
@@ -61,7 +71,7 @@ begin
   perform pg_temp.assert_true(public.create_work_order(jsonb_build_object('title','Other site','location','X','facility_id','1c300000-0000-4000-8000-0000000000f2'))->>'code'='ACCESS_DENIED','Technician cannot create at a non-member facility');
   r:=public.create_work_order(jsonb_build_object('title','Pump bearing noise','location','Plant room','facility_id',(select facility_id from f),'copied_party_ids',jsonb_build_array(pg_temp.u(11))));
   perform pg_temp.assert_true((r->>'ok')::boolean,'Technician creates Work Order');
-  wo:=(r->'work_order'->>'id')::uuid;
+  wo:=(r->'work_order'->>'id')::uuid; perform pg_temp.site(wo);
   perform pg_temp.assert_true(r->'work_order'->>'status'='draft' and (r->'work_order'->>'assigned_technician_id')::uuid=pg_temp.u(1),'Draft auto-assigned to creating Technician');
   perform pg_temp.assert_true(exists(select 1 from public.work_order_copied_parties where work_order_id=wo and profile_id=pg_temp.u(11)),'copied party recorded');
 
@@ -116,7 +126,7 @@ begin
   perform pg_temp.act(pg_temp.u(4));
   r:=public.create_work_order(jsonb_build_object('title','Chiller alarm','location','Roof','facility_id',(select facility_id from f),'description','Chiller high-pressure alarm repeatedly tripping.'));
   perform pg_temp.assert_true((r->>'ok')::boolean and r->'work_order'->>'assigned_technician_id' is null,'Supervisor creates when Technician unavailable');
-  wo2:=(r->'work_order'->>'id')::uuid; insert into ids values('wo2',wo2);
+  wo2:=(r->'work_order'->>'id')::uuid; insert into ids values('wo2',wo2); perform pg_temp.site(wo2);
   perform pg_temp.assert_true(public.transition_work_order(wo2,'submit')->>'code'='TECHNICIAN_REQUIRED','Technician must be assigned before submit');
   perform pg_temp.assert_true(public.set_work_order_technician(wo2,pg_temp.u(9))->>'code'='INACTIVE_REFERENCE','non-Technician cannot be assigned');
   perform pg_temp.assert_true((public.set_work_order_technician(wo2,pg_temp.u(2))->>'ok')::boolean,'Supervisor assigns Technician B');
@@ -150,7 +160,7 @@ begin
   -- H. Emergency: start immediately, quotation follows ---------------------------------
   perform pg_temp.act(pg_temp.u(1));
   r:=public.create_work_order(jsonb_build_object('title','Burst pipe','location','Level 3 riser','facility_id',(select facility_id from f),'emergency_work',true,'description','Burst pipe flooding Level 3 corridor; isolate and repair now.'));
-  em:=(r->'work_order'->>'id')::uuid;
+  em:=(r->'work_order'->>'id')::uuid; perform pg_temp.site(em);
   r:=public.transition_work_order(em,'submit','{"reason":"Active flooding"}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='in_progress' and (r->>'emergency')::boolean,'emergency starts immediately without quotation');
   reset role;

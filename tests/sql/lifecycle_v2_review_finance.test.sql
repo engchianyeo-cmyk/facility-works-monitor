@@ -2,6 +2,16 @@
 -- WP-LC2-M3: review to Completed (limits, facility, independence), invoice, Finance, auto-close.
 -- Self-contained synthetic identities and data; everything rolls back.
 begin;
+-- D-08 (M6): location markup and Before evidence, registered as postgres for rollback-only tests.
+create function pg_temp.site(wo uuid) returns void language plpgsql security definer as $site$
+declare who uuid;
+begin
+  select coalesce(assigned_technician_id,requested_by) into who from public.work_orders where id=wo;
+  insert into public.work_order_markups(work_order_id,source_type,source_reference,drawing_revision,x_percent,y_percent,annotation_type,geometry,note,created_by)
+  values(wo,'drawing','FW-001','A (25 May 2024)',23.1,37.4,'marker','{"points":[{"x":23.1,"y":37.4}]}','Work location',who);
+  insert into public.evidence_items(parent_type,work_order_id,uploaded_by,original_filename,content_type,byte_size,category,storage_path)
+  values('work_order',wo,who,'before.jpg','image/jpeg',100,'before','evidence/work-order/'||wo::text||'/'||gen_random_uuid()::text||'/before.jpg');
+end;$site$;
 create function pg_temp.assert_true(value boolean,message text) returns void language plpgsql as $$
 begin if value is not true then raise exception 'Lifecycle v2 review/finance regression: %',message; end if; end;$$;
 create function pg_temp.act(p uuid) returns void language sql as $$
@@ -78,6 +88,13 @@ begin
   reset role;
 end;$$;
 
+-- D-08: the contractor's final quotation for the work actually performed (final-cost document).
+create function pg_temp.final_doc(wo uuid) returns void language plpgsql security definer as $fd$
+begin
+  insert into public.work_order_final_cost_documents(final_cost_submission_id,work_order_id,uploaded_by,original_filename,content_type,byte_size,storage_path)
+  select fc.id,wo,(select assigned_technician_id from public.work_orders where id=wo),'final-quotation.pdf','application/pdf',100,'commercial/work-order/'||wo::text||'/final-quotation.pdf'
+  from public.work_order_final_cost_submissions fc where fc.work_order_id=wo;
+end;$fd$;
 create function pg_temp.final_cost(wo uuid, tech uuid, amount numeric) returns jsonb language plpgsql as $$
 declare r jsonb; begin
   perform pg_temp.act(tech); set local role authenticated;
@@ -90,7 +107,7 @@ do $setup$ declare r jsonb; begin
   perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
   r:=public.create_work_order(jsonb_build_object('title','Pump bearing','location','Plant room','facility_id',(select facility_id from f),
     'description','Pump bearing noise and rising vibration.','copied_party_ids',jsonb_build_array(pg_temp.u(11))));
-  insert into ids values('wo',(r->'work_order'->>'id')::uuid);
+  insert into ids values('wo',(r->'work_order'->>'id')::uuid); perform pg_temp.site((r->'work_order'->>'id')::uuid);
   reset role;
 end;$setup$;
 select pg_temp.quote((select id from ids where name='wo'),pg_temp.u(1),650);
@@ -129,6 +146,10 @@ begin
   -- The old transition 'review' path is routed to the v2 review (same rules).
   perform pg_temp.assert_true(public.transition_work_order(wo,'review','{}')->>'code'='ACCESS_DENIED','transition review routed to v2 review');
   perform pg_temp.act(pg_temp.u(4));
+  perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"x"}')->>'code'='FINAL_QUOTATION_REQUIRED','S$620 differs from S$650: final quotation required (D-08)');
+  perform pg_temp.assert_true(public.work_order_verification_readiness(wo)->'missing_requirements' @> '["Final quotation for the work actually performed (final cost differs from the approved quotation)"]','readiness lists the final quotation');
+  perform pg_temp.final_doc(wo);
+  perform pg_temp.assert_true(not (public.work_order_verification_readiness(wo)->'missing_requirements' @> '["Final quotation for the work actually performed (final cost differs from the approved quotation)"]'),'final quotation attached');
   r:=public.verify_completed_work(wo,'{"note":"Work, cost and documents verified."}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='reviewed','Supervisor approves Completed: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   perform pg_temp.assert_true((r->'payment'->>'assessed_amount')::numeric=620 and r->'payment'->>'status'='approved_for_payment','approved payable S$620');
@@ -161,7 +182,7 @@ begin
   perform pg_temp.assert_true(public.record_work_order_finance_payment(wo,'{"paid_amount":620,"payment_reference":"PAY-1","payment_note":"x"}')->>'code'='ACCESS_DENIED','Administrator cannot record payment');
   perform pg_temp.act(pg_temp.u(12));
   perform pg_temp.assert_true(public.record_work_order_finance_payment(wo,'{"paid_amount":620,"payment_reference":"PAY-1","payment_note":"x"}')->>'code'='INVOICE_NOT_RECEIVED','payment needs invoice receipt');
-  perform pg_temp.assert_true(public.mark_work_order_invoice_received(wo,(current_date+1))->>'code'='VALIDATION_ERROR','received date cannot be in the future');
+  perform pg_temp.assert_true(public.mark_work_order_invoice_received(wo,((now() at time zone 'Asia/Singapore')::date+1))->>'code'='VALIDATION_ERROR','received date cannot be in the future');
   r:=public.mark_work_order_invoice_received(wo);
   perform pg_temp.assert_true((r->>'ok')::boolean and r->'payment'->>'payment_due_at' is not null,'Finance confirms receipt; due date set');
   perform pg_temp.assert_true(exists(select 1 from public.work_order_finance_tracker() t where t.work_order_id=wo and t.payment_status='invoice_received'),'tracker shows invoice received');
@@ -179,7 +200,7 @@ end;$test$;
 do $setup$ declare r jsonb; v uuid; begin
   perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
   r:=public.create_work_order(jsonb_build_object('title','Valve leak','location','Riser','facility_id',(select facility_id from f),'description','Isolation valve leaking at gland.'));
-  insert into ids values('wo2',(r->'work_order'->>'id')::uuid);
+  insert into ids values('wo2',(r->'work_order'->>'id')::uuid); perform pg_temp.site((r->'work_order'->>'id')::uuid);
   reset role;
 end;$setup$;
 select pg_temp.quote((select id from ids where name='wo2'),pg_temp.u(1),900);
@@ -192,6 +213,7 @@ do $t$ declare wo uuid:=(select id from ids where name='wo2'); r jsonb; v uuid; 
 end;$t$;
 select pg_temp.execute((select id from ids where name='wo2'),pg_temp.u(1),1200);
 select pg_temp.assert_true((pg_temp.final_cost((select id from ids where name='wo2'),pg_temp.u(1),1200)->>'final_cost')::jsonb->>'status'='variance_pending','final cost above approval is a variance');
+select pg_temp.final_doc((select id from ids where name='wo2'));
 do $t$ declare wo uuid:=(select id from ids where name='wo2'); r jsonb; v uuid; begin
   set local role authenticated;
   perform pg_temp.act(pg_temp.u(6));
@@ -209,7 +231,7 @@ end;$t$;
 do $setup$ declare r jsonb; begin
   perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
   r:=public.create_work_order(jsonb_build_object('title','Burst pipe','location','Level 3','facility_id',(select facility_id from f),'emergency_work',true,'description','Burst pipe flooding corridor; repair now.'));
-  insert into ids values('em',(r->'work_order'->>'id')::uuid);
+  insert into ids values('em',(r->'work_order'->>'id')::uuid); perform pg_temp.site((r->'work_order'->>'id')::uuid);
   perform pg_temp.assert_true(public.transition_work_order((r->'work_order'->>'id')::uuid,'submit')->'work_order'->>'status'='in_progress','emergency started');
   reset role;
 end;$setup$;

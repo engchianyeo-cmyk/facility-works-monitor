@@ -6,7 +6,8 @@ export const WORKFLOW_TRANSITIONS: Record<
   { from: readonly WorkOrderStatus[]; to: WorkOrderStatus }
 > = {
   submit: { from: ["draft"], to: "submitted" },
-  approve: { from: ["submitted"], to: "approved" },
+  approve: { from: ["submitted"], to: "assigned" },
+  return: { from: ["submitted"], to: "draft" },
   start: { from: ["assigned"], to: "in_progress" },
   complete: { from: ["in_progress"], to: "completed" },
   submit_physical_completion: { from: ["assigned", "in_progress"], to: "completed" },

@@ -22,7 +22,7 @@ describe("Administrator formal completion presentation", () => {
   });
 
   test("keeps Technician formal-completion authority denied by shared permissions", () => {
-    expect(permissions).toContain('if (action === "complete") return false');
+    expect(permissions).toContain('if (action === "complete") return context.role === "administrator";');
   });
 
   test("visually separates original instructions from the field work record", () => {

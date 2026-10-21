@@ -59,10 +59,11 @@ test.describe.serial("Pilot identity, password lifecycle and RBAC", () => {
     await expect(page.getByRole("heading", { name: "Access denied" })).toBeVisible();
   });
 
-  test("Technician cannot create Work Orders or report Incidents", async ({ page }) => {
+  test("Technician creates Work Orders (Lifecycle v2) but cannot report Incidents", async ({ page }) => {
     await login(page, technicianEmail, technicianPassword, "/operations");
     await page.goto("/work-orders/new");
-    await expect(page).toHaveURL(/\/work-orders(?:\?|$)/);
+    await expect(page.getByRole("heading", { name: "New Work Order" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Draft" })).toBeVisible();
     await page.goto("/incidents/new");
     await expect(page).toHaveURL(/\/incidents(?:\?|$)/);
   });

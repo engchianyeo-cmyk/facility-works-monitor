@@ -38,10 +38,10 @@ export function deriveWorkOrderOperationalStage(input: {
     return { label: input.status === "closed" ? "Closed" : "Cancelled", nextAction: null, completion };
   }
   if (input.status === "reviewed") {
-    return { label: "Completed — Verified", nextAction: null, completion };
+    return { label: "Completed", nextAction: null, completion };
   }
   if (input.status === "completed") {
-    return { label: "Awaiting Verification", nextAction: "Verify Completed Work", completion };
+    return { label: "Submitted for Review", nextAction: "Approve as Completed", completion };
   }
   if (input.status === "assigned" || input.status === "in_progress") {
     if (workRecordReceived && labourHoursRecorded) {

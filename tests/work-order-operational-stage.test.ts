@@ -29,7 +29,7 @@ describe("Work Order operational stage", () => {
     expect(deriveWorkOrderOperationalStage({ status: "assigned" }).label).toBe("Assigned — Not Started");
     expect(deriveWorkOrderOperationalStage({ status: "in_progress" }).label).toBe("Work In Progress");
     expect(deriveWorkOrderOperationalStage({ status: "assigned", completionNotes: "Partial" }).label).toBe("Work Record Submitted");
-    expect(deriveWorkOrderOperationalStage({ status: "completed" }).label).toBe("Awaiting Verification");
+    expect(deriveWorkOrderOperationalStage({ status: "completed" }).label).toBe("Submitted for Review");
     expect(deriveWorkOrderOperationalStage({ status: "closed" }).label).toBe("Closed");
   });
 });

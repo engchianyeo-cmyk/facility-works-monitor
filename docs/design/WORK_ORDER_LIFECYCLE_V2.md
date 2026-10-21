@@ -113,6 +113,29 @@ reason (existing rework mechanism).
   checked. Outstanding emergency quotations are listed on the dashboard.
 - Review to "Completed" is the same as §3.4.
 
+### 3.7 In-house work (D-07)
+- The preparer ticks **Services provided in-house** (at creation or while Draft).
+- Submission needs the reason and an assigned Technician, but **no quotation**.
+- Approval uses the same authority rule at S$0; no quotation is approved.
+- Execution and evidence are unchanged. The review approves the work and documents; no final
+  cost is required. The Work Order then closes automatically with an audited "in-house — no
+  payment" record. Emergency in-house work starts immediately and needs no quotation afterwards.
+
+### 3.8 Site location, Before evidence and final quotation (D-08)
+- The creator chooses the area/room; an area already placed on a layout plan is highlighted
+  automatically. Otherwise the spot is marked on the plan.
+- Submission needs the location on a layout plan and at least one **Before** photo, video, voice
+  note or PDF. Emergency work is exempt at submission; both are required before the review.
+- Before (then After) photos are shown inline. The final quotation carries the supervising
+  Technician's site-verification declaration.
+- The preparer marks the layout while Draft/Awaiting Approval (choosing the plan when the facility
+  area has none configured); the assigned field owner may also mark it during the work and before
+  the review.
+- Variation is approved at the review (supersedes §3.3 re-approval during work): when the final
+  cost differs from the approved (or emergency) quotation, the contractor's final quotation for
+  the work actually performed must be attached before the review.
+- Work duration and overall duration are shown on the Work Order.
+
 ## 4. Who can do what (single authority rule)
 
 **Approval authority** = role is Approver, Supervisor, Facility Manager or

@@ -32,6 +32,15 @@ Each open item needs an owner, impact, workaround, target release and Go/No-Go d
 
 No open P2 issue was found by WP-PILOT-GO-002. Neither P3 observation affects safety, authorization, data integrity, or a Pilot core workflow.
 
+## Lifecycle v2 open points (20 October 2026)
+
+| ID / severity | Impact | Current behavior/workaround | Decision |
+|---|---|---|---|
+| LC2-001 / Resolved | In-house work with no contractor had no quotation to submit | Resolved by D-07: declare in-house services; same approvals, pricing waived, closes at review (migration 20261020100000) | Closed |
+| LC2-002 / P3 | Contract-rate check is advisory | Quotation lines that differ from agreed rates require a written reason and are shown to the approver; totals-only quotations are not line-checked | Accepted default (D-05.4); revisit if line-level enforcement is required |
+| LC2-003 / P3 | Notifications are queued, not delivered | Approvers, copied parties, Finance and Technicians receive outbox entries | Depends on the operational email decision (R1-012) |
+| LC2-004 / P3 | Existing Approver accounts need facility memberships | Approvers without membership see no Work Orders | Assign memberships before UAT |
+
 ## Release 1.3 candidates
 
 1. Provider integration and secure delivery worker.

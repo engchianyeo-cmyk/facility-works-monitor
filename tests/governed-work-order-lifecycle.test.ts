@@ -44,7 +44,7 @@ describe("WP-FMW-026A governed Work Order lifecycle", () => {
   test.each(cases)("%s", (_, contract) => expect(migration).toMatch(contract));
 
   test("uses four distinct, unambiguous UI decisions", () => {
-    for (const label of ["Approve Work to Proceed", "Accept Work / Take Responsibility", "Record Work Done", "Submit Physical Completion", "Verify Completed Work", "Reject & Reopen"]) {
+    for (const label of ["Approve Work and Quotation", "Return to Draft", "Accept Work / Take Responsibility", "Record Work Done", "Submit Physical Completion", "Approve as Completed", "Reject & Reopen"]) {
       expect(`${actions}\n${readFileSync("lib/work-orders/execution-interaction.ts", "utf8")}`).toContain(label);
     }
   });

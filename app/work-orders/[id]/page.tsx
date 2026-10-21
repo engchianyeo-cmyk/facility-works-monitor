@@ -4,7 +4,8 @@ import WorkOrderDrawings from "@/components/work-order-drawings";
 import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace";
 import EvidencePanel from "@/components/evidence/evidence-panel";
 import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
-import ApprovalBasisControl from "@/components/work-orders/approval-basis-control";
+import TechnicianPicker from "@/components/work-orders/technician-picker";
+import CopiedParties from "@/components/work-orders/copied-parties";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import WorkOrderAssignment from "@/components/work-orders/work-order-assignment";
@@ -17,7 +18,7 @@ import { operationalLabel, workOrderStatusLabel } from "@/lib/product-terminolog
 import { createClient } from "@/lib/supabase/server";
 import { buildWorkOrderDecisionModel, safeHumanLabel } from "@/lib/work-orders/decision-header";
 import { authorizedExecutionActions } from "@/lib/work-orders/execution-interaction";
-import { canAct, canAssign, canCreate, canEdit, canRecordWork } from "@/lib/work-orders/permissions";
+import { canAct, canAssign, canEdit, canRecordWork, canSetTechnician, isApprovalAuthority, isPreparer } from "@/lib/work-orders/permissions";
 import { deriveWorkOrderOperationalStage } from "@/lib/work-orders/operational-stage";
 import { activeReworkContext, reworkHistory } from "@/lib/work-orders/rework";
 import {
@@ -40,6 +41,15 @@ const TIMELINE = [
   ["closed_at", "Closed"],
   ["cancelled_at", "Cancelled"],
 ] as const;
+
+/** Elapsed time between two timestamps, e.g. "2 d 3 h 15 min". */
+function formatDuration(start: string | null, end: string | null) {
+  if (!start || !end) return null;
+  const minutes = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
+  const days = Math.floor(minutes / 1440), hours = Math.floor((minutes % 1440) / 60), rest = minutes % 60;
+  return [days ? `${days} d` : "", hours ? `${hours} h` : "", `${rest} min`].filter(Boolean).join(" ");
+}
 
 function formatDateTime(value: string | null) {
   if (!value) return "Pending";
@@ -164,8 +174,8 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     order.incident_id
       ? supabase.from("incidents").select("id,incident_number,severity,status").eq("id", order.incident_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    status === "submitted" ? supabase.rpc("work_order_approval_readiness", { p_work_order_id: id }) : Promise.resolve({ data: null, error: null }),
-    status === "completed" && ["supervisor", "facility_manager", "administrator"].includes(identity.role)
+    ["draft", "submitted"].includes(status) ? supabase.rpc("work_order_approval_summary", { p_work_order_id: id }) : Promise.resolve({ data: null, error: null }),
+    status === "completed" && isApprovalAuthority(identity.role)
       ? supabase.rpc("work_order_verification_readiness", { p_work_order_id: id })
       : Promise.resolve({ data: null, error: null }),
     status === "reviewed" ? supabase.rpc("work_order_closure_readiness", { p_work_order_id: id }) : Promise.resolve({ data: null, error: null }),
@@ -186,9 +196,19 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
   ].filter((item): item is string => Boolean(item));
   if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => !["complete", "submit_physical_completion"].includes(action));
-  const approvalReadiness = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ready: boolean; missing_requirements: string[]; required_authority: string; proposed_cost: number } | null;
+  const approvalSummary = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ok?: boolean; ready: boolean; missing_requirements: string[]; lowest_authority: string | null; quoted_cost: number | null; can_approve: boolean; approval_blocker_message: string | null } | null;
+  const approvalReadiness = approvalSummary?.ok ? {
+    ready: approvalSummary.ready,
+    missing_requirements: [
+      ...approvalSummary.missing_requirements,
+      ...(status === "submitted" && approvalSummary.ready && !approvalSummary.can_approve && approvalSummary.approval_blocker_message ? [approvalSummary.approval_blocker_message] : []),
+    ],
+    required_authority: approvalSummary.lowest_authority ?? "administrator",
+    proposed_cost: Number(approvalSummary.quoted_cost ?? 0),
+  } : null;
   const verificationReadiness = verificationReadinessResult.error ? null : verificationReadinessResult.data as { verification_ready: boolean; missing_requirements: string[]; completion_event_found: boolean; legacy_completion_record: boolean; self_verification_reason_required: boolean } | null;
-  if (status === "submitted" && approvalReadiness?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "approve");
+  if (status === "submitted" && approvalSummary?.can_approve !== true) allowedActions = allowedActions.filter((action) => action !== "approve");
+  if (status === "draft" && approvalSummary?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "submit");
   if (status === "completed" && verificationReadiness?.verification_ready !== true) allowedActions = allowedActions.filter((action) => action !== "review");
   const closureReadiness = closureReadinessResult.error ? null : closureReadinessResult.data as { ready?: boolean; missing_requirements?: string[]; resolution?: string | null } | null;
   if (status === "reviewed" && closureReadiness?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "close");
@@ -196,6 +216,19 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
   }
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
+  const [finalCostResult, financialControlResult, copiedResult, directoryResult, facilityTechniciansResult] = await Promise.all([
+    status === "completed" ? supabase.from("work_order_final_cost_submissions").select("confirmed_actual_cost,status").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    status === "completed" ? supabase.from("work_order_financial_controls").select("approved_budget,quoted_cost").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    supabase.from("work_order_copied_parties").select("profile_id").eq("work_order_id", id),
+    supabase.rpc("work_order_people_directory"),
+    canSetTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
+  ]);
+  const finalCost = finalCostResult.error ? null : (finalCostResult.data as { confirmed_actual_cost: number } | null)?.confirmed_actual_cost ?? null;
+  const approvedAmount = financialControlResult.error ? null : (financialControlResult.data as { approved_budget: number | null } | null)?.approved_budget ?? null;
+  const copiedIds = (copiedResult.error ? [] : copiedResult.data ?? []).map((row) => String(row.profile_id));
+  const people = (directoryResult.error ? [] : (directoryResult.data ?? []) as Array<{ id: string; display_name: string; role: string }>).map((person) => ({ id: person.id, name: person.display_name, role: person.role }));
+  const facilityTechnicians = (facilityTechniciansResult.error ? [] : (facilityTechniciansResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null }>).map((item) => ({ id: item.id, name: item.display_name, detail: item.trade_discipline }));
+  const copiedEditable = !["closed", "cancelled"].includes(status) && (isPreparer(context) || isApprovalAuthority(identity.role));
   const fieldFacilityPermission = order.facility_id
     ? await supabase.rpc("field_work_facility_permitted", { p_facility_id: order.facility_id })
     : { data: false };
@@ -303,7 +336,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         status={status}
         allowedActions={allowedActions as WorkOrderAction[]}
         canEdit={canEdit(context)}
-        canDuplicate={canCreate(identity.role)}
+        canDuplicate={isApprovalAuthority(identity.role)}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
         formalCompletionAuthority={identity.role === "administrator" && order.assigned_technician_id !== identity.userId}
         completionReadiness={operationalStage.completion}
@@ -323,6 +356,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
           evidence: decisionModel.evidence.label,
           relatedIncident: relatedIncident?.incident_number ?? null,
           priorCycles: priorReworkCycles,
+          finalCost,
+          inHouse: Boolean((order as { in_house_work?: boolean }).in_house_work),
+          approvedAmount,
         } : undefined}
       />
 
@@ -379,9 +415,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         </section>
       )}
 
-      {status === "submitted" && ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role) && (
-        <ApprovalBasisControl workOrderId={id} />
+      {canSetTechnician(identity.role, status) && (
+        <section className="rounded-xl border border-violet-200 bg-violet-50 p-5">
+          <h2 className="font-semibold text-violet-950">Field-witness Technician</h2>
+          <p className="mb-4 mt-1 text-sm text-violet-800">Required before submission. The Technician witnesses the contractor&apos;s work, uploads evidence and submits the work for review.</p>
+          <TechnicianPicker workOrderId={id} technicians={facilityTechnicians} currentId={order.assigned_technician_id} />
+        </section>
       )}
+      <CopiedParties workOrderId={id} people={people} selected={copiedIds} canEdit={copiedEditable} />
 
       {assignmentAllowed && (
         <section className="rounded-xl border border-violet-200 bg-violet-50 p-5">
@@ -396,7 +437,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <DocumentCorrectionControl workOrderId={id} role={identity.role} status={status} openReason={openDocumentCorrection?.reason ?? null} />
 
       <div id="work-order-evidence">
-        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} readOnlyReason={status==="submitted" ? "This Work Order is awaiting approval and assignment. Evidence upload becomes available to the assigned field owner after approval and assignment with active facility membership." : !order.assigned_technician_id ? "This Work Order has no assigned field owner. Authorized management must record an assignment before field evidence can be added." : undefined} />
+        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} readOnlyReason={status==="submitted" ? "This Work Order is awaiting approval. The preparer may still add supporting photos, video or voice notes; other users view evidence only." : !order.assigned_technician_id ? "This Work Order has no assigned field owner. Authorized management must record an assignment before field evidence can be added." : undefined} />
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -409,6 +450,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
             </li>
           ))}
         </ol>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (started → submitted as done)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.started_at, order.completed_at) ?? "Not yet available"}</dd></div>
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Labour hours recorded</dt><dd className="mt-1 text-slate-700">{order.actual_labour_hours === null || order.actual_labour_hours === undefined ? "Not yet recorded" : `${order.actual_labour_hours} h`}</dd></div>
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Overall (created → closed)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.created_at, order.closed_at) ?? "Open"}</dd></div>
+        </dl>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -420,7 +466,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
             : <ul className="divide-y divide-slate-100">{activity.map((entry) => <li key={entry.id} className="py-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{entry.actor || "System"} · {operationalLabel(entry.action)}</strong><time className="text-slate-400">{formatDateTime(entry.created_at)}</time></div>{(entry.from_status || entry.to_status) && <p className="mt-1 text-slate-500">{entry.from_status ? workOrderStatusLabel(entry.from_status) : "Not recorded"} → {entry.to_status ? workOrderStatusLabel(entry.to_status) : "Not recorded"}</p>}{entry.note && <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs text-slate-600">{auditNote(entry.note)}</pre>}</li>)}</ul>}
       </section>
 
-      <WorkOrderDrawings canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by })} />
+      <WorkOrderDrawings canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
     </main>
   );
 }
