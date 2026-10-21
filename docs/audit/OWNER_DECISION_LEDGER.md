@@ -207,6 +207,8 @@ a Vercel link that works without a Vercel login (R1-009) and accounts for each p
 | 15:47 | Lifecycle v2 upgrade applied in one transaction (adapter sha256 `d059dc59…`, identical to the rehearsed build); ledger 38 → 56, last `20261020110000` | Owner, guided |
 | 16:15 | Facility membership added: approver sctpec2413@gmail.com at the Technician's facility | Owner, guided |
 | 16:20 | engchian@yahoo.com role reviewer → finance (through the profile-admin guard) | Owner, guided |
+| 22:55 | Backup of `public` (1,013,705 bytes) before the UAT conversion | Owner, guided |
+| 22:58 | UAT conversion (`scripts/rollout/preview-uat-conversion-20261021.sql`): FW-2026-0001, WO-TEST-002, 005, 007, 010, 011, 015 returned to Draft and assigned to Technician koi.kpr@gmail.com; WO-TEST-008 (Submitted for Review) assigned to him. One audited `work_order_converted_lifecycle_v2` entry each; a repeat run was refused | Owner, guided |
 
 Connection: Supabase CLI temporary login (`cli_login_postgres.pvajuywwwpjlikqjnvgv`) with
 `set role postgres`; the Preview database password was reset the same day. Vercel Preview
