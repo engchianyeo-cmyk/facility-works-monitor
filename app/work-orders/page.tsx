@@ -35,6 +35,9 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
     const search = values.search.replaceAll(/[,%()]/g, " ").trim();
     if (search) query = query.or(`work_order_number.ilike.%${search}%,title.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
   }
+  // D-10: "My Drafts" — Drafts the user is preparing (assigned Technician or creating superior).
+  const myDrafts = values.view === "drafts";
+  if (myDrafts) query = query.eq("status", "draft").or(`assigned_technician_id.eq.${identity.userId},requested_by.eq.${identity.userId}`);
   if (isWorkOrderStatus(values.status)) query = query.eq("status", values.status);
   if (isWorkOrderPriority(values.priority)) query = query.eq("priority", values.priority);
   if (isWorkOrderSource(values.source)) query = query.eq("source", values.source);
@@ -59,6 +62,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold tracking-tight text-slate-900">Work Orders</h1><p className="mt-1 text-sm text-slate-500">Plan, authorize, assign, execute, review, and close maintenance work.</p></div>{identity.role !== "technician" && <Link href="/work-orders/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">New work order</Link>}</div>
+      {myDrafts && <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950" aria-labelledby="my-drafts-heading"><h2 id="my-drafts-heading" className="text-base font-bold">My Drafts</h2><p className="mt-1">Work Orders you started and have not yet submitted. Open one to add photos, mark the location and attach the quotation — on your phone or computer — then submit it for approval. <Link href="/work-orders" className="font-semibold underline">Show all Work Orders</Link></p></section>}
       <WorkOrderFilters values={values} departments={departments ?? []} />
       {error && <p className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">Work orders could not be loaded.</p>}
       {!error && (orders ?? []).length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No matching work orders.</div>}

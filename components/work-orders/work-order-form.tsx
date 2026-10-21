@@ -56,14 +56,19 @@ export default function WorkOrderForm({
       const result = await response.json();
       if (!response.ok) { setError(result.message ?? result.error ?? "Unable to save work order."); return; }
       const id = String(result.data?.id ?? workOrder?.id);
-      router.push(`/work-orders/${id}`); router.refresh();
+      router.push(isEdit ? `/work-orders/${id}` : `/work-orders/${id}?created=1#next-steps`); router.refresh();
     } catch { setError("Unable to reach the work-order service."); }
     finally { setSaving(false); }
   }
 
   const value = (key: string) => workOrder?.[key] ?? "";
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form onSubmit={submit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      {!isEdit && (
+        <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+          Fill in the essentials and create the Draft. You can add photos, mark the location on the layout plan and attach the quotation afterwards — on this device or your computer — before you submit it. Your Drafts are under <strong>My Drafts</strong>. <a href="/help/work-orders" className="font-semibold underline">How to fill in a Work Order</a>
+        </p>
+      )}
       <div><label className="mb-1 block text-sm font-medium">Title *</label><input required minLength={3} maxLength={200} name="title" className={input} defaultValue={String(value("title"))} /></div>
       <div><label className="mb-1 block text-sm font-medium">Reason the work is needed *</label><textarea required minLength={10} rows={4} name="description" className={input} defaultValue={String(value("description"))} placeholder="What is wrong, why it needs fixing, and any safety or operational impact." /></div>
       {!isEdit && (
@@ -102,9 +107,12 @@ export default function WorkOrderForm({
           <p className="mt-2 text-xs text-blue-900">Areas already placed on the facility layout plan are highlighted automatically on the Work Order. For other areas, mark the spot on the layout plan after creating the Draft — the location is required before submission so everyone, including Finance, can see where the work is.</p>
         </div>
       )}
+      <div><label className="mb-1 block text-sm font-medium">Location *</label><input required name="location" className={input} defaultValue={String(value("location"))} placeholder="e.g. Utility Block chiller plant room, pump P-CHW-03" /></div>
+      <details open={isEdit} className="rounded-lg border border-slate-200 p-4 [&_summary]:cursor-pointer">
+      <summary className="text-sm font-semibold text-slate-800">More details (optional): asset, priority, due date, copy to…</summary>
+      <div className="mt-4 space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className="mb-1 block text-sm font-medium">Site</label><input name="site" className={input} defaultValue={String(value("site"))} /></div>
-        <div><label className="mb-1 block text-sm font-medium">Location *</label><input required name="location" className={input} defaultValue={String(value("location"))} /></div>
         <div><label className="mb-1 block text-sm font-medium">Contact number</label><input type="tel" autoComplete="tel" maxLength={255} name="contact_number" className={input} defaultValue={String(value("contact_number"))} /></div>
         <div><label className="mb-1 block text-sm font-medium">Category</label><select name="category_id" className={input} defaultValue={String(value("category_id"))}><option value="">None</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
         <div><label className="mb-1 block text-sm font-medium">Department</label><select name="department_id" className={input} defaultValue={String(value("department_id"))}><option value="">None</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.code ? `${item.code} — ` : ""}{item.name}</option>)}</select></div>
@@ -133,9 +141,11 @@ export default function WorkOrderForm({
         </fieldset>
       )}
       <div><label className="mb-1 block text-sm font-medium">Internal notes</label><textarea rows={2} name="internal_notes" className={input} defaultValue={String(value("internal_notes"))} /></div>
+      </div>
+      </details>
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap gap-3">
-        <button disabled={saving} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="submit">{saving ? "Saving…" : isEdit ? "Save changes" : "Create Draft"}</button>
+        <button disabled={saving} className="min-h-11 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto" type="submit">{saving ? "Saving…" : isEdit ? "Save changes" : "Create Draft"}</button>
         {!isEdit && <p className="self-center text-sm text-slate-600">Next: attach photos, video or voice notes and the contractor quotation, then submit for approval.</p>}
       </div>
     </form>

@@ -183,6 +183,35 @@ that the quoted materials and labour are properly accounted for."
 - Follow-up: areas need their layout-plan positions configured by an Administrator for automatic
   highlighting (currently none of the 25 standard areas are placed).
 
+### D-09 Start and end times — 21 October 2026 16:43
+
+Owner: "automatic logging is good." Work start and end times stay automatic: logged when the
+assigned Technician clicks **Start work** and **Submit Physical Completion**. No manual entry of
+actual times.
+
+### D-10 Sharing for quick creation on phone and computer — 21 October 2026 17:04
+
+Owner: "prepare this app to be shared with the Technician, Facility Manager, Administrator,
+Approver to quickly populate the work order info for creation … in a computer or through a mobile
+phone. He can partially complete the app and later continue on his computer before submission."
+Agreed batch (built after the 21 Oct demo, nothing applied before the owner's go-ahead):
+"My Drafts" shortcut; phone-friendly quick create with next steps after Create Draft; the
+Technician guide built into the app; installable on phones from the browser. Sharing still needs
+a Vercel link that works without a Vercel login (R1-009) and accounts for each person.
+
+### Preview rollout record — 21 October 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 15:44 | Backup of `public` + `supabase_migrations` (942,261 bytes, owner's `.git` folder) | Owner, guided |
+| 15:47 | Lifecycle v2 upgrade applied in one transaction (adapter sha256 `d059dc59…`, identical to the rehearsed build); ledger 38 → 56, last `20261020110000` | Owner, guided |
+| 16:15 | Facility membership added: approver sctpec2413@gmail.com at the Technician's facility | Owner, guided |
+| 16:20 | engchian@yahoo.com role reviewer → finance (through the profile-admin guard) | Owner, guided |
+
+Connection: Supabase CLI temporary login (`cli_login_postgres.pvajuywwwpjlikqjnvgv`) with
+`set role postgres`; the Preview database password was reset the same day. Vercel Preview
+deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
+
 ## D. Decisions still open (not recoverable locally)
 
 1. ~~Emergency commercial exception (R1-003)~~ resolved by D-01.6 and D-03.3.

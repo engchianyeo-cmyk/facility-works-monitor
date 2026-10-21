@@ -14,6 +14,7 @@ This file summarizes product-level changes. Deployment-specific details belong i
 - In-house services (D-07): declared at creation or in Draft; same approvals and review with pricing waived; closes on approval as Completed.
 - Site requirements (D-08): location marked on the layout plan and a Before photo before submission (emergency: both before review); area highlighted automatically when placed on the plan; Before/After photos shown inline; final quotation required when the final cost differs, with the supervising Technician's site-verification; work duration shown.
 - Fixed: commercial document upload read contractor_quotations directly (no table grant since 0041) and always failed; now reads through the scoped RPC.
+- Quick creation on phone and computer (D-10): My Drafts, essentials-first New Work Order with optional fields folded, next steps after Create Draft, in-app guide (/help/work-orders), installable on phones (web app manifest and icons).
 - Migrations 20261020060000–20261020110000; Preview reconciliation adapter extended to include them.
 
 ## Unreleased — 1.2

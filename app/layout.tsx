@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import PresenceHeartbeat from "@/components/presence-heartbeat";
@@ -13,7 +13,12 @@ export const metadata: Metadata = {
   },
   description:
     "FMWorks — Built with Facility Managers. Designed for Service Teams.",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/fmworks-192.png", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "FMWorks", statusBarStyle: "default" },
 };
+
+export const viewport: Viewport = { themeColor: "#1d4ed8", width: "device-width", initialScale: 1 };
 
 export default async function RootLayout({
   children,

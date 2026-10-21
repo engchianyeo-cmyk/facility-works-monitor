@@ -67,6 +67,7 @@ export default async function SiteHeader() {
                 </>
               )}
               {["technician", "approver", "supervisor", "facility_manager", "administrator"].includes(identity.role) && <Link href="/work-orders/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">+ New Work Order</Link>}
+              {["technician", "approver", "supervisor", "facility_manager", "administrator"].includes(identity.role) && <Link href="/work-orders?view=drafts" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">My Drafts</Link>}
               <Link href="/account/password" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Password</Link>
             </>
           ) : (

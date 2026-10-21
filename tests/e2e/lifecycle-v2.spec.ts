@@ -58,9 +58,15 @@ test.describe("Work Order Lifecycle v2", () => {
     await form.locator('[name="description"]').fill("Chilled water pump bearing noise; vibration rising for two weeks.");
     await form.locator('[name="location"]').fill("Utility Block chiller plant room");
     await page.getByRole("button", { name: "Create Draft" }).click();
-    await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+$/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+\?created=1#next-steps$/, { timeout: 20_000 });
     const workOrderPath = new URL(page.url()).pathname;
     const workOrderId = workOrderPath.split("/").pop()!;
+    // D-10: the Draft is saved, shows the next steps and is listed under My Drafts.
+    await expect(page.getByRole("heading", { name: "Draft saved — next steps" })).toBeVisible();
+    await page.getByRole("link", { name: "My Drafts" }).first().click();
+    await expect(page.getByRole("heading", { name: "My Drafts" })).toBeVisible();
+    await page.getByRole("link", { name: new RegExp(`Lifecycle v2 pump repair ${runId}`) }).click();
+    await expect(page).toHaveURL(new RegExp(`${workOrderPath}$`));
     await expect(page.getByText("Complete these items before submitting")).toBeVisible();
     await siteRequirements(page, workOrderId, runId);
 
@@ -162,7 +168,7 @@ test.describe("Work Order Lifecycle v2", () => {
     await form.locator('[name="location"]').fill("Utility Block plant room door");
     await form.locator('[name="in_house_work"]').check();
     await page.getByRole("button", { name: "Create Draft" }).click();
-    await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+$/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/work-orders\/[0-9a-f-]+\?created=1#next-steps$/, { timeout: 20_000 });
     const workOrderPath = new URL(page.url()).pathname;
     await expect(page.getByRole("heading", { name: "In-House Services — Pricing Waived" })).toBeVisible();
     await siteRequirements(page, workOrderPath.split("/").pop()!, `ih-${runId}`);

@@ -8,6 +8,8 @@ import TechnicianPicker from "@/components/work-orders/technician-picker";
 import CopiedParties from "@/components/work-orders/copied-parties";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
+import DraftNextSteps from "@/components/work-orders/draft-next-steps";
+import { draftNextSteps } from "@/lib/work-orders/next-steps";
 import WorkOrderAssignment from "@/components/work-orders/work-order-assignment";
 import WorkOrderDecisionHeader from "@/components/work-orders/work-order-decision-header";
 import AssetLinkControl from "@/components/assets/asset-link-control";
@@ -86,8 +88,9 @@ function LoadFailure({ message }: { message: string }) {
   );
 }
 
-export default async function WorkOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkOrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
+  const justCreated = (await searchParams)?.created === "1";
   const identity = await getCurrentIdentity();
   if (!identity) redirect(`/login?next=/work-orders/${id}`);
 
@@ -321,6 +324,10 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         incidentHref={relatedIncident ? `/incidents/${relatedIncident.id}` : null}
         nextAction={nextAction}
       />
+
+      {status === "draft" && isPreparer(context) && approvalReadiness && (
+        <DraftNextSteps steps={draftNextSteps(approvalReadiness.missing_requirements, id)} justCreated={justCreated} />
+      )}
 
       <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />
 
