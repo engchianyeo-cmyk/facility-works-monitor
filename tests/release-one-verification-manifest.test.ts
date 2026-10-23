@@ -18,7 +18,7 @@ describe("canonical non-Production Release-1 migration manifest", () => {
       ...migrations.map((name) => `supabase/migrations/${name}`),
     ]);
     expect(manifest.at(-1)).toBe(
-      "supabase/migrations/20261020110000_lifecycle_v2_site_location.sql",
+      "supabase/migrations/20261022120000_lifecycle_v2_facility_settings.sql",
     );
   });
 

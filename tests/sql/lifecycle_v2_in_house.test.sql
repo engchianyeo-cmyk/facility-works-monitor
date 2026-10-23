@@ -83,8 +83,16 @@ begin
   set local role authenticated;
   r:=public.register_evidence_item('work_order',wo,'after.jpg','image/jpeg',10,'after','After repair',path);
   perform pg_temp.assert_true((r->>'ok')::boolean,'After evidence: '||coalesce(r->>'code',''));
+  -- D-11: the Technician enters the actual work times.
+  r:=public.set_work_order_actual_times(wo,pg_catalog.now()-interval '3 hours',pg_catalog.now()-interval '1 hour');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'actual work times: '||coalesce(r->>'code',''));
   r:=public.submit_physical_completion(wo,'{"completion_notes":"Replaced bearing and realigned coupling.","actual_labour_hours":3}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='completed','submit for review: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
+  reset role;
+  -- D-11: a second Technician endorses the work as authentic before the review.
+  perform pg_temp.act(pg_temp.u(2)); set local role authenticated;
+  r:=public.endorse_work_order(wo,'Checked on site: work done as recorded.');
+  perform pg_temp.assert_true((r->>'ok')::boolean and r->'endorsement' is not null,'second Technician endorses: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   reset role;
 end;$$;
 

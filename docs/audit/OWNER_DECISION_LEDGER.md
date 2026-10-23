@@ -199,6 +199,44 @@ Agreed batch (built after the 21 Oct demo, nothing applied before the owner's go
 Technician guide built into the app; installable on phones from the browser. Sharing still needs
 a Vercel link that works without a Vercel login (R1-009) and accounts for each person.
 
+### D-11 UAT feedback — 22 October 2026 23:38 (supersedes D-09)
+
+1. **Location pin:** automatic from the Work Order's area, placed once per area by the
+   Administrator (Facility Locations); manual marking only optional. The mock-up drawings are
+   placeholders; the commercial version uses the facility's own PDF layout drawings (Stage 2).
+   Add a Generator Room to the Utility Block mock-up. The facility uses split air-conditioning,
+   not chillers. Owner gave no preference on the UAT data; default adopted: chiller items are
+   renamed to split air-conditioning equivalents (Preview data change needs the owner's go-ahead).
+2. **Finance as copied party:** not selectable while drafting; added automatically when the Work
+   Order reaches Completed.
+3. **Second-Technician endorsement:** the Technician who raised the Work Order may update it to the
+   end, but a second Technician must endorse that it is authentic; joint and several
+   responsibility. Owner: the stage is a per-facility setting on the facility configuration form,
+   with three choices: before submission, before the Approver's review, or both.
+   Owner's preferred default (23:43): before the Approver's review.
+   Confirmed (23:48): every facility starts on the recommended default (before the Approver's review);
+   the Administrator may select either of the other two options on that facility's settings form.
+   Implemented as: no settings row = before the review; changes are audited in facility settings history.
+4. **Approver per facility:** the Approver is configured per facility by the Administrator on a
+   facility settings form (varies by facility); Facility Manager or Supervisor may also act.
+   Owner gave no preference on exclusivity; default adopted: the designated Approver is the
+   default and is notified, and that facility's Facility Manager or Supervisor may also act.
+5. **Start and end times (supersedes D-09):** entered and editable by the Technician, not
+   automatic, so they can be filled in later; the duration is computed from them. Owner gave no
+   preference on timing; default adopted: required before the Approver's review, not at
+   submission of the work.
+6. "Withdraw Completion for Correction" behaviour confirmed as useful.
+
+Implementation (WP-LC2-M7, migration `20261022120000_lifecycle_v2_facility_settings.sql`; owner said GO 23:57):
+Administration → Facilities (designated Approver, endorsement stage, reason, history) and a Facility
+Locations link; Second Technician endorsement panel (a Technician of the same facility, not the
+responsible one; a fresh endorsement after each return to Draft or each completion submission);
+Actual work times panel (assigned Technician; start now, end later; locked after the review);
+Finance hidden from the copy lists and copied automatically at Completed. FW-001 Utility Block:
+the Outdoor Service Area became the Generator Room (4.0 x 6.0 m). Split-AC data:
+`scripts/rollout/preview-split-ac-inventory-20261022.sql` (read-only) and
+`scripts/rollout/preview-split-ac-rename-20261022.sql` (dry run by default; not applied).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

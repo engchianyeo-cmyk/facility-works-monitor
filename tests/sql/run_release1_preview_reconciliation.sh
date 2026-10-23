@@ -35,7 +35,7 @@ if $PSQL -c "select set_config('fmworks.rollout_project_ref','pvajuywwwpjlikqjnv
 fi
 grep -q 'ledger differs from reviewed baseline' "$TEMP_DIR/repeat.log" || { cat "$TEMP_DIR/repeat.log"; exit 1; }
 echo 'PASS: repeated rollout rejected'
-for file in release_1_field_owner_isolation configurable_procurement_policy audited_contractor_administration release_1_security_catalog release_1_three_quotation_current_schema release_1_financial_current_schema release_1_commercial_scope release_1_incident_evidence_lifecycle release_1_incident_terminal_authority field_evidence_media lifecycle_v2_foundations lifecycle_v2_creation_approval lifecycle_v2_review_finance lifecycle_v2_screen_support lifecycle_v2_in_house lifecycle_v2_site_location; do
+for file in release_1_field_owner_isolation configurable_procurement_policy audited_contractor_administration release_1_security_catalog release_1_three_quotation_current_schema release_1_financial_current_schema release_1_commercial_scope release_1_incident_evidence_lifecycle release_1_incident_terminal_authority field_evidence_media lifecycle_v2_foundations lifecycle_v2_creation_approval lifecycle_v2_review_finance lifecycle_v2_screen_support lifecycle_v2_in_house lifecycle_v2_site_location lifecycle_v2_facility_settings; do
  $PSQL -f "$ROOT/tests/sql/$file.test.sql"
  echo "PASS: $file"
 done

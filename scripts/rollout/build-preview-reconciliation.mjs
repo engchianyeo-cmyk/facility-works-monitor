@@ -9,7 +9,7 @@ const manifest = readFileSync(path.join(root, 'supabase/bootstrap/fresh-install-
 const start = manifest.indexOf('supabase/migrations/20260928000000_release1_governance_reconciliation.sql');
 // Release-1 reconciliation through 20261013012309, then Work Order Lifecycle v2 (20261020*).
 if (start < 0 || !manifest.includes('supabase/migrations/20261013012309_field_evidence_media.sql')
-  || !manifest.at(-1).endsWith('20261020110000_lifecycle_v2_site_location.sql')) {
+  || !manifest.at(-1).endsWith('20261022120000_lifecycle_v2_facility_settings.sql')) {
   throw new Error('Candidate manifest changed; independently review the rollout baseline.');
 }
 const selected = manifest.slice(start);
@@ -78,7 +78,7 @@ begin
   execute format('lock table %I.%I in share row exclusive mode',item.nspname,item.relname);
   ignored:=case when item.relname='work_order_financial_controls' then array['policy_version_id','updated_at']
     when item.relname='commercial_approval_rules' then array['policy_version_id']
-    when item.relname='work_orders' then array['approval_limit_version_id','in_house_work']
+    when item.relname='work_orders' then array['approval_limit_version_id','in_house_work','actual_work_started_at','actual_work_ended_at']
     when item.relname='contractor_payment_assessments' then array['invoice_amount','invoice_uploaded_at','invoice_uploaded_by','invoice_received_by']
     else array[]::text[] end;
   execute format('select count(*),md5(coalesce(string_agg((to_jsonb(t)-$1)::text,E''\\n'' order by (to_jsonb(t)-$1)::text),'''')) from %I.%I t',item.nspname,item.relname)
@@ -100,7 +100,7 @@ begin
   ignored:=case when item.relation='public.work_order_financial_controls' then array['policy_version_id','updated_at']
     when item.relation='public.commercial_approval_rules' then array['policy_version_id']
     -- Lifecycle v2 adds nullable columns only; existing values must be unchanged.
-    when item.relation='public.work_orders' then array['approval_limit_version_id','in_house_work']
+    when item.relation='public.work_orders' then array['approval_limit_version_id','in_house_work','actual_work_started_at','actual_work_ended_at']
     when item.relation='public.contractor_payment_assessments' then array['invoice_amount','invoice_uploaded_at','invoice_uploaded_by','invoice_received_by']
     else array[]::text[] end;
   execute format('select count(*),md5(coalesce(string_agg((to_jsonb(t)-$1)::text,E''\\n'' order by (to_jsonb(t)-$1)::text),'''')) from %s t',item.relation)

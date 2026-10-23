@@ -9,6 +9,8 @@ import { login, logout, requiredEnvironment } from "./pilot-helpers";
  */
 const technicianEmail = requiredEnvironment("E2E_TECHNICIAN_EMAIL");
 const technicianPassword = requiredEnvironment("E2E_TECHNICIAN_PASSWORD");
+const technician2Email = requiredEnvironment("E2E_TECHNICIAN2_EMAIL");
+const technician2Password = requiredEnvironment("E2E_TECHNICIAN2_PASSWORD");
 const approverEmail = requiredEnvironment("E2E_APPROVER_EMAIL");
 const approverPassword = requiredEnvironment("E2E_APPROVER_PASSWORD");
 const supervisorEmail = requiredEnvironment("E2E_SUPERVISOR_EMAIL");
@@ -45,6 +47,30 @@ async function siteRequirements(page: Page, workOrderId: string, name: string) {
   await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({ name: `before-${name}.png`, mimeType: "image/png", buffer: PNG });
   await evidence.getByRole("button", { name: "Add evidence" }).click();
   await expect(evidence.getByText(`before-${name}.png`)).toBeVisible({ timeout: 20_000 });
+}
+
+/** datetime-local value for a time some hours ago (browser and runner share the local time zone). */
+function hoursAgo(hours: number) {
+  const date = new Date(Date.now() - hours * 3_600_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** D-11: the responsible Technician enters the actual work times on the screen. */
+async function actualTimes(page: Page) {
+  await page.getByLabel("Work started").fill(hoursAgo(4));
+  await page.getByLabel("Work ended").fill(hoursAgo(1));
+  await page.getByRole("button", { name: "Save work times" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Work times saved" })).toBeVisible({ timeout: 20_000 });
+}
+
+/** D-11: a second Technician of the facility endorses the Work Order before the Approver's review (facility default). */
+async function endorsed(page: Page, workOrderPath: string) {
+  await login(page, technician2Email, technician2Password, workOrderPath);
+  await page.getByLabel("What did you check?").fill("Inspected the work on site and the photos; it is as recorded.");
+  await page.getByRole("button", { name: "Endorse as authentic" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Endorsement recorded" })).toBeVisible({ timeout: 20_000 });
+  await logout(page);
 }
 
 test.describe("Work Order Lifecycle v2", () => {
@@ -119,7 +145,10 @@ test.describe("Work Order Lifecycle v2", () => {
       multipart: { document_type: "final_invoice", record_id: String(current.data.final_cost.id), file: { name: `final-quotation-${runId}.pdf`, mimeType: "application/pdf", buffer: PDF } },
     });
     expect(finalUpload.status(), `final quotation upload: ${await finalUpload.text()}`).toBe(201);
+    await page.reload();
+    await actualTimes(page);
     await logout(page);
+    await endorsed(page, workOrderPath);
 
     // 5. Supervisor approves work, final cost and documents → Completed.
     await login(page, supervisorEmail, supervisorPassword, workOrderPath);
@@ -202,7 +231,9 @@ test.describe("Work Order Lifecycle v2", () => {
     await expect(page.getByRole("status").filter({ hasText: "Actual costing confirmed" })).toBeVisible();
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();
     await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
+    await actualTimes(page);
     await logout(page);
+    await endorsed(page, workOrderPath);
 
     await login(page, supervisorEmail, supervisorPassword, workOrderPath);
     await expect(page.getByText("Not required — in-house services, pricing waived")).toBeVisible();

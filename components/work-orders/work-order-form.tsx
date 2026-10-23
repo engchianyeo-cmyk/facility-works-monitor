@@ -133,8 +133,9 @@ export default function WorkOrderForm({
       {!isEdit && people.length > 0 && (
         <fieldset className="rounded-lg border border-slate-200 p-4">
           <legend className="px-1 text-sm font-medium">Copy to (notified at each stage and on invoice upload)</legend>
+          <p className="text-xs text-slate-500">Finance is copied automatically when the Work Order is Completed.</p>
           <div className="mt-2 grid max-h-56 gap-1 overflow-y-auto sm:grid-cols-2">
-            {people.filter((person) => person.role !== "technician").map((person) => (
+            {people.filter((person) => !["technician", "finance"].includes(person.role)).map((person) => (
               <label key={person.id} className="flex min-h-10 items-center gap-3 text-sm"><input type="checkbox" name="copied_party_ids" value={person.id} />{person.name} <span className="text-slate-500">· {operationalLabel(person.role)}</span></label>
             ))}
           </div>

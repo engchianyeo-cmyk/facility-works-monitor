@@ -62,6 +62,8 @@ export default async function SiteHeader() {
                 <>
                   <Link href="/administration/users" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Users</Link>
                   <Link href="/administration/departments" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Departments</Link>
+                  <Link href="/administration/facilities" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Facilities</Link>
+                  <Link href="/administration/facility-locations" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Facility Locations</Link>
                   <Link href="/administration/approval-limits" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Approval Limits</Link>
                   <Link href="/administration/terminology" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Roles &amp; Stages</Link>
                 </>

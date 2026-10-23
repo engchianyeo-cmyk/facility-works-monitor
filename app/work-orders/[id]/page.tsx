@@ -6,6 +6,9 @@ import EvidencePanel from "@/components/evidence/evidence-panel";
 import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
 import TechnicianPicker from "@/components/work-orders/technician-picker";
 import CopiedParties from "@/components/work-orders/copied-parties";
+import ActualWorkTimes from "@/components/work-orders/actual-work-times";
+import TechnicianEndorsement, { type Endorsement } from "@/components/work-orders/technician-endorsement";
+import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel } from "@/lib/facility-settings";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import DraftNextSteps from "@/components/work-orders/draft-next-steps";
@@ -219,18 +222,29 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
   }
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
-  const [finalCostResult, financialControlResult, copiedResult, directoryResult, facilityTechniciansResult] = await Promise.all([
+  const [finalCostResult, financialControlResult, copiedResult, directoryResult, facilityTechniciansResult, endorsementResult, facilitySettingResult] = await Promise.all([
     status === "completed" ? supabase.from("work_order_final_cost_submissions").select("confirmed_actual_cost,status").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     status === "completed" ? supabase.from("work_order_financial_controls").select("approved_budget,quoted_cost").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     supabase.from("work_order_copied_parties").select("profile_id").eq("work_order_id", id),
     supabase.rpc("work_order_people_directory"),
     canSetTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
+    supabase.from("work_order_endorsements").select("id,stage,endorsed_by,statement,endorsed_at").eq("work_order_id", id).order("endorsed_at", { ascending: true }),
+    order.facility_id ? supabase.from("facility_settings").select("endorsement_stage").eq("facility_id", order.facility_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
   const finalCost = finalCostResult.error ? null : (finalCostResult.data as { confirmed_actual_cost: number } | null)?.confirmed_actual_cost ?? null;
   const approvedAmount = financialControlResult.error ? null : (financialControlResult.data as { approved_budget: number | null } | null)?.approved_budget ?? null;
   const copiedIds = (copiedResult.error ? [] : copiedResult.data ?? []).map((row) => String(row.profile_id));
   const people = (directoryResult.error ? [] : (directoryResult.data ?? []) as Array<{ id: string; display_name: string; role: string }>).map((person) => ({ id: person.id, name: person.display_name, role: person.role }));
   const facilityTechnicians = (facilityTechniciansResult.error ? [] : (facilityTechniciansResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null }>).map((item) => ({ id: item.id, name: item.display_name, detail: item.trade_discipline }));
+  const nameById = new Map(people.map((person) => [person.id, person.name]));
+  const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string }>)
+    .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at }));
+  const endorsementStageValue = (facilitySettingResult.data as { endorsement_stage?: string } | null)?.endorsement_stage ?? DEFAULT_ENDORSEMENT_STAGE;
+  const endorsementStage = endorsementStageLabel(endorsementStageValue);
+  const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status);
+  const actualTimes = { started: (order as { actual_work_started_at?: string | null }).actual_work_started_at ?? null, ended: (order as { actual_work_ended_at?: string | null }).actual_work_ended_at ?? null };
+  const actualTimesEditable = order.assigned_technician_id === identity.userId && ["assigned", "in_progress", "completed"].includes(status);
+  const showActualTimes = actualTimesEditable || Boolean(actualTimes.started) || ["in_progress", "completed", "reviewed", "closed"].includes(status);
   const copiedEditable = !["closed", "cancelled"].includes(status) && (isPreparer(context) || isApprovalAuthority(identity.role));
   const fieldFacilityPermission = order.facility_id
     ? await supabase.rpc("field_work_facility_permitted", { p_facility_id: order.facility_id })
@@ -256,6 +270,14 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     .order("created_at", { ascending: false });
   const priorReworkCycles = reworkHistory(activity ?? []);
   const currentRework = activeReworkContext(String(order.status), activity ?? []);
+  // D-11: the review endorsement is needed for this completion cycle unless one was given after the latest submission.
+  // Worked out here (not from the reviewer-only readiness RPC) so the second Technician also sees the panel.
+  const latestCompletion = (activity ?? []).filter((entry) => entry.action === "work_order_complete").map((entry) => String(entry.created_at)).sort().at(-1) ?? null;
+  const reviewEndorsementDue = status === "completed"
+    && (["before_review", "both"].includes(endorsementStageValue) || (Boolean(order.emergency_work) && endorsementStageValue === "before_submission"))
+    && !endorsements.some((item) => item.stage === "review" && (!latestCompletion || new Date(item.endorsed_at).getTime() >= new Date(latestCompletion).getTime()));
+  const endorsementRequired = (status === "draft" && Boolean(approvalSummary?.missing_requirements?.includes("Second Technician endorsement")))
+    || (status === "completed" && (reviewEndorsementDue || Boolean(verificationReadiness?.missing_requirements?.includes("Second Technician endorsement"))));
 
   const predictive = ["condition_based", "predictive"].includes(order.source)
     || order.alert_id
@@ -369,6 +391,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         } : undefined}
       />
 
+      {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
+      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} />}
+
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "Engineering System: Not configured"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>
         {assetLinkAllowed && <div className="mt-4 border-t border-emerald-200 pt-4"><AssetLinkControl parent="work-orders" parentId={id} assets={assetOptions} currentAssetId={order.asset_id} unavailable={Boolean(order.asset_id && !order.asset)} /></div>}
@@ -458,7 +483,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           ))}
         </ol>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (started → submitted as done)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.started_at, order.completed_at) ?? "Not yet available"}</dd></div>
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (actual start → end, entered by the Technician)</dt><dd className="mt-1 text-slate-700">{formatDuration(actualTimes.started, actualTimes.ended) ?? "Not yet entered"}</dd></div>
           <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Labour hours recorded</dt><dd className="mt-1 text-slate-700">{order.actual_labour_hours === null || order.actual_labour_hours === undefined ? "Not yet recorded" : `${order.actual_labour_hours} h`}</dd></div>
           <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Overall (created → closed)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.created_at, order.closed_at) ?? "Open"}</dd></div>
         </dl>

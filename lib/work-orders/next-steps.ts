@@ -18,6 +18,12 @@ export function draftNextSteps(missing: readonly string[], workOrderId: string):
     if (item === "Reason the work is needed") {
       return { label: item, how: "Edit the Work Order and explain what is wrong and why it needs fixing.", href: `/work-orders/${workOrderId}/edit` };
     }
+    if (item === "Second Technician endorsement") {
+      return { label: item, how: "Ask another Technician of this facility to open this Work Order, check it and tap Endorse as authentic.", href: "#technician-endorsement" };
+    }
+    if (item === "Actual start and end times of the work") {
+      return { label: item, how: "In Actual work times, enter when the work started and ended, then Save work times.", href: "#actual-work-times" };
+    }
     if (item === "Field-witness Technician") {
       return { label: item, how: "Assign the Technician who will witness the work.", href: null };
     }

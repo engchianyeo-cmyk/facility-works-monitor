@@ -65,6 +65,7 @@ async function seedSyntheticIdentities(environment) {
     ["approver", "pilot.approver@example.test", password, "Pilot Approver"],
     ["initiator", "pilot.initiator@example.test", password, "Pilot Initiator"],
     ["technician", "pilot.technician@example.test", password, "Pilot Technician"],
+    ["technician", "pilot.technician2@example.test", password, "Pilot Technician Two"],
     ["facility_manager", "pilot.facility-manager@example.test", password, "Pilot Facility Manager"],
     ["reviewer", "pilot.reviewer@example.test", password, "Pilot Reviewer"],
     ["finance", "pilot.finance@example.test", password, "Pilot Finance"],
@@ -123,6 +124,8 @@ commit;`;
     E2E_INITIATOR_PASSWORD: password,
     E2E_TECHNICIAN_EMAIL: "pilot.technician@example.test",
     E2E_TECHNICIAN_PASSWORD: password,
+    E2E_TECHNICIAN2_EMAIL: "pilot.technician2@example.test",
+    E2E_TECHNICIAN2_PASSWORD: password,
     E2E_FACILITY_MANAGER_EMAIL: "pilot.facility-manager@example.test",
     E2E_FACILITY_MANAGER_PASSWORD: password,
     E2E_REVIEWER_EMAIL: "pilot.reviewer@example.test",
@@ -211,6 +214,7 @@ async function main() {
   sql("tests/sql/lifecycle_v2_screen_support.test.sql");
   sql("tests/sql/lifecycle_v2_in_house.test.sql");
   sql("tests/sql/lifecycle_v2_site_location.test.sql");
+  sql("tests/sql/lifecycle_v2_facility_settings.test.sql");
   const env = {
     ...process.env,
     ...identities,

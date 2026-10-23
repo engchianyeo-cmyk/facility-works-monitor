@@ -171,6 +171,11 @@ reset role;
 insert into public.work_order_final_cost_documents(final_cost_submission_id,work_order_id,uploaded_by,original_filename,content_type,byte_size,storage_path)
 select fc.id,w.id,w.assigned_technician_id,'final-quotation.pdf','application/pdf',100,'commercial/work-order/'||w.id::text||'/final-quotation-d08.pdf'
 from public.work_orders w join public.work_order_final_cost_submissions fc on fc.work_order_id=w.id where w.id='08000000-0000-4000-8000-000000000012';
+-- D-11: actual work times and the second-Technician endorsement are required before the review (rollback-only).
+update public.work_orders set actual_work_started_at=now()-interval '3 hours', actual_work_ended_at=now()-interval '1 hour' where id='08000000-0000-4000-8000-000000000012';
+insert into public.work_order_endorsements(work_order_id,stage,endorsed_by,statement,cycle)
+select w.id,'review',p.id,'Rollback-only endorsement for the WP-2A regression.',public.work_order_endorsement_cycle(w.id,'review') from public.work_orders w cross join public.profiles p
+where w.id='08000000-0000-4000-8000-000000000012' and p.email='pilot.facility-manager@example.test';
 set local role authenticated;
 select pg_catalog.set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.actor_id('pilot.supervisor@example.test'),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
