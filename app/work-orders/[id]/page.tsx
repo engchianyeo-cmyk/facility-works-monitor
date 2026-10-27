@@ -213,7 +213,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
   ].filter((item): item is string => Boolean(item));
   if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => !["complete", "submit_physical_completion"].includes(action));
-  const approvalSummary = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ok?: boolean; ready: boolean; missing_requirements: string[]; lowest_authority: string | null; quoted_cost: number | null; can_approve: boolean; approval_blocker_message: string | null } | null;
+  const approvalSummary = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ok?: boolean; ready: boolean; missing_requirements: string[]; lowest_authority: string | null; quoted_cost: number | null; can_approve: boolean; approval_blocker?: string | null; approval_blocker_message: string | null } | null;
   const approvalReadiness = approvalSummary?.ok ? {
     ready: approvalSummary.ready,
     missing_requirements: [
@@ -224,7 +224,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     proposed_cost: Number(approvalSummary.quoted_cost ?? 0),
   } : null;
   const verificationReadiness = verificationReadinessResult.error ? null : verificationReadinessResult.data as { verification_ready: boolean; missing_requirements: string[]; completion_event_found: boolean; legacy_completion_record: boolean; self_verification_reason_required: boolean } | null;
-  if (status === "submitted" && approvalSummary?.can_approve !== true) allowedActions = allowedActions.filter((action) => action !== "approve");
+  // An Administrator who raised or is assigned to the Work Order may still approve, with an audited reason.
+  const approvalReasonRequired = status === "submitted" && approvalSummary?.approval_blocker === "OVERRIDE_REASON_REQUIRED";
+  if (status === "submitted" && approvalSummary?.can_approve !== true && !approvalReasonRequired) allowedActions = allowedActions.filter((action) => action !== "approve");
   if (status === "draft" && approvalSummary?.ready !== true) allowedActions = allowedActions.filter((action) => action !== "submit");
   if (status === "completed" && verificationReadiness?.verification_ready !== true) allowedActions = allowedActions.filter((action) => action !== "review");
   const closureReadiness = closureReadinessResult.error ? null : closureReadinessResult.data as { ready?: boolean; missing_requirements?: string[]; resolution?: string | null } | null;
@@ -399,6 +401,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           technician={identity.role === "technician"}
         status={status}
         allowedActions={allowedActions as WorkOrderAction[]}
+        approvalReasonRequired={approvalReasonRequired}
         canEdit={canEdit(context)}
         canDuplicate={isApprovalAuthority(identity.role)}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}

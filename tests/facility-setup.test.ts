@@ -175,3 +175,12 @@ describe("Work Order page tidy-up (27 Oct UAT review)", () => {
     expect(workspace).toContain('const displayQuote=quote&&["draft","returned"].includes(quote.status)?quote:summaryQuote;');
   });
 });
+
+describe("Administrator approval of a Work Order they raised", () => {
+  it("shows Approve Work and Quotation with a required audited reason instead of hiding it", () => {
+    const page = read("app/work-orders/[id]/page.tsx");
+    expect(page).toContain('approvalSummary?.approval_blocker === "OVERRIDE_REASON_REQUIRED"');
+    expect(page).toContain("approvalReasonRequired={approvalReasonRequired}");
+    expect(read("components/work-orders/work-order-actions.tsx")).toContain("required={props.approvalReasonRequired}");
+  });
+});

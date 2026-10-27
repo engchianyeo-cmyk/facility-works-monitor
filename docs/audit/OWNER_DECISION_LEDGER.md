@@ -384,6 +384,16 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 24 Oct 10:17 | WP-LC2-M7 upgrade applied in one transaction (`scripts/rollout/build-preview-lc2-m7.mjs`); preflight 56 ledger entries, latest `20261020110000`; ledger now 57, last `20261022120000`; COMMIT | Owner, guided |
 | 24 Oct 22:20 | Split air-conditioning rename applied (`scripts/rollout/preview-split-ac-rename-20261022.sql`, owner-approved after the dry run): CPR-01 Chiller Plant Room → GNR-01 Generator Room; 4 assets renamed (ACCU-01, ACCU-02-FAN, ACCU-03-CMP, SAC-L2-08); WO-TEST-011 and WO-TEST-015 retitled with an audited `work_order_uat_data_corrected` entry; closed WO-TEST-001 and WO-TEST-014 kept as recorded; COMMIT | Owner, guided |
 
+### Preview rollout record — 27 October 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 23:13 | `release:verify` PASS on the owner's computer (`fwm-uat`): unit tests, SQL gate, 30/30 authenticated Playwright tests | Owner |
+| 23:16 | Commit `e23b7dc` pushed to `uat/claude-review` (49 files: D-15 to D-17, D-19, D-20, Work Order page tidy-up, sign-in header fix); Vercel Preview build triggered | Owner |
+| 23:18 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com` | Owner, guided |
+| 23:18 | Backup of `public` + `supabase_migrations` (2,137,696 bytes, `.git/preview-backup-20261027-pre-m8-m10.sql`) | Owner, guided |
+| 23:21 | Increment applied in one transaction (`scripts/rollout/build-preview-increment.mjs`, sha256 `e794f90c…93aef`, matching the local rehearsal): `20261027100000` supporting document and due date, `20261027120000` facility setup, `20261027140000` variation order and endorsement; preflight 57 ledger entries, latest `20261022120000`; ledger now 60; COMMIT | Owner, guided |
+
 ## D. Decisions still open (not recoverable locally)
 
 1. ~~Emergency commercial exception (R1-003)~~ resolved by D-01.6 and D-03.3.

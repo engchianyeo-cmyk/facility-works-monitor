@@ -28,6 +28,8 @@ type Props = {
   technician: boolean;
   status: WorkOrderStatus;
   allowedActions: WorkOrderAction[];
+  /** Administrator self-approval: the approval note becomes a required, audited reason. */
+  approvalReasonRequired?: boolean;
   canEdit: boolean;
   canDuplicate: boolean;
   canRecordWork: boolean;
@@ -475,7 +477,7 @@ export default function WorkOrderActions(props: Props) {
           <form onSubmit={submitApproval} aria-describedby="approval-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
             <div><h3 className="font-black">Approve work and quotation</h3><p id="approval-help" className="mt-1 text-sm text-slate-600">This approves the Work Order and its recommended quotation so the contractor may proceed. Your monetary approval limit applies to the quotation amount. You cannot approve a Work Order you raised or are assigned to; an Administrator doing so must state a reason.</p></div>
             <label className="block text-sm font-bold">Approval note (reason required for Administrator self-approval)
-              <textarea rows={3} maxLength={1000} value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
+              <textarea rows={3} maxLength={1000} required={props.approvalReasonRequired} minLength={props.approvalReasonRequired ? 3 : undefined} value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50">{busy === "approve" ? "Submitting approval…" : "Confirm approval"}</button>
