@@ -10,6 +10,8 @@ type Props = {
   model: WorkOrderDecisionModel;
   incidentHref: string | null;
   nextAction: string | null;
+  /** D-12: who may change this Work Order, named so every viewer can see it. */
+  responsibility?: { technician: string | null; viewer: string; viewerRole: string; viewerResponsible: boolean; draftToFinish: boolean };
 };
 
 const EXCEPTION_STYLES: Record<string, string> = {
@@ -42,6 +44,7 @@ export default function WorkOrderDecisionHeader({
   model,
   incidentHref,
   nextAction,
+  responsibility,
 }: Props) {
   const leadException = model.exceptions[0] ?? null;
   return (
@@ -104,8 +107,18 @@ export default function WorkOrderDecisionHeader({
 
           <aside aria-label="Next permitted action" className="order-first rounded-xl border-2 border-blue-200 bg-blue-50 p-4 text-blue-950 lg:order-last">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">Next action</p>
-            <p className="mt-2 font-black">{nextAction ?? "No action available for your role"}</p>
-            <p className="mt-1 text-sm">The execution panel below remains the authoritative place to perform workflow actions.</p>
+            <p className="mt-2 font-black">{nextAction
+              ?? (responsibility?.draftToFinish ? "Finish the next steps below, then submit for approval"
+                : responsibility && !responsibility.viewerResponsible ? "No action for you on this Work Order"
+                : "No action needed from you right now")}</p>
+            {responsibility && (
+              <div className="mt-2 rounded-lg border border-blue-200 bg-white p-3 text-sm" data-testid="work-order-responsibility">
+                <p><span className="font-bold">Assigned Technician:</span> {responsibility.technician ?? "Not yet assigned"}</p>
+                <p className="mt-1 text-slate-700">Only the assigned Technician (or the superior who created it, while a Draft) can change the details, evidence, quotation and work record.</p>
+                {!responsibility.viewerResponsible && <p className="mt-1 text-slate-700">You are signed in as {responsibility.viewer} ({responsibility.viewerRole}).</p>}
+              </div>
+            )}
+            <p className="mt-2 text-sm">The execution panel below remains the authoritative place to perform workflow actions.</p>
             {nextAction && (
               <a href="#execution-title" className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
                 Continue to {nextAction}

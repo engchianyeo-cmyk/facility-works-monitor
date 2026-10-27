@@ -83,4 +83,18 @@ describe("D-11 second Technician endorsement and actual work times", () => {
     expect(read("components/work-orders/copied-parties.tsx")).toContain('person.role !== "finance"');
     expect(read("components/work-orders/work-order-form.tsx")).toContain('["technician", "finance"].includes(person.role)');
   });
+
+  it("names the assigned Technician and who may change the Work Order (D-12)", () => {
+    const header = read("components/work-orders/work-order-decision-header.tsx");
+    expect(header).toContain("Assigned Technician:");
+    expect(header).toContain("Only the assigned Technician (or the superior who created it, while a Draft) can change");
+    expect(header).toContain("You are signed in as");
+    expect(read("app/work-orders/[id]/page.tsx")).toContain("viewerResponsible: isPreparer(context) || order.assigned_technician_id === identity.userId");
+  });
+
+  it("treats the attached quotation as the official record; the summary of charges is optional (D-13)", () => {
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace).toContain("Summary of charges (optional — the attached quotation is the official record)");
+    expect(workspace).not.toContain("Itemized charges (from authentic quotation)");
+  });
 });

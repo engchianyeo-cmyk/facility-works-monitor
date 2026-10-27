@@ -237,6 +237,23 @@ the Outdoor Service Area became the Generator Room (4.0 x 6.0 m). Split-AC data:
 `scripts/rollout/preview-split-ac-inventory-20261022.sql` (read-only) and
 `scripts/rollout/preview-split-ac-rename-20261022.sql` (dry run by default; not applied).
 
+### D-12 Name the assigned Technician on every Work Order — 27 October 2026 13:51
+
+Owner: "It may be good to name the assigned Technician for the work order so that it is evident the
+assigned technician can only make changes to the work order." Implemented: the Next action box on the
+Work Order names the Assigned Technician and states that only they (or the superior who created it, while
+a Draft) can change the details, evidence, quotation and work record; other viewers also see who they are
+signed in as. "No action available for your role" is replaced by plain guidance ("Finish the next steps
+below, then submit for approval" for the preparer of an incomplete Draft).
+Context: UAT on WO-TEST-010, where the page was viewed while not signed in as the assigned Technician.
+
+### D-13 Attached quotation is the official record — 27 October 2026 14:25
+
+Owner (UAT on WO-TEST-010): itemized charges "may not be suitable to cut and paste from contractor's
+quotation"; agreed (14:25) to make the box optional. Implemented: the field is now "Summary of charges
+(optional — the attached quotation is the official record)". Submission still requires the attached
+authentic quotation (QUOTATION_DOCUMENT_REQUIRED), unchanged; the database never required the summary.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
@@ -252,6 +269,16 @@ the Outdoor Service Area became the Generator Room (4.0 x 6.0 m). Split-AC data:
 Connection: Supabase CLI temporary login (`cli_login_postgres.pvajuywwwpjlikqjnvgv`) with
 `set role postgres`; the Preview database password was reset the same day. Vercel Preview
 deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
+
+### Preview rollout record — 23–24 October 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 23 Oct 22:57 | `release:verify` PASS on the owner's computer (`fwm-uat`), incl. the endorsement-panel fix; 1 known flaky AI-PDF test passed on retry | Owner |
+| 23 Oct 23:56 | Commit `48f377f` pushed to `uat/claude-review` (33 files); Vercel Preview build triggered | Owner |
+| 24 Oct 00:00 | Backup of `public` + `supabase_migrations` (2,002,645 bytes, `.git/preview-backup-20261023-pre-m7.sql`) | Owner, guided |
+| 24 Oct 10:17 | WP-LC2-M7 upgrade applied in one transaction (`scripts/rollout/build-preview-lc2-m7.mjs`); preflight 56 ledger entries, latest `20261020110000`; ledger now 57, last `20261022120000`; COMMIT | Owner, guided |
+| 24 Oct 22:20 | Split air-conditioning rename applied (`scripts/rollout/preview-split-ac-rename-20261022.sql`, owner-approved after the dry run): CPR-01 Chiller Plant Room → GNR-01 Generator Room; 4 assets renamed (ACCU-01, ACCU-02-FAN, ACCU-03-CMP, SAC-L2-08); WO-TEST-011 and WO-TEST-015 retitled with an audited `work_order_uat_data_corrected` entry; closed WO-TEST-001 and WO-TEST-014 kept as recorded; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

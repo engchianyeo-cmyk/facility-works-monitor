@@ -345,6 +345,13 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         model={decisionModel}
         incidentHref={relatedIncident ? `/incidents/${relatedIncident.id}` : null}
         nextAction={nextAction}
+        responsibility={{
+          technician: resolvedAssignee,
+          viewer: identity.displayName,
+          viewerRole: operationalLabel(identity.role),
+          viewerResponsible: isPreparer(context) || order.assigned_technician_id === identity.userId,
+          draftToFinish: status === "draft" && isPreparer(context) && approvalReadiness?.ready === false,
+        }}
       />
 
       {status === "draft" && isPreparer(context) && approvalReadiness && (
