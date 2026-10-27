@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/auth";
 import { FACILITY_LOCATION_AUDIT_EVENT, validDrawingReference, validNormalizedCoordinate } from "@/lib/facility-location";
+import { FACILITY_DRAWING_COLUMNS, markupDrawingsFor, type FacilityDrawingRow } from "@/lib/facility-drawings";
 import { WORK_ORDER_DRAWINGS } from "@/lib/work-order-drawings";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -13,12 +14,16 @@ export async function GET() {
   const identity = await requireAdministrator();
   if (!identity) return NextResponse.json({ error: "Access denied." }, { status: 403 });
   const admin = createAdminClient();
-  const [{ data: facilities, error: facilityError }, { data: areas, error: areaError }] = await Promise.all([
+  const [{ data: facilities, error: facilityError }, { data: areas, error: areaError }, { data: uploaded }] = await Promise.all([
     admin.from("sites").select("id,code,name,is_active").eq("is_active", true).order("name"),
     admin.from("facility_areas").select("id,facility_id,area_code,name,level,drawing_reference,map_x,map_y,active").eq("active", true).order("name"),
+    admin.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("active", true).order("code"),
   ]);
   if (facilityError || areaError) return NextResponse.json({ error: "Facility locations could not be loaded." }, { status: 503 });
-  return NextResponse.json({ facilities, areas, drawings: WORK_ORDER_DRAWINGS.map(({ code, title, src, width, height }) => ({ code, title, src, width, height })) });
+  const rows = (uploaded ?? []) as FacilityDrawingRow[];
+  const drawingsByFacility = Object.fromEntries((facilities ?? []).map((facility) => [facility.id,
+    markupDrawingsFor(rows.filter((row) => row.facility_id === facility.id)).map(({ code, title, src, width, height }) => ({ code, title, src, width, height }))]));
+  return NextResponse.json({ facilities, areas, drawings: WORK_ORDER_DRAWINGS.map(({ code, title, src, width, height }) => ({ code, title, src, width, height })), drawings_by_facility: drawingsByFacility });
 }
 
 export async function PATCH(request: Request) {
@@ -28,11 +33,15 @@ export async function PATCH(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request." }, { status: 400 }); }
   const facilityId = typeof body.facility_id === "string" ? body.facility_id : "";
   const areaId = typeof body.facility_area_id === "string" ? body.facility_area_id : "";
-  if (!facilityId || !areaId || !validDrawingReference(body.drawing_reference) || !validNormalizedCoordinate(body.map_x) || !validNormalizedCoordinate(body.map_y)) {
+  if (!facilityId || !areaId || typeof body.drawing_reference !== "string" || !validNormalizedCoordinate(body.map_x) || !validNormalizedCoordinate(body.map_y)) {
     return NextResponse.json({ error: "Choose a facility, area, drawing and a valid point within the drawing." }, { status: 400 });
   }
 
   const admin = createAdminClient();
+  const { data: uploaded } = await admin.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", facilityId).eq("active", true);
+  if (!validDrawingReference(body.drawing_reference, markupDrawingsFor((uploaded ?? []) as FacilityDrawingRow[]))) {
+    return NextResponse.json({ error: "Choose one of this facility's drawings." }, { status: 400 });
+  }
   const { data: area, error: loadError } = await admin.from("facility_areas")
     .select("id,facility_id,area_code,name,drawing_reference,map_x,map_y")
     .eq("id", areaId).eq("facility_id", facilityId).maybeSingle();

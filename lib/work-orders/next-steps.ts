@@ -18,6 +18,9 @@ export function draftNextSteps(missing: readonly string[], workOrderId: string):
     if (item === "Reason the work is needed") {
       return { label: item, how: "Edit the Work Order and explain what is wrong and why it needs fixing.", href: `/work-orders/${workOrderId}/edit` };
     }
+    if (item === "Due date has passed — update the due date") {
+      return { label: item, how: "Tap Edit Work Order, open More details, set a new due date and save.", href: `/work-orders/${workOrderId}/edit` };
+    }
     if (item === "Second Technician endorsement") {
       return { label: item, how: "Ask another Technician of this facility to open this Work Order, check it and tap Endorse as authentic.", href: "#technician-endorsement" };
     }

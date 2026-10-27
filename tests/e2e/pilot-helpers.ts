@@ -14,7 +14,14 @@ export async function login(page: Page, email: string, password: string, next = 
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 20_000 });
+  await signedInPageLoaded(page);
+}
+
+/** Sign-in finishes with a full page load (so the header shows the new account); wait for it before acting. */
+export async function signedInPageLoaded(page: Page, timeout = 20_000) {
+  await expect(page).not.toHaveURL(/\/(login|auth\/complete)(?:\?|$)/, { timeout });
+  await page.waitForLoadState("load");
+  await expect(page.getByText("Signed in as", { exact: true })).toBeVisible({ timeout });
 }
 
 export async function logout(page: Page) {

@@ -45,7 +45,7 @@ describe("integrated Release 1 commercial lifecycle", () => {
   test("configures the governed three-quotation threshold", () => {
     expect(migration).toContain("SGD_1000_AND_ABOVE_THREE_QUOTES");
     expect(migration).toContain("1000,null,3");
-    expect(workspace).toContain("quotations required from");
+    expect(workspace).toContain("quotations needed (");
   });
 
   test("exposes the governed pre-work approval basis in the Work Order journey", () => {

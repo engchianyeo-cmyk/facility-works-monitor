@@ -1,3 +1,4 @@
+import { workOrderStatusLabel } from "@/lib/product-terminology";
 import type { WorkOrderStatus } from "@/lib/work-orders/types";
 
 export type CompletionReadiness = {
@@ -58,5 +59,5 @@ export function deriveWorkOrderOperationalStage(input: {
     return { label: "Assigned — Not Started", nextAction: "Start Work", completion };
   }
 
-  return { label: input.status.replaceAll("_", " "), nextAction: null, completion };
+  return { label: workOrderStatusLabel(input.status), nextAction: null, completion };
 }

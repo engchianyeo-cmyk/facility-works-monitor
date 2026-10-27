@@ -120,6 +120,7 @@ export default function ImageLightbox({
             }}
           >
             <Image
+              unoptimized={src.startsWith("/api/")}
               src={src}
               alt={alt}
               width={crop.sourceWidth}
@@ -153,6 +154,7 @@ export default function ImageLightbox({
         ) : (
           <div className="relative h-full w-full">
             <Image
+              unoptimized={src.startsWith("/api/")}
               src={src}
               alt={alt}
               fill

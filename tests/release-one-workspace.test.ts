@@ -32,7 +32,7 @@ describe("Release 1 markup and commercial workspace", () => {
   });
 
   test("shows governed financial summary and separates recommendation from approval", () => {
-    for (const label of ["Estimated cost", "Quoted cost", "Approved amount / budget", "Actual cost", "Variance", "Contractor", "Quotation", "Cost status", "Financial approval"]) expect(component).toContain(label);
+    for (const label of ["Highest quotation received", "Recommended quotation", "Approved amount", "Actual cost", "Variance", "Contractor", "Quotation", "Cost status", "Financial approval"]) expect(component).toContain(label);
     expect(controls).toContain("SGD_BELOW_1000_ONE_QUOTE");
     expect(controls).toContain("Technicians cannot approve expenditure.");
     expect(controls).toContain("financial_approved_by is distinct from recommended_by");

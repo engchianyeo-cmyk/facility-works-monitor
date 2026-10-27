@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signedInPageLoaded } from "./pilot-helpers";
 
 const reviewerEmail = process.env.E2E_REVIEWER_EMAIL;
 const reviewerPassword = process.env.E2E_REVIEWER_PASSWORD;
@@ -59,6 +60,7 @@ test.describe("Reviewer authentication", () => {
     await page.getByLabel("Email").fill(reviewerEmail!);
     await page.getByLabel("Password").fill(reviewerPassword!);
     await page.getByRole("button", { name: "Sign in" }).click();
+    await signedInPageLoaded(page, 15_000);
 
     await page.goto("/administration/users");
 

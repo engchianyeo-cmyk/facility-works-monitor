@@ -89,11 +89,14 @@ begin
   r:=public.submit_physical_completion(wo,'{"completion_notes":"Replaced bearing and realigned coupling.","actual_labour_hours":3}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='completed','submit for review: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   reset role;
-  -- D-11: a second Technician endorses the work as authentic before the review.
+end;$$;
+
+-- D-11/D-20: a second Technician endorses the work, final cost and any variation order before the review.
+create function pg_temp.endorse(wo uuid) returns jsonb language plpgsql as $$
+declare r jsonb; begin
   perform pg_temp.act(pg_temp.u(2)); set local role authenticated;
-  r:=public.endorse_work_order(wo,'Checked on site: work done as recorded.');
-  perform pg_temp.assert_true((r->>'ok')::boolean and r->'endorsement' is not null,'second Technician endorses: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
-  reset role;
+  r:=public.endorse_work_order(wo,'Checked on site: work and final cost as recorded.');
+  reset role; return r;
 end;$$;
 
 -- D-08: the contractor's final quotation for the work actually performed (final-cost document).
@@ -106,7 +109,9 @@ end;$fd$;
 create function pg_temp.final_cost(wo uuid, tech uuid, amount numeric) returns jsonb language plpgsql as $$
 declare r jsonb; begin
   perform pg_temp.act(tech); set local role authenticated;
-  r:=public.save_work_order_final_cost(wo,jsonb_build_object('final_contractor_amount',amount,'comments','Final contractor account'));
+  r:=public.save_work_order_final_cost(wo,jsonb_build_object('final_contractor_amount',amount,'comments','Final contractor account',
+    'variation_order',amount is distinct from (select coalesce(c.approved_budget,c.quoted_cost) from public.work_order_financial_controls c where c.work_order_id=wo),
+    'variation_justification','Contractor revised the final account'));
   reset role; return r;
 end;$$;
 
@@ -134,7 +139,10 @@ begin
   set local role authenticated;
   -- Review gates ---------------------------------------------------------------------
   perform pg_temp.act(pg_temp.u(4));
-  perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='FINAL_COST_REQUIRED','review needs the final cost');
+  perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='ENDORSEMENT_REQUIRED','review needs the endorsement, which waits for the final cost');
+  perform pg_temp.act(pg_temp.u(2));
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked on site: work done as recorded.')->>'code'='FINAL_COST_REQUIRED','D-20 no endorsement before the final cost');
+  perform pg_temp.assert_true(public.work_order_endorsement_status(wo)->'blocked'->>'code'='FINAL_COST_REQUIRED','D-20 status explains the wait');
   perform pg_temp.act(pg_temp.u(13));
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='ACCESS_DENIED','other-facility Supervisor cannot review (facility gap closed)');
   perform pg_temp.act(pg_temp.u(10));
@@ -143,6 +151,28 @@ begin
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='ACCESS_DENIED','Finance cannot review');
   reset role;
 end;$test$;
+-- D-19: the Technician must state whether there was a variation order.
+do $d19$
+declare r jsonb; wo uuid:=(select id from ids where name='wo');
+begin
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":650,"comments":"Final account"}');
+  perform pg_temp.assert_true(r->>'code'='VARIATION_CONFIRMATION_REQUIRED','D-19 variation answer required: '||coalesce(r->>'code',''));
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":620,"comments":"Final account","variation_order":false}');
+  perform pg_temp.assert_true(r->>'code'='PRICE_UNCHANGED_MISMATCH','D-19 unchanged price must equal the approved quotation: '||coalesce(r->>'code',''));
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":650,"comments":"Final account","variation_order":false}');
+  perform pg_temp.assert_true((r->>'ok')::boolean and (r->'final_cost'->>'variation_order')::boolean = false,'D-19 price unchanged saved: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
+  reset role;
+  perform pg_temp.assert_true((select fc.final_quotation_id = q.id from public.work_order_final_cost_submissions fc
+    join public.contractor_quotations q on q.work_order_id=fc.work_order_id and q.status='approved' where fc.work_order_id=wo),'D-19 approved quotation carried forward as the final quotation');
+  perform pg_temp.assert_true(not public.work_order_final_quotation_missing(wo),'D-19 no revised quotation needed when the price is unchanged');
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":650,"comments":"Final account","variation_order":true}');
+  perform pg_temp.assert_true(r->>'code'='VARIATION_JUSTIFICATION_REQUIRED','D-19 variation needs a justification: '||coalesce(r->>'code',''));
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":650,"comments":"Final account","variation_order":true,"variation_justification":"Extra gasket set found on site"}');
+  reset role;
+  perform pg_temp.assert_true((r->>'ok')::boolean and public.work_order_final_quotation_missing(wo),'D-19 variation order needs the revised quotation even at the same amount');
+end;$d19$;
 select pg_temp.assert_true((pg_temp.final_cost((select id from ids where name='wo'),pg_temp.u(1),620)->>'ok')::boolean,'Technician enters final cost S$620');
 
 do $test$
@@ -154,16 +184,32 @@ begin
   -- The old transition 'review' path is routed to the v2 review (same rules).
   perform pg_temp.assert_true(public.transition_work_order(wo,'review','{}')->>'code'='ACCESS_DENIED','transition review routed to v2 review');
   perform pg_temp.act(pg_temp.u(4));
-  perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"x"}')->>'code'='FINAL_QUOTATION_REQUIRED','S$620 differs from S$650: final quotation required (D-08)');
+  perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"x"}')->>'code'='ENDORSEMENT_REQUIRED','review needs the second Technician endorsement');
   perform pg_temp.assert_true(public.work_order_verification_readiness(wo)->'missing_requirements' @> '["Final quotation for the work actually performed (final cost differs from the approved quotation)"]','readiness lists the final quotation');
+  reset role;
+  r:=pg_temp.endorse(wo);
+  perform pg_temp.assert_true(r->>'code'='FINAL_QUOTATION_REQUIRED','D-20 endorsement waits for the revised quotation: '||coalesce(r->>'code',''));
   perform pg_temp.final_doc(wo);
+  r:=pg_temp.endorse(wo);
+  perform pg_temp.assert_true((r->>'ok')::boolean and r->'endorsement'->>'final_cost_fingerprint' is not null,'D-20 second Technician endorses the final cost: '||coalesce(r->>'code',''));
+  -- D-20: a change to the final cost after the endorsement cancels it.
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":620,"comments":"Final account","variation_order":true,"variation_justification":"Contractor reduced labour after site check"}');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'Technician revises the justification: '||coalesce(r->>'code',''));
+  perform pg_temp.act(pg_temp.u(2));
+  perform pg_temp.assert_true((public.work_order_endorsement_status(wo)->>'superseded')::boolean and (public.work_order_endorsement_status(wo)->>'due')::boolean,'D-20 endorsement superseded by the change');
+  perform pg_temp.act(pg_temp.u(4));
+  perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"x"}')->>'code'='ENDORSEMENT_REQUIRED','D-20 review refused until re-endorsed');
+  reset role;
+  perform pg_temp.assert_true((pg_temp.endorse(wo)->>'ok')::boolean,'D-20 second Technician endorses again');
+  set local role authenticated; perform pg_temp.act(pg_temp.u(4));
   perform pg_temp.assert_true(not (public.work_order_verification_readiness(wo)->'missing_requirements' @> '["Final quotation for the work actually performed (final cost differs from the approved quotation)"]'),'final quotation attached');
   r:=public.verify_completed_work(wo,'{"note":"Work, cost and documents verified."}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='reviewed','Supervisor approves Completed: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   perform pg_temp.assert_true((r->'payment'->>'assessed_amount')::numeric=620 and r->'payment'->>'status'='approved_for_payment','approved payable S$620');
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='NO_CHANGE','repeat review is NO_CHANGE');
   perform pg_temp.act(pg_temp.u(1));
-  perform pg_temp.assert_true(pg_temp.final_cost(wo,pg_temp.u(1),700)->>'code'='ACCESS_DENIED','final cost locked after review');
+  r:=pg_temp.final_cost(wo,pg_temp.u(1),700); perform pg_temp.assert_true(r->>'code'='ACCESS_DENIED','final cost locked after review: '||coalesce(r::text,'null'));
   perform pg_temp.act(pg_temp.u(1));
 
   -- Invoice ------------------------------------------------------------------------------
@@ -222,6 +268,7 @@ end;$t$;
 select pg_temp.execute((select id from ids where name='wo2'),pg_temp.u(1),1200);
 select pg_temp.assert_true((pg_temp.final_cost((select id from ids where name='wo2'),pg_temp.u(1),1200)->>'final_cost')::jsonb->>'status'='variance_pending','final cost above approval is a variance');
 select pg_temp.final_doc((select id from ids where name='wo2'));
+select pg_temp.assert_true((pg_temp.endorse((select id from ids where name='wo2'))->>'ok')::boolean,'wo2 endorsed');
 do $t$ declare wo uuid:=(select id from ids where name='wo2'); r jsonb; v uuid; begin
   set local role authenticated;
   perform pg_temp.act(pg_temp.u(6));
@@ -245,6 +292,7 @@ do $setup$ declare r jsonb; begin
 end;$setup$;
 select pg_temp.execute((select id from ids where name='em'),pg_temp.u(1),880);
 select pg_temp.assert_true((pg_temp.final_cost((select id from ids where name='em'),pg_temp.u(1),880)->>'ok')::boolean,'emergency final cost entered');
+select pg_temp.assert_true((pg_temp.endorse((select id from ids where name='em'))->>'ok')::boolean,'em endorsed');
 do $t$ declare wo uuid:=(select id from ids where name='em'); begin
   set local role authenticated; perform pg_temp.act(pg_temp.u(4));
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"Emergency"}')->>'code'='QUOTATION_REQUIRED','emergency review needs the after-the-fact quotation');

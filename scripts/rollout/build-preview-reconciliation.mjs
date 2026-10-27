@@ -9,7 +9,7 @@ const manifest = readFileSync(path.join(root, 'supabase/bootstrap/fresh-install-
 const start = manifest.indexOf('supabase/migrations/20260928000000_release1_governance_reconciliation.sql');
 // Release-1 reconciliation through 20261013012309, then Work Order Lifecycle v2 (20261020*).
 if (start < 0 || !manifest.includes('supabase/migrations/20261013012309_field_evidence_media.sql')
-  || !manifest.at(-1).endsWith('20261027100000_lifecycle_v2_supporting_document.sql')) {
+  || !manifest.at(-1).endsWith('20261027140000_final_quotation_variation.sql')) {
   throw new Error('Candidate manifest changed; independently review the rollout baseline.');
 }
 const selected = manifest.slice(start);
@@ -102,6 +102,9 @@ begin
     -- Lifecycle v2 adds nullable columns only; existing values must be unchanged.
     when item.relation='public.work_orders' then array['approval_limit_version_id','in_house_work','actual_work_started_at','actual_work_ended_at']
     when item.relation='public.contractor_payment_assessments' then array['invoice_amount','invoice_uploaded_at','invoice_uploaded_by','invoice_received_by']
+    -- Facility setup (D-17) and the variation-order rule (D-19) add nullable/defaulted columns only.
+    when item.relation='public.sites' then array['address','updated_at']
+    when item.relation='public.work_order_final_cost_submissions' then array['variation_order','final_quotation_id','variation_justification']
     else array[]::text[] end;
   execute format('select count(*),md5(coalesce(string_agg((to_jsonb(t)-$1)::text,E''\\n'' order by (to_jsonb(t)-$1)::text),'''')) from %s t',item.relation)
     into count_rows,digest_rows using ignored;

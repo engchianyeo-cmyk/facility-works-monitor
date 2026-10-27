@@ -99,7 +99,9 @@ end;$$;
 create function pg_temp.final_cost(wo uuid, tech uuid, amount numeric) returns jsonb language plpgsql as $$
 declare r jsonb; begin
   perform pg_temp.act(tech); set local role authenticated;
-  r:=public.save_work_order_final_cost(wo,jsonb_build_object('final_contractor_amount',amount,'comments','Final contractor account'));
+  r:=public.save_work_order_final_cost(wo,jsonb_build_object('final_contractor_amount',amount,'comments','Final contractor account',
+    'variation_order',amount is distinct from (select coalesce(c.approved_budget,c.quoted_cost) from public.work_order_financial_controls c where c.work_order_id=wo),
+    'variation_justification','Contractor revised the final account'));
   reset role; return r;
 end;$$;
 

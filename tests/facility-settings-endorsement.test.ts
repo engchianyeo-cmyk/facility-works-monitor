@@ -105,4 +105,12 @@ describe("D-11 second Technician endorsement and actual work times", () => {
     expect(evidence.validCategory("document")).toBe(true);
     expect(evidence.validCategory("other")).toBe(false);
   });
+
+  it("points a passed due date to Edit Work Order (D-15)", () => {
+    expect(draftNextSteps(["Due date has passed — update the due date"], "wo-1")[0].href).toBe("/work-orders/wo-1/edit");
+  });
+
+  it("keeps the audit history in a scrollable box to shorten the Work Order page (D-16)", () => {
+    expect(read("app/work-orders/[id]/page.tsx")).toContain('max-h-[28rem] divide-y divide-slate-100 overflow-y-auto');
+  });
 });

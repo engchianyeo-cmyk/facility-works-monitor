@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type AuthFormProps = {
   mode?: "login";
@@ -10,7 +9,6 @@ type AuthFormProps = {
 };
 
 export default function AuthForm({ nextPath = "/" }: AuthFormProps) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,8 +41,8 @@ export default function AuthForm({ nextPath = "/" }: AuthFormProps) {
 
       const completeUrl = new URL("/auth/complete", window.location.origin);
       completeUrl.searchParams.set("next", nextPath);
-      router.replace(`${completeUrl.pathname}${completeUrl.search}`);
-      router.refresh();
+      // A full page load, so the header (root layout) is rebuilt for the account that just signed in.
+      window.location.assign(`${completeUrl.pathname}${completeUrl.search}`);
     } finally {
       setSubmitting(false);
     }

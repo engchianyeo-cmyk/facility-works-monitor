@@ -9,6 +9,7 @@ import {
   WORK_ORDER_DRAWINGS,
   WorkOrderDrawing,
 } from "@/lib/work-order-drawings";
+import { unoptimizedDrawing } from "@/lib/facility-drawings";
 
 type FacilityArea = {
   area_code: string;
@@ -32,12 +33,12 @@ function calibratedCoordinate(value: number | string | null | undefined) {
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
 }
 
-function configuredDrawing(context: LocationContext | null) {
+function configuredDrawing(context: LocationContext | null, drawings: readonly WorkOrderDrawing[]) {
   const reference = context?.facility_area?.drawing_reference?.trim().toUpperCase();
-  return reference ? WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === reference) ?? null : null;
+  return reference ? drawings.find((drawing) => drawing.code === reference) ?? null : null;
 }
 
-export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMutateMarkup?: boolean }) {
+export default function WorkOrderDrawings({ canMutateMarkup = false, drawings = WORK_ORDER_DRAWINGS }: { canMutateMarkup?: boolean; drawings?: readonly WorkOrderDrawing[] }) {
   const params = useParams<{ id?: string }>();
   const workOrderId = typeof params?.id === "string" ? params.id : null;
   const [selectedDrawing, setSelectedDrawing] =
@@ -73,7 +74,7 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
     return () => controller.abort();
   }, [workOrderId]);
 
-  const locationDrawing = useMemo(() => configuredDrawing(locationContext), [locationContext]);
+  const locationDrawing = useMemo(() => configuredDrawing(locationContext, drawings), [locationContext, drawings]);
   // D-08: the location must be marked on a layout plan; when no facility area is configured,
   // the user chooses the plan. Default to the plan that already carries this Work Order's markup.
   const [chosenCode, setChosenCode] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
       .catch(() => undefined);
     return () => { active = false; };
   }, [workOrderId]);
-  const markupDrawing = WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === chosenCode) ?? locationDrawing ?? WORK_ORDER_DRAWINGS[0] ?? null;
+  const markupDrawing = drawings.find((drawing) => drawing.code === chosenCode) ?? locationDrawing ?? drawings[0] ?? null;
   const mapX = calibratedCoordinate(locationContext?.facility_area?.map_x);
   const mapY = calibratedCoordinate(locationContext?.facility_area?.map_y);
   const marker = locationDrawing && mapX !== null && mapY !== null && locationContext?.facility_area
@@ -176,7 +177,7 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
           <div className="rounded-lg border border-blue-200 bg-white p-3 text-sm">
             <label className="font-bold text-slate-900" htmlFor="markup-layout-plan">Layout plan</label>
             <select id="markup-layout-plan" className="ml-3 rounded border border-slate-300 px-2 py-1" value={markupDrawing.code} onChange={(event) => setChosenCode(event.target.value)}>
-              {WORK_ORDER_DRAWINGS.map((drawing) => <option key={drawing.code} value={drawing.code}>{drawing.code} · {drawing.title}</option>)}
+              {drawings.map((drawing) => <option key={drawing.code} value={drawing.code}>{drawing.code} · {drawing.title}</option>)}
             </select>
             <p className="mt-2 text-slate-600">Mark where the work is on the layout plan so anyone unfamiliar with the site — for example Finance — can see the location. This is required before the Work Order is submitted (for emergencies, before the review).</p>
           </div>
@@ -196,7 +197,7 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
       )}
 
       <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-        {WORK_ORDER_DRAWINGS.map((drawing) => {
+        {drawings.map((drawing) => {
           const isLocationDrawing = locationDrawing?.code === drawing.code;
           return (
             <li
@@ -205,6 +206,7 @@ export default function WorkOrderDrawings({ canMutateMarkup = false }: { canMuta
             >
               <div className="relative aspect-[3/2] w-full overflow-hidden bg-neutral-100">
                 <Image
+                  unoptimized={unoptimizedDrawing(drawing.src)}
                   src={drawing.src}
                   alt={drawing.alt}
                   fill

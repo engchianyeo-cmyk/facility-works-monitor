@@ -84,4 +84,20 @@ begin
   perform pg_temp.assert_true(public.work_order_approval_summary(wo)->'missing_requirements' @> '["Before photo, video or voice note of the site"]','a supporting document does not count as Before evidence');
   reset role;
 end;$test$;
+-- D-15: a Draft whose due date has passed is listed and refused with a clear reason.
+do $test$
+declare r jsonb; wo uuid;
+begin
+  set local role authenticated;
+  perform pg_temp.act(pg_temp.u(1));
+  r:=public.create_work_order(jsonb_build_object('title','Overdue Draft','location','Plant room','facility_id',(select facility_id from f),
+    'description','Legacy Work Order converted with an old due date.'));
+  wo:=(r->'work_order'->>'id')::uuid;
+  reset role;
+  update public.work_orders set created_at=now()-interval '60 days', due_date=(now()-interval '30 days')::date where id=wo;
+  set local role authenticated;
+  perform pg_temp.assert_true(public.work_order_approval_summary(wo)->'missing_requirements' @> '["Due date has passed — update the due date"]','readiness lists the passed due date');
+  perform pg_temp.assert_true(public.transition_work_order(wo,'submit','{}')->>'code'='DUE_DATE_PASSED','submission refused with DUE_DATE_PASSED, not a database error');
+  reset role;
+end;$test$;
 rollback;

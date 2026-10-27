@@ -138,8 +138,10 @@ test.describe("Work Order Lifecycle v2", () => {
     await expect(page.getByRole("status").filter({ hasText: "Actual costing confirmed" })).toBeVisible();
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();
     await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
-    await workspace(page, workOrderId, "save_final_cost", { final_contractor_amount: 620, comments: "Final contractor account S$620." });
-    // D-08: S$620 differs from the S$650 quotation, so the contractor's final quotation is attached.
+    await workspace(page, workOrderId, "save_final_cost", { final_contractor_amount: 620, comments: "Final contractor account S$620.",
+      variation_order: true, variation_justification: "Contractor reduced the labour after the site check." });
+    // D-08/D-19: a variation order (S$620 against the S$650 quotation), so the contractor's revised quotation is attached
+    // before the second Technician endorses (D-20).
     const current = await (await page.request.get(`/api/work-orders/${workOrderId}/release-1`)).json();
     const finalUpload = await page.request.post(`/api/work-orders/${workOrderId}/commercial-documents`, {
       multipart: { document_type: "final_invoice", record_id: String(current.data.final_cost.id), file: { name: `final-quotation-${runId}.pdf`, mimeType: "application/pdf", buffer: PDF } },

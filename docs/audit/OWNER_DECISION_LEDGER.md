@@ -262,6 +262,102 @@ the Evidence category list offers Before, After and **Other supporting document*
 category `document`). It does not satisfy the Before or After evidence requirements. Same upload rules
 (photo, video, voice, PDF; assigned Technician or the creating superior while drafting).
 
+### D-15 Passed due date shown clearly before submission — 27 October 2026 16:41
+
+UAT on WO-TEST-010: "Submit for approval" failed with "The workflow service is temporarily unavailable".
+Diagnosis (`scripts/rollout/preview-diagnose-submit.sql`, rolled back): the due date (3 Sep 2026) was
+before the submission date, which the long-standing check `work_orders_due_date_check` refuses. Fix (added
+to the not-yet-applied migration `20261027100000_lifecycle_v2_supporting_document.sql`): a Draft with a passed
+due date lists "Due date has passed — update the due date" in Next steps (linked to Edit Work Order), and
+submission returns DUE_DATE_PASSED with a clear message. Workaround until applied: edit the due date first.
+
+### D-16 Shorter Work Order page: scrollable audit history — 27 October 2026 17:18
+
+Owner: "I suggest you can scroll the audit history to shorten the work order." Implemented: the Audit
+history on the Work Order page sits in a fixed-height box (about 28 rem) that scrolls inside, newest first,
+with the number of entries shown. Nothing is removed from the history.
+
+### D-17 Administrator sets up facilities, drawings and staff — 27 October 2026 17:59
+
+Owner: "Allow Administrator to add in new facilities, and their drawings to be downloaded,
+including staff of that facility." Read as: the Administrator adds and edits facilities,
+uploads their drawings (staff view and download them), and assigns the facility's staff.
+
+1. **Administration → Facilities** (Administrator only): add a facility (code, name, address),
+   optionally starting with the 25 standard areas (Generator Room GNR-01, not Chiller); edit
+   details or mark it not in use (refused while it has open Work Orders); add areas; upload and
+   remove drawings; add and remove staff (Technician, Approver, Supervisor, Facility Manager).
+   Every change needs a reason and is recorded in the activity log.
+2. A new facility starts on the recommended settings (D-11): endorsement before the Approver's review.
+3. Drawings: PNG, JPEG, WebP or PDF up to 50 MB, stored privately; a drawing number may be used
+   once per facility while active (FW-001 to FW-005 stay reserved for the mock-ups). Removing a
+   drawing keeps its record and file for the audit trail. Any signed-in staff member can view or
+   download drawings from the new **Drawings** page and on each Work Order of that facility, through
+   a link valid for 5 minutes.
+4. A facility's own image drawings replace the mock-ups for area pins (Facility Locations) and
+   Work Order markup at that facility; facilities without uploaded drawings keep the mock-ups.
+5. Area codes are now unique per facility (the same code may be used at two facilities).
+6. Database: migration `20261027120000_facility_setup.sql` (WP-FS-M9); applied to Preview together
+   with `20261027100000` (D-14/D-15) by `scripts/rollout/build-preview-increment.mjs`, rehearsed
+   locally on an M7-state copy (ledger 57 → 59; wrong target and repeat refused).
+7. Still open: whether "Both" should become the default endorsement stage for new facilities.
+
+### D-18 Archive and off-site copy, set per facility — 27 October 2026 18:42 (Stage 2)
+
+Owner: closed Work Orders are saved in an archive and can be saved to a disk off-site; "after how
+many months a closed Work Order should move to the archive" and "how often the off-site copy should
+be made" "should be based on each facility's practices. Therefore this will be included in the
+configuration requirements setup."
+
+1. Two new facility settings, chosen by the Administrator in Administration → Facilities with a reason,
+   recorded like the other settings: **archive after N months closed** and **off-site copy frequency**.
+2. Archived Work Orders leave the everyday list but stay viewable and searchable with their full audit
+   history, evidence and documents; nothing is deleted.
+3. The off-site copy is a downloadable bundle per facility and period: register, audit trail,
+   evidence, quotations, invoices and drawings, for the facility to save to its own off-site disk.
+   The app reminds the facility when a copy is due.
+4. Not built yet (Stage 2). Defaults to propose with the Advisor; until then closed Work Orders stay in
+   the main list and the CSV register export remains available.
+
+### D-19 Variation order stated at the final cost — 27 October 2026 19:04 (refines D-08)
+
+Owner: "I need you to confirm if a variation order is included in the work order carried out or the
+pricing remains the same. If it is the same, then enter the same quotation in the final quotation after
+work order is performed. Otherwise, include a new quotation with revised pricing." 19:10: "We use
+variation and submit a revised quotation with justification for Voltquay."
+
+1. After the work, the assigned Technician must answer "Was there a variation order from the contractor?"
+   before the final cost can be saved (contractor work with a quotation; not in-house work, and not an
+   emergency job whose after-the-fact quotation does not exist yet).
+2. **No, price unchanged:** the approved quotation is recorded as the final quotation; the final
+   contractor charge is fixed at the approved amount.
+3. **Yes, variation order:** the Technician enters the revised charge and a justification (why the price
+   changed), and must attach the contractor's revised quotation; the review is refused without it. A
+   revised amount above the approved amount still needs the reviewer's recorded reason (unchanged rule).
+4. Final costs saved before this change keep the D-08 rule.
+5. Display fixes in the same batch: the Cost Summary shows the approved, else recommended, quotation (it
+   showed the last one entered, which named Northline instead of the recommended Voltquay on WO-TEST-010);
+   the Status card shows the stage name ("Awaiting Approval", not "submitted").
+6. Database: migration `20261027140000_final_quotation_variation.sql` (WP-FQ-M10); joins M8 and M9 in the
+   next Preview increment.
+7. UAT data for WO-TEST-010: Voltquay revised quotation VQ-Q-2026-0957 Rev 1 / VO VQ-VO-2026-0957-01,
+   S$13,500.00 before GST (+S$1,737.50: extra 70 litres of oil and disposal, seized drain valve replaced,
+   half a day more filtration).
+
+### D-20 Second Technician endorses the final cost and any variation order — 27 October 2026 19:22 (refines D-11)
+
+Owner: "Technician 2 has to endorse the work order, Shouldn't this work order needs to be modified following
+the addition of the VO by Technician 1?" Confirmed 19:24: yes.
+
+1. The review endorsement can be given only once the final cost is saved and, for a variation order, the
+   revised quotation is attached (in-house work: no final cost needed).
+2. The endorsement panel shows what is endorsed: final contractor charge, variation yes/no, justification,
+   and whether the revised quotation is attached.
+3. A change to the final charge, the variation answer, the justification or the attached quotation after the
+   endorsement cancels it; the panel says so, and the review is refused until the second Technician endorses
+   again. A review endorsement given before this change must be given again once a final cost exists.
+4. Database: in migration `20261027140000_final_quotation_variation.sql` with D-19.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

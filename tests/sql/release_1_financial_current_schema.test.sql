@@ -159,7 +159,7 @@ select pg_catalog.set_config('request.jwt.claims',jsonb_build_object('sub',pg_te
 select set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
 set local role authenticated;
 select pg_temp.assert_true(
-  (public.save_work_order_final_cost('08000000-0000-4000-8000-000000000012','{"final_contractor_amount":620,"confirmed_actual_cost":620,"comments":"Reconciled rollback-only test."}'::jsonb)->'final_cost'->>'confirmed_actual_cost')::numeric=620,
+  (public.save_work_order_final_cost('08000000-0000-4000-8000-000000000012','{"final_contractor_amount":620,"confirmed_actual_cost":620,"comments":"Reconciled rollback-only test.","variation_order":true,"variation_justification":"Rollback-only variation test"}'::jsonb)->'final_cost'->>'confirmed_actual_cost')::numeric=620,
   'final-cost snapshot derives S$620 actual rather than adding the S$650 quotation'
 );
 select pg_temp.assert_true(
@@ -173,8 +173,8 @@ select fc.id,w.id,w.assigned_technician_id,'final-quotation.pdf','application/pd
 from public.work_orders w join public.work_order_final_cost_submissions fc on fc.work_order_id=w.id where w.id='08000000-0000-4000-8000-000000000012';
 -- D-11: actual work times and the second-Technician endorsement are required before the review (rollback-only).
 update public.work_orders set actual_work_started_at=now()-interval '3 hours', actual_work_ended_at=now()-interval '1 hour' where id='08000000-0000-4000-8000-000000000012';
-insert into public.work_order_endorsements(work_order_id,stage,endorsed_by,statement,cycle)
-select w.id,'review',p.id,'Rollback-only endorsement for the WP-2A regression.',public.work_order_endorsement_cycle(w.id,'review') from public.work_orders w cross join public.profiles p
+insert into public.work_order_endorsements(work_order_id,stage,endorsed_by,statement,cycle,final_cost_fingerprint)
+select w.id,'review',p.id,'Rollback-only endorsement for the WP-2A regression.',public.work_order_endorsement_cycle(w.id,'review'),public.work_order_final_cost_fingerprint(w.id) from public.work_orders w cross join public.profiles p
 where w.id='08000000-0000-4000-8000-000000000012' and p.email='pilot.facility-manager@example.test';
 set local role authenticated;
 select pg_catalog.set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.actor_id('pilot.supervisor@example.test'),'role','authenticated')::text,true);

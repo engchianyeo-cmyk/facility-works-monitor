@@ -25,6 +25,7 @@ import { buildWorkOrderDecisionModel, safeHumanLabel } from "@/lib/work-orders/d
 import { authorizedExecutionActions } from "@/lib/work-orders/execution-interaction";
 import { canAct, canAssign, canEdit, canRecordWork, canSetTechnician, isApprovalAuthority, isPreparer } from "@/lib/work-orders/permissions";
 import { deriveWorkOrderOperationalStage } from "@/lib/work-orders/operational-stage";
+import { FACILITY_DRAWING_COLUMNS, facilityDrawingSrc, markupDrawingsFor, type FacilityDrawingRow } from "@/lib/facility-drawings";
 import { activeReworkContext, reworkHistory } from "@/lib/work-orders/rework";
 import {
   WORK_ORDER_ACTIONS,
@@ -34,18 +35,28 @@ import {
 
 export const revalidate = 0;
 
-const TIMELINE = [
-  ["created_at", "Created"],
-  ["submitted_at", "Submitted"],
-  ["approved_at", "Approved"],
-  ["assigned_at", "Assigned"],
-  ["accepted_at", "Accepted"],
-  ["started_at", "Started"],
-  ["completed_at", "Completed"],
-  ["reviewed_at", "Reviewed"],
-  ["closed_at", "Closed"],
-  ["cancelled_at", "Cancelled"],
-] as const;
+/** Lifecycle v2 steps shown in the Workflow timeline (stage names follow Roles & Stages). */
+function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission: string | null; review: string | null }, endorsementSetting: string) {
+  const at = (value: unknown) => (typeof value === "string" && value ? value : null);
+  const steps: Array<{ key: string; label: string; at: string | null; note?: string }> = [
+    { key: "created", label: `${workOrderStatusLabel("draft")} created`, at: at(order.created_at) },
+  ];
+  if (["before_submission", "both"].includes(endorsementSetting) && !order.emergency_work) steps.push({ key: "endorse-submission", label: "Second Technician endorsed (before submission)", at: endorsedAt.submission });
+  steps.push(
+    { key: "submitted", label: `Submitted — ${workOrderStatusLabel("submitted")}`, at: at(order.submitted_at) },
+    { key: "approved", label: workOrderStatusLabel("approved"), at: at(order.approved_at) },
+    { key: "started", label: "Work started (actual)", at: at(order.actual_work_started_at) ?? at(order.started_at) },
+    { key: "finished", label: "Work finished (actual)", at: at(order.actual_work_ended_at) },
+    { key: "completed", label: workOrderStatusLabel("completed"), at: at(order.completed_at) },
+  );
+  if (["before_review", "both"].includes(endorsementSetting) || order.emergency_work) steps.push({ key: "endorse-review", label: "Second Technician endorsed (work and final cost)", at: endorsedAt.review });
+  steps.push(
+    { key: "reviewed", label: workOrderStatusLabel("reviewed"), at: at(order.reviewed_at) },
+    { key: "closed", label: `${workOrderStatusLabel("closed")} (paid or no payment due)`, at: at(order.closed_at) },
+  );
+  if (at(order.cancelled_at)) steps.push({ key: "cancelled", label: workOrderStatusLabel("cancelled"), at: at(order.cancelled_at) });
+  return steps;
+}
 
 /** Elapsed time between two timestamps, e.g. "2 d 3 h 15 min". */
 function formatDuration(start: string | null, end: string | null) {
@@ -222,7 +233,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     allowedActions = allowedActions.filter((action) => action !== "accept" && action !== "start");
   }
   const relatedIncident = incidentResult.error ? null : incidentResult.data;
-  const [finalCostResult, financialControlResult, copiedResult, directoryResult, facilityTechniciansResult, endorsementResult, facilitySettingResult] = await Promise.all([
+  const [finalCostResult, financialControlResult, copiedResult, directoryResult, facilityTechniciansResult, endorsementResult, facilitySettingResult, facilityDrawingsResult] = await Promise.all([
     status === "completed" ? supabase.from("work_order_final_cost_submissions").select("confirmed_actual_cost,status").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     status === "completed" ? supabase.from("work_order_financial_controls").select("approved_budget,quoted_cost").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     supabase.from("work_order_copied_parties").select("profile_id").eq("work_order_id", id),
@@ -230,7 +241,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     canSetTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
     supabase.from("work_order_endorsements").select("id,stage,endorsed_by,statement,endorsed_at").eq("work_order_id", id).order("endorsed_at", { ascending: true }),
     order.facility_id ? supabase.from("facility_settings").select("endorsement_stage").eq("facility_id", order.facility_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    order.facility_id ? supabase.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", order.facility_id).eq("active", true).order("code") : Promise.resolve({ data: [], error: null }),
   ]);
+  const facilityDrawings = (facilityDrawingsResult.error ? [] : facilityDrawingsResult.data ?? []) as FacilityDrawingRow[];
   const finalCost = finalCostResult.error ? null : (finalCostResult.data as { confirmed_actual_cost: number } | null)?.confirmed_actual_cost ?? null;
   const approvedAmount = financialControlResult.error ? null : (financialControlResult.data as { approved_budget: number | null } | null)?.approved_budget ?? null;
   const copiedIds = (copiedResult.error ? [] : copiedResult.data ?? []).map((row) => String(row.profile_id));
@@ -239,6 +252,10 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const nameById = new Map(people.map((person) => [person.id, person.name]));
   const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string }>)
     .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at }));
+  const latestEndorsement = {
+    submission: endorsements.filter((item) => item.stage === "submission").map((item) => item.endorsed_at).sort().at(-1) ?? null,
+    review: endorsements.filter((item) => item.stage === "review").map((item) => item.endorsed_at).sort().at(-1) ?? null,
+  };
   const endorsementStageValue = (facilitySettingResult.data as { endorsement_stage?: string } | null)?.endorsement_stage ?? DEFAULT_ENDORSEMENT_STAGE;
   const endorsementStage = endorsementStageLabel(endorsementStageValue);
   const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status);
@@ -270,28 +287,39 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     .order("created_at", { ascending: false });
   const priorReworkCycles = reworkHistory(activity ?? []);
   const currentRework = activeReworkContext(String(order.status), activity ?? []);
-  // D-11: the review endorsement is needed for this completion cycle unless one was given after the latest submission.
-  // Worked out here (not from the reviewer-only readiness RPC) so the second Technician also sees the panel.
-  const latestCompletion = (activity ?? []).filter((entry) => entry.action === "work_order_complete").map((entry) => String(entry.created_at)).sort().at(-1) ?? null;
-  const reviewEndorsementDue = status === "completed"
-    && (["before_review", "both"].includes(endorsementStageValue) || (Boolean(order.emergency_work) && endorsementStageValue === "before_submission"))
-    && !endorsements.some((item) => item.stage === "review" && (!latestCompletion || new Date(item.endorsed_at).getTime() >= new Date(latestCompletion).getTime()));
+  // D-11/D-20: the database decides whether the review endorsement is due (it must cover the current final cost
+  // and any variation order); readable by the second Technician as well as the reviewers.
+  const endorsementStatusResult = status === "completed" ? await supabase.rpc("work_order_endorsement_status", { p_work_order_id: id }) : null;
+  const endorsementStatus = (endorsementStatusResult && !endorsementStatusResult.error ? endorsementStatusResult.data : null) as
+    { ok?: boolean; due?: boolean; superseded?: boolean; blocked?: { code: string; message: string } | null;
+      final_cost?: { final_contractor_amount: number; variation_order: boolean | null; variation_justification: string | null; documents: number } | null } | null;
+  const reviewEndorsementDue = status === "completed" && endorsementStatus?.ok === true && endorsementStatus.due === true;
   const endorsementRequired = (status === "draft" && Boolean(approvalSummary?.missing_requirements?.includes("Second Technician endorsement")))
     || (status === "completed" && (reviewEndorsementDue || Boolean(verificationReadiness?.missing_requirements?.includes("Second Technician endorsement"))));
 
-  const predictive = ["condition_based", "predictive"].includes(order.source)
-    || order.alert_id
-    || order.prediction_reference;
+  // Shown only for Work Orders raised from condition monitoring or a prediction (not leftover references on reactive work).
+  const predictive = ["condition_based", "predictive"].includes(order.source);
   const overviewFields = [
     ["Source", operationalLabel(String(order.source))],
     ["Estimated hours", order.estimated_hours],
     ["Contact number", order.contact_number],
   ].filter(([, value]) => hasValue(value));
+  // D-12/D-20: who is responsible and who endorses, by name.
+  const assignedTechnicianName = order.assigned_technician_id ? nameById.get(String(order.assigned_technician_id)) ?? resolvedAssignee : null;
+  const contractorName = order.assigned_vendor_id
+    ? vendors.find((item) => item.id === order.assigned_vendor_id)?.name
+      ?? safeHumanLabel((await supabase.from("vendors").select("name").eq("id", order.assigned_vendor_id).maybeSingle()).data?.name)
+    : null;
+  const endorserNames = (stage: "submission" | "review") => [...new Set(endorsements.filter((item) => item.stage === stage).map((item) => item.endorser))].join(", ");
+  const endorsingTechnician = endorserNames("review") || endorserNames("submission")
+    ? [endorserNames("submission") && `${endorserNames("submission")} (before submission)`, endorserNames("review") && `${endorserNames("review")} (work and final cost)`].filter(Boolean).join("; ")
+    : "Not yet endorsed — any other Technician of this facility";
   const assignmentFields = [
-    ["Assigned to", resolvedAssignee],
+    ["Assigned Technician", assignedTechnicianName ?? resolvedAssignee],
+    ["Endorsing Technician", endorsingTechnician],
+    ["Contractor", contractorName],
     ["Assigned by", safeHumanLabel(order.assigned_by)],
     ["Assigned at", order.assigned_at ? formatDateTime(order.assigned_at) : null],
-    ["Accepted at", order.accepted_at ? formatDateTime(order.accepted_at) : null],
   ].filter(([, value]) => hasValue(value));
   const jobInstructionFields = [["Original / imported instructions", order.internal_notes]].filter(([, value]) => hasValue(value));
   const fieldWorkFields = [
@@ -399,7 +427,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       />
 
       {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
-      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} />}
+      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} />}
 
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "Engineering System: Not configured"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>
@@ -482,10 +510,10 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-4 font-semibold">Workflow timeline</h2>
         <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {TIMELINE.map(([field, label]) => (
-            <li key={field} className={`rounded-lg border p-3 text-sm ${order[field] ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-              <p className="font-semibold">{label}</p>
-              <p className="mt-1 text-xs text-slate-500">{formatDateTime(order[field])}</p>
+          {timelineSteps(order, latestEndorsement, endorsementStageValue).map((step) => (
+            <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+              <p className="font-semibold">{step.label}</p>
+              <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
             </li>
           ))}
         </ol>
@@ -497,15 +525,37 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 font-semibold">Audit history</h2>
-        {activityError
-          ? <LoadFailure message="Audit history could not be loaded. Please try again." />
-          : !activity?.length
-            ? <p className="text-sm text-slate-500">No audit activity.</p>
-            : <ul className="divide-y divide-slate-100">{activity.map((entry) => <li key={entry.id} className="py-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{entry.actor || "System"} · {operationalLabel(entry.action)}</strong><time className="text-slate-400">{formatDateTime(entry.created_at)}</time></div>{(entry.from_status || entry.to_status) && <p className="mt-1 text-slate-500">{entry.from_status ? workOrderStatusLabel(entry.from_status) : "Not recorded"} → {entry.to_status ? workOrderStatusLabel(entry.to_status) : "Not recorded"}</p>}{entry.note && <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs text-slate-600">{auditNote(entry.note)}</pre>}</li>)}</ul>}
+        <details>
+          <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Audit history</h2>
+            <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-blue-700">Show audit history{activity?.length ? ` (${activity.length} entries)` : ""}</span>
+          </summary>
+          {activityError
+            ? <LoadFailure message="Audit history could not be loaded. Please try again." />
+            : !activity?.length
+              ? <p className="mt-3 text-sm text-slate-500">No audit activity.</p>
+              : <>
+                <p className="mb-3 mt-3 text-xs text-slate-500">Newest first. Scroll inside the box to see older entries; open “Details” for the full record of an entry.</p>
+                <ul className="max-h-[28rem] divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-100 px-3" tabIndex={0} aria-label="Audit history entries">{activity.map((entry) => <li key={entry.id} className="py-3 text-sm">
+                  <div className="flex flex-wrap justify-between gap-2"><strong>{entry.actor || "System"} · {operationalLabel(entry.action)}</strong><time className="text-slate-400">{formatDateTime(entry.created_at)}</time></div>
+                  {(entry.from_status || entry.to_status) && entry.from_status !== entry.to_status && <p className="mt-1 text-slate-500">{entry.from_status ? workOrderStatusLabel(entry.from_status) : "Not recorded"} → {entry.to_status ? workOrderStatusLabel(entry.to_status) : "Not recorded"}</p>}
+                  {entry.note && <details className="mt-1"><summary className="cursor-pointer text-xs font-semibold text-blue-700">Details</summary><pre className="mt-2 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs text-slate-600">{auditNote(entry.note)}</pre></details>}
+                </li>)}</ul>
+              </>}
+        </details>
       </section>
 
-      <WorkOrderDrawings canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
+      {facilityDrawings.length > 0 && <section aria-labelledby="facility-drawing-files-heading" className="rounded-xl border bg-white p-5 shadow-sm">
+        <h2 id="facility-drawing-files-heading" className="text-lg font-bold">Facility drawings</h2>
+        <p className="mt-1 text-sm text-slate-600">Layout drawings uploaded by the Administrator for this facility.</p>
+        <ul className="mt-3 divide-y rounded-lg border">{facilityDrawings.map((drawing) => <li key={drawing.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">
+          <span className="min-w-0 flex-1"><strong>{drawing.code}</strong> — {drawing.title} <span className="text-slate-500">· {drawing.revision ?? "No revision"} · {drawing.content_type === "application/pdf" ? "PDF" : "Image"}</span></span>
+          <a href={facilityDrawingSrc(drawing.id)} target="_blank" rel="noopener" className="min-h-11 rounded border px-3 py-2 font-semibold text-blue-700">View</a>
+          <a href={facilityDrawingSrc(drawing.id, true)} className="min-h-11 rounded border px-3 py-2 font-semibold text-blue-700">Download</a>
+        </li>)}</ul>
+      </section>}
+
+      <WorkOrderDrawings drawings={markupDrawingsFor(facilityDrawings)} canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
     </main>
   );
 }
