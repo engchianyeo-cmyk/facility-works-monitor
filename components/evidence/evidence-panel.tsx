@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EVIDENCE_CATEGORIES, type EvidenceParent } from "@/lib/evidence";
+import { EVIDENCE_CATEGORIES, EVIDENCE_CATEGORY_LABELS, type EvidenceParent } from "@/lib/evidence";
 
 type Item = {
   id: string;
@@ -15,7 +15,7 @@ type Item = {
   uploader_name: string;
 };
 
-const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+const label = (value: string) => EVIDENCE_CATEGORY_LABELS[value] ?? value.charAt(0).toUpperCase() + value.slice(1);
 
 export default function EvidencePanel({ parentType, parentId, canMutate = true, canDelete = canMutate, readOnlyReason }: { parentType: EvidenceParent; parentId: string; canMutate?: boolean; canDelete?: boolean; readOnlyReason?: string }) {
   const router = useRouter();

@@ -69,3 +69,4 @@ supabase/migrations/20261020090000_lifecycle_v2_screen_support.sql
 supabase/migrations/20261020100000_lifecycle_v2_in_house.sql
 supabase/migrations/20261020110000_lifecycle_v2_site_location.sql
 supabase/migrations/20261022120000_lifecycle_v2_facility_settings.sql
+supabase/migrations/20261027100000_lifecycle_v2_supporting_document.sql

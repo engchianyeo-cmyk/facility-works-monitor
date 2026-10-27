@@ -97,4 +97,12 @@ describe("D-11 second Technician endorsement and actual work times", () => {
     expect(workspace).toContain("Summary of charges (optional — the attached quotation is the official record)");
     expect(workspace).not.toContain("Itemized charges (from authentic quotation)");
   });
+
+  it("offers Other supporting document as an evidence category (D-14)", async () => {
+    const evidence = await import("@/lib/evidence");
+    expect(evidence.EVIDENCE_CATEGORIES).toEqual(["before", "after", "document"]);
+    expect(evidence.EVIDENCE_CATEGORY_LABELS.document).toBe("Other supporting document");
+    expect(evidence.validCategory("document")).toBe(true);
+    expect(evidence.validCategory("other")).toBe(false);
+  });
 });

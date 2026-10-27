@@ -1,4 +1,6 @@
-export const EVIDENCE_CATEGORIES = ["before", "after"] as const;
+export const EVIDENCE_CATEGORIES = ["before", "after", "document"] as const;
+/** D-14: "document" is shown as "Other supporting document"; it does not count as Before or After evidence. */
+export const EVIDENCE_CATEGORY_LABELS: Record<string, string> = { before: "Before", after: "After", document: "Other supporting document" };
 export type EvidenceCategory = typeof EVIDENCE_CATEGORIES[number];
 export type EvidenceParent = "work_order" | "incident";
 const MUTABLE_WORK_ORDER_EVIDENCE_STATUSES = new Set(["assigned", "in_progress"]);

@@ -254,6 +254,14 @@ quotation"; agreed (14:25) to make the box optional. Implemented: the field is n
 (optional — the attached quotation is the official record)". Submission still requires the attached
 authentic quotation (QUOTATION_DOCUMENT_REQUIRED), unchanged; the database never required the summary.
 
+### D-14 "Other supporting document" evidence option — 27 October 2026 15:59
+
+Owner: "For field evidence filing, please include 'Other supporting document' as another option for
+Technician to input." Implemented (WP-LC2-M8, migration `20261027100000_lifecycle_v2_supporting_document.sql`):
+the Evidence category list offers Before, After and **Other supporting document** (stored as the existing
+category `document`). It does not satisfy the Before or After evidence requirements. Same upload rules
+(photo, video, voice, PDF; assigned Technician or the creating superior while drafting).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

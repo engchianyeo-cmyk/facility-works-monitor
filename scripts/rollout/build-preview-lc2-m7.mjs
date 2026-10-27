@@ -10,7 +10,7 @@ const baseline = JSON.parse(readFileSync(new URL('./preview-baseline.json', impo
 const file = 'supabase/migrations/20261022120000_lifecycle_v2_facility_settings.sql';
 const manifest = readFileSync(path.join(root, 'supabase/bootstrap/fresh-install-manifest.txt'), 'utf8')
   .split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-if (manifest.at(-1) !== file || manifest.at(-2) !== 'supabase/migrations/20261020110000_lifecycle_v2_site_location.sql') {
+if (manifest.indexOf(file) < 1 || manifest[manifest.indexOf(file) - 1] !== 'supabase/migrations/20261020110000_lifecycle_v2_site_location.sql') {
   throw new Error('Candidate manifest changed; independently review this adapter.');
 }
 const source = readFileSync(path.join(root, file), 'utf8');
