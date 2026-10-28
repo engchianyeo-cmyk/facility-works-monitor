@@ -371,6 +371,46 @@ amendment?" (WO-TEST-010: S$13,770,000.00 entered instead of S$13,500.00.)
 4. Also fixed: Return to Draft is shown even when approval is not available to the signed-in user.
 5. Database: migration `20261028100000_actual_cost_correction_before_review.sql` (WP-AC-M11).
 
+### D-22 Contractor actual cost = final contractor charge — 28 October 2026 22:55
+
+Owner (22:53): "Why do I need to fill in this pricing info since i have already updated the contractor's quotation
+line-by-line … what is the purpose?" Offered: take the Actual Cost automatically from the final contractor charge.
+Owner (22:55): "Yes, please make the changes as required."
+
+1. For contractor work, the actual cost of the job is the final contractor charge entered in Final Cost
+   Reconciliation (the attached quotation, or revised quotation for a variation, is the official breakdown).
+   The amount payable, the variance and the invoice check follow from it.
+2. The Actual Cost lines become an "Itemised cost record (optional)", e.g. own staff's labour or materials
+   supplied; they do not change the actual cost. The record is still confirmed (even if empty) before the work
+   is submitted for review.
+3. In-house work is unchanged: its actual cost is the total of the cost lines.
+4. Database: migration `20261028120000_actual_cost_from_contractor_charge.sql` (WP-AC-M12).
+
+### D-23 Delete a mistaken cost line; single-line form removed; work times editable until the review — 28 October 2026 23:25
+
+Owner: "Item 1 cannot be deleted. There should be option to delete line item in this case." / single-line form:
+"remove this item as it is not relevant" / "work started and work stopped date/time should be editable as more
+work may be required."
+
+1. The Technician may delete their own uncertified, unapproved cost line (Delete line → Confirm delete); the
+   deleted line is kept in the audit trail and the costing must be confirmed again.
+2. Cost lines are added only through the multi-line table; the single-line form appears only to correct a saved line.
+3. Actual work start and end times can be changed by the assigned Technician until the Approver's review (no stale
+   upper limit in the form; the database still refuses times in the future).
+4. Database: added to migration `20261028120000_actual_cost_from_contractor_charge.sql` (not yet applied anywhere).
+
+### D-24 Work is submitted for review with the official quotation — 28 October 2026 23:29 (refines D-08, D-19)
+
+Owner: "The actual official quotation should be attached together with the submission of work order."
+
+1. For contractor work with an approved quotation, Submit Physical Completion is refused until the Final Cost
+   Reconciliation is saved: price unchanged (the approved quotation is the final quotation) or a variation order
+   with the contractor's revised quotation attached. The page lists what is missing before submission.
+2. The Approver therefore receives one complete package: work record, evidence, work times, final charge and the
+   official (final) quotation, then the second Technician's endorsement.
+3. Emergency work keeps its after-the-fact quotation route; in-house work has no quotation.
+4. Database: added to migration `20261028120000_actual_cost_from_contractor_charge.sql` (not yet applied anywhere).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
@@ -406,6 +446,16 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 23:18 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com` | Owner, guided |
 | 23:18 | Backup of `public` + `supabase_migrations` (2,137,696 bytes, `.git/preview-backup-20261027-pre-m8-m10.sql`) | Owner, guided |
 | 23:21 | Increment applied in one transaction (`scripts/rollout/build-preview-increment.mjs`, sha256 `e794f90c…93aef`, matching the local rehearsal): `20261027100000` supporting document and due date, `20261027120000` facility setup, `20261027140000` variation order and endorsement; preflight 57 ledger entries, latest `20261022120000`; ledger now 60; COMMIT | Owner, guided |
+
+### Preview rollout record — 28 October 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 00:02 | `release:verify` PASS; commit `d5eabe7` pushed (Administrator approval of a Work Order they raised, with an audited reason); no database change | Owner |
+| 22:17 | `release:verify` PASS; commit `973f263` pushed (D-21 cost correction before the review, multi-line cost entry, Return to Draft shown on its own) | Owner |
+| 22:20 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com` | Owner, guided |
+| 22:22 | Backup of `public` + `supabase_migrations` (2,248,611 bytes, `.git/preview-backup-20261028-pre-m11.sql`) | Owner, guided |
+| 22:28 | Increment applied (`build-preview-increment.mjs … 20261027140000`, sha256 `da0f60f5…1458b`, matching the local rehearsal): `20261028100000` actual-cost correction before the review; preflight 60 ledger entries; ledger now 61; COMMIT (first attempt refused at login, EAUTHQUERY, nothing changed) | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

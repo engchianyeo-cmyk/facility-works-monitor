@@ -17,7 +17,7 @@ const supervisorEmail = requiredEnvironment("E2E_SUPERVISOR_EMAIL");
 const supervisorPassword = requiredEnvironment("E2E_SUPERVISOR_PASSWORD");
 const financeEmail = requiredEnvironment("E2E_FINANCE_EMAIL");
 const financePassword = requiredEnvironment("E2E_FINANCE_PASSWORD");
-const runId = requiredEnvironment("E2E_SYNTHETIC_RUN_ID").slice(0, 8);
+const baseRunId = requiredEnvironment("E2E_SYNTHETIC_RUN_ID").slice(0, 8);
 const CONTRACTOR = "12a00000-0000-4000-8000-000000000001";
 const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1cAAAAASUVORK5CYII=", "base64");
@@ -76,7 +76,9 @@ async function endorsed(page: Page, workOrderPath: string) {
 test.describe("Work Order Lifecycle v2", () => {
   test.setTimeout(240_000);
 
-  test("Technician-created Work Order runs from quotation to Finance payment and closes", async ({ page }) => {
+  test("Technician-created Work Order runs from quotation to Finance payment and closes", async ({ page }, testInfo) => {
+    // A retry creates fresh records, so give them their own names (titles and invoice numbers stay unique).
+    const runId = `${baseRunId}${testInfo.retry ? `r${testInfo.retry}` : ""}`;
     // 1. Technician creates the Draft.
     await login(page, technicianEmail, technicianPassword, "/work-orders/new");
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create Draft" }) });
@@ -136,18 +138,18 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.reload();
     await page.getByRole("button", { name: "Confirm Actual Costing" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Actual costing confirmed" })).toBeVisible();
-    await page.getByRole("button", { name: "Submit Physical Completion" }).click();
-    await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
+    // D-19/D-24: a variation order (S$620 against the S$650 quotation); the final cost and the contractor's revised
+    // quotation go in with the submission for review, before the second Technician endorses (D-20).
     await workspace(page, workOrderId, "save_final_cost", { final_contractor_amount: 620, comments: "Final contractor account S$620.",
       variation_order: true, variation_justification: "Contractor reduced the labour after the site check." });
-    // D-08/D-19: a variation order (S$620 against the S$650 quotation), so the contractor's revised quotation is attached
-    // before the second Technician endorses (D-20).
     const current = await (await page.request.get(`/api/work-orders/${workOrderId}/release-1`)).json();
     const finalUpload = await page.request.post(`/api/work-orders/${workOrderId}/commercial-documents`, {
       multipart: { document_type: "final_invoice", record_id: String(current.data.final_cost.id), file: { name: `final-quotation-${runId}.pdf`, mimeType: "application/pdf", buffer: PDF } },
     });
     expect(finalUpload.status(), `final quotation upload: ${await finalUpload.text()}`).toBe(201);
     await page.reload();
+    await page.getByRole("button", { name: "Submit Physical Completion" }).click();
+    await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
     await actualTimes(page);
     await logout(page);
     await endorsed(page, workOrderPath);
@@ -191,7 +193,9 @@ test.describe("Work Order Lifecycle v2", () => {
     await expect(page.getByText(/^Closed$/).first()).toBeVisible({ timeout: 20_000 });
   });
 
-  test("In-house Work Order follows the same approvals with pricing waived and closes at review (D-07)", async ({ page }) => {
+  test("In-house Work Order follows the same approvals with pricing waived and closes at review (D-07)", async ({ page }, testInfo) => {
+    // A retry creates fresh records, so give them their own names (titles and invoice numbers stay unique).
+    const runId = `${baseRunId}${testInfo.retry ? `r${testInfo.retry}` : ""}`;
     await login(page, technicianEmail, technicianPassword, "/work-orders/new");
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create Draft" }) });
     await form.locator('[name="title"]').fill(`In-house repaint ${runId}`);

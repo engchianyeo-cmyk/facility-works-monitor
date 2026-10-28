@@ -28,7 +28,6 @@ export default function ActualWorkTimes({ workOrderId, startedAt, endedAt, canEd
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const duration = workDuration(startedAt, endedAt);
-  const max = toLocalInput(new Date().toISOString());
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage("");
@@ -47,7 +46,7 @@ export default function ActualWorkTimes({ workOrderId, startedAt, endedAt, canEd
 
   return <section id="actual-work-times" className="rounded-xl border border-sky-200 bg-sky-50 p-5" aria-labelledby="actual-work-times-title">
     <h2 id="actual-work-times-title" className="font-semibold text-sky-950">Actual work times</h2>
-    <p className="mt-1 text-sm text-sky-900">When the work on site actually started and ended. Required before the Approver&apos;s review; the end time can be filled in later.</p>
+    <p className="mt-1 text-sm text-sky-900">When the work on site actually started and ended. Required before the Approver&apos;s review; the end time can be filled in later. Both can be changed until the review, for example if more work is needed (times cannot be in the future).</p>
     <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
       <div><dt className="font-semibold">Started</dt><dd>{startedAt ? new Date(startedAt).toLocaleString("en-SG") : "Not entered"}</dd></div>
       <div><dt className="font-semibold">Ended</dt><dd>{endedAt ? new Date(endedAt).toLocaleString("en-SG") : "Not entered"}</dd></div>
@@ -55,10 +54,10 @@ export default function ActualWorkTimes({ workOrderId, startedAt, endedAt, canEd
     </dl>
     {canEdit && <form onSubmit={save} className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <label className="block text-sm font-semibold">Work started
-        <input type="datetime-local" required value={start} max={max} onChange={(event) => setStart(event.target.value)} className="mt-1 block min-h-11 w-full rounded border bg-white p-2 font-normal" />
+        <input type="datetime-local" required value={start} onChange={(event) => setStart(event.target.value)} className="mt-1 block min-h-11 w-full rounded border bg-white p-2 font-normal" />
       </label>
       <label className="block text-sm font-semibold">Work ended
-        <input type="datetime-local" value={end} min={start || undefined} max={max} onChange={(event) => setEnd(event.target.value)} className="mt-1 block min-h-11 w-full rounded border bg-white p-2 font-normal" />
+        <input type="datetime-local" value={end} min={start || undefined} onChange={(event) => setEnd(event.target.value)} className="mt-1 block min-h-11 w-full rounded border bg-white p-2 font-normal" />
       </label>
       <button disabled={busy || !start} className="min-h-11 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white disabled:opacity-50">{busy ? "Saving…" : "Save work times"}</button>
     </form>}

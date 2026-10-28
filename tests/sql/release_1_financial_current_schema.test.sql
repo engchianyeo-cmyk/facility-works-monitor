@@ -104,9 +104,27 @@ select pg_catalog.set_config('fmworks.status_transition','off',true);
 select pg_catalog.set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.actor_id('pilot.technician@example.test'),'role','authenticated')::text,true);
 select set_config('request.jwt.claim.sub',current_setting('request.jwt.claims')::jsonb->>'sub',true);
 set local role authenticated;
+-- D-24: contractor work is submitted with the official quotation; refused until the final cost is saved.
+select pg_temp.assert_true(
+  public.submit_physical_completion('08000000-0000-4000-8000-000000000012','{}'::jsonb)->>'code'='FINAL_COST_REQUIRED',
+  'D-24 physical completion waits for the final cost and official quotation'
+);
+select pg_temp.assert_true(
+  (public.save_work_order_final_cost('08000000-0000-4000-8000-000000000012','{"final_contractor_amount":620,"comments":"Reconciled rollback-only test.","variation_order":true,"variation_justification":"Rollback-only variation test"}'::jsonb)->>'ok')::boolean,
+  'D-24 final cost saved before submission'
+);
+select pg_temp.assert_true(
+  public.submit_physical_completion('08000000-0000-4000-8000-000000000012','{}'::jsonb)->>'code'='FINAL_QUOTATION_REQUIRED',
+  'D-24 a variation needs the revised quotation before submission'
+);
+reset role;
+insert into public.work_order_final_cost_documents(final_cost_submission_id,work_order_id,uploaded_by,original_filename,content_type,byte_size,storage_path)
+select fc.id,w.id,w.assigned_technician_id,'revised-quotation.pdf','application/pdf',100,'commercial/work-order/'||w.id::text||'/revised-quotation-d24.pdf'
+from public.work_orders w join public.work_order_final_cost_submissions fc on fc.work_order_id=w.id where w.id='08000000-0000-4000-8000-000000000012';
+set local role authenticated;
 select pg_temp.assert_true(
   (public.submit_physical_completion('08000000-0000-4000-8000-000000000012','{}'::jsonb)->>'ok')::boolean,
-  'assigned Technician can submit physical completion without a final invoice'
+  'assigned Technician submits physical completion with the official quotation (D-24)'
 );
 select pg_temp.assert_true(
   (select status='completed' and completed_at is not null from public.work_orders where id='08000000-0000-4000-8000-000000000012'),

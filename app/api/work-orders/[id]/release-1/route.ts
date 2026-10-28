@@ -75,7 +75,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   const body = await request.json().catch(() => null) as { operation?: string; payload?: Record<string, unknown> } | null;
   if (!body?.operation || !body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) return errorResponse("VALIDATION_ERROR", "Operation and payload are required.", 400);
   const payload = body.payload;
-  if (body.operation === "update_actual_cost" && !isUuidLike(payload.cost_line_id)) return errorResponse("VALIDATION_ERROR", "A valid actual-cost line is required.", 400);
+  if ((body.operation === "update_actual_cost" || body.operation === "delete_actual_cost") && !isUuidLike(payload.cost_line_id)) return errorResponse("VALIDATION_ERROR", "A valid actual-cost line is required.", 400);
   const invalidNumber = invalidFinancialNumber(payload);
   if (invalidNumber) return errorResponse("VALIDATION_ERROR", `${invalidNumber} must be a finite non-negative number.`, 400);
   const supabase = await createClient();
@@ -86,6 +86,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     markup: () => supabase.rpc("record_work_order_markup", { p_work_order_id: id, p_payload: payload }),
     actual_cost: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: null, p_payload: payload }),
     update_actual_cost: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: payload.cost_line_id, p_payload: { ...payload, operation: "upsert" } }),
+    delete_actual_cost: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: payload.cost_line_id, p_payload: { operation: "delete" } }),
     confirm_actual_costs: () => supabase.rpc("manage_work_order_actual_cost", { p_work_order_id: id, p_cost_line_id: null, p_payload: { operation: "confirm" } }),
     procurement: () => supabase.rpc("record_work_order_procurement", { p_work_order_id: id, p_payload: payload }),
     delete_markup: () => supabase.rpc("delete_work_order_markup", { p_work_order_id: id, p_markup_id: payload.markup_id }),

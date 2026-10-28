@@ -199,7 +199,45 @@ describe("D-21 correcting an actual cost before the review", () => {
 describe("Several actual-cost lines from a quotation", () => {
   it("offers a multi-line table for materials, equipment and services with running totals", () => {
     const editor = read("components/work-orders/actual-cost-editor.tsx");
-    for (const text of ["Add several lines from the contractor&apos;s quotation", "Material / consumables", "+ Add another line", "New total actual cost", "Total actual cost:"]) expect(editor).toContain(text);
+    for (const text of ["Add several lines from the contractor&apos;s quotation", "Material / consumables", "+ Add another line", "New total", "Total actual cost"]) expect(editor).toContain(text);
     expect(read("components/work-orders/release-one-workspace.tsx")).toContain("onSaveMany={saveCostLines}");
+  });
+});
+
+describe("D-22 contractor actual cost is the final contractor charge", () => {
+  it("takes the actual cost from the contractor charge and makes itemised lines optional", () => {
+    const migration = read("supabase/migrations/20261028120000_actual_cost_from_contractor_charge.sql");
+    expect(migration).toContain("if not w.in_house_work then derived_actual:=contractor;");
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace).toContain("(final contractor charge)");
+    expect(workspace).not.toContain("Actual repair cost (derived from ledger)");
+    expect(read("components/work-orders/actual-cost-editor.tsx")).toContain("Itemised cost record (optional)");
+  });
+});
+
+describe("D-23 delete a cost line; work times editable until the review", () => {
+  it("adds an audited delete and drops the stale time limit", () => {
+    expect(read("supabase/migrations/20261028120000_actual_cost_from_contractor_charge.sql")).toContain("work_order_actual_cost_deleted");
+    expect(read("app/api/work-orders/[id]/release-1/route.ts")).toContain("delete_actual_cost");
+    expect(read("components/work-orders/actual-work-times.tsx")).not.toContain("max={max}");
+  });
+});
+
+describe("D-24 work submitted with the official quotation", () => {
+  it("refuses submission until the final cost and any revised quotation are in", () => {
+    const migration = read("supabase/migrations/20261028120000_actual_cost_from_contractor_charge.sql");
+    expect(migration).toContain("create or replace function public.submit_physical_completion");
+    expect(migration).toContain("Attach the contractor''s revised quotation for the variation order before submitting the work.");
+    const page = read("app/work-orders/[id]/page.tsx");
+    expect(page).toContain("Final Cost Reconciliation has not been saved");
+    expect(page).toContain("The contractor's revised quotation for the variation order has not been attached.");
+  });
+});
+
+describe("Invoice received date uses the Singapore calendar", () => {
+  it("does not refuse today's date just after midnight", () => {
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace).toContain('max={new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Singapore"}).format(new Date())}');
+    expect(workspace).not.toContain("max={new Date().toISOString().slice(0,10)}");
   });
 });

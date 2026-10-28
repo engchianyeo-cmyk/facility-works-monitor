@@ -86,6 +86,21 @@ begin
   -- D-11: the Technician enters the actual work times.
   r:=public.set_work_order_actual_times(wo,pg_catalog.now()-interval '3 hours',pg_catalog.now()-interval '1 hour');
   perform pg_temp.assert_true((r->>'ok')::boolean,'actual work times: '||coalesce(r->>'code',''));
+  -- D-24: contractor work with an approved quotation is submitted with the final cost and official quotation.
+  if (select not w.in_house_work and not w.emergency_work and c.approved_budget is not null from public.work_orders w
+      left join public.work_order_financial_controls c on c.work_order_id=w.id where w.id=wo) then
+    r:=public.submit_physical_completion(wo,'{}');
+    perform pg_temp.assert_true(r->>'code'='FINAL_COST_REQUIRED','D-24 submission waits for the final cost: '||coalesce(r->>'code',''));
+    r:=public.save_work_order_final_cost(wo,jsonb_build_object('final_contractor_amount',cost,'comments','Final contractor account',
+      'variation_order',cost is distinct from (select c.approved_budget from public.work_order_financial_controls c where c.work_order_id=wo),
+      'variation_justification','Contractor revised the final account'));
+    perform pg_temp.assert_true((r->>'ok')::boolean,'D-24 final cost saved during the work: '||coalesce(r->>'code',''));
+    if cost is distinct from (select c.approved_budget from public.work_order_financial_controls c where c.work_order_id=wo) then
+      r:=public.submit_physical_completion(wo,'{}');
+      perform pg_temp.assert_true(r->>'code'='FINAL_QUOTATION_REQUIRED','D-24 submission waits for the revised quotation: '||coalesce(r->>'code',''));
+      reset role; perform pg_temp.final_doc(wo); set local role authenticated;
+    end if;
+  end if;
   r:=public.submit_physical_completion(wo,'{"completion_notes":"Replaced bearing and realigned coupling.","actual_labour_hours":3}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='completed','submit for review: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   reset role;
@@ -103,7 +118,7 @@ end;$$;
 create function pg_temp.final_doc(wo uuid) returns void language plpgsql security definer as $fd$
 begin
   insert into public.work_order_final_cost_documents(final_cost_submission_id,work_order_id,uploaded_by,original_filename,content_type,byte_size,storage_path)
-  select fc.id,wo,(select assigned_technician_id from public.work_orders where id=wo),'final-quotation.pdf','application/pdf',100,'commercial/work-order/'||wo::text||'/final-quotation.pdf'
+  select fc.id,wo,(select assigned_technician_id from public.work_orders where id=wo),'final-quotation.pdf','application/pdf',100,'commercial/work-order/'||wo::text||'/'||gen_random_uuid()::text||'-final-quotation.pdf'
   from public.work_order_final_cost_submissions fc where fc.work_order_id=wo;
 end;$fd$;
 create function pg_temp.final_cost(wo uuid, tech uuid, amount numeric) returns jsonb language plpgsql as $$
@@ -141,8 +156,7 @@ begin
   perform pg_temp.act(pg_temp.u(4));
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='ENDORSEMENT_REQUIRED','review needs the endorsement, which waits for the final cost');
   perform pg_temp.act(pg_temp.u(2));
-  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked on site: work done as recorded.')->>'code'='FINAL_COST_REQUIRED','D-20 no endorsement before the final cost');
-  perform pg_temp.assert_true(public.work_order_endorsement_status(wo)->'blocked'->>'code'='FINAL_COST_REQUIRED','D-20 status explains the wait');
+  perform pg_temp.assert_true(public.work_order_endorsement_status(wo)->'blocked' = 'null'::jsonb or public.work_order_endorsement_status(wo)->'blocked' is null,'D-24 final cost and quotation arrive with the submission, so nothing blocks the endorsement');
   perform pg_temp.act(pg_temp.u(13));
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{}')->>'code'='ACCESS_DENIED','other-facility Supervisor cannot review (facility gap closed)');
   perform pg_temp.act(pg_temp.u(10));
@@ -169,6 +183,9 @@ begin
   perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
   r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":650,"comments":"Final account","variation_order":true}');
   perform pg_temp.assert_true(r->>'code'='VARIATION_JUSTIFICATION_REQUIRED','D-19 variation needs a justification: '||coalesce(r->>'code',''));
+  reset role;
+  update public.work_order_final_cost_documents set deleted_at=pg_catalog.now() where work_order_id=wo and deleted_at is null;
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
   r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":650,"comments":"Final account","variation_order":true,"variation_justification":"Extra gasket set found on site"}');
   reset role;
   perform pg_temp.assert_true((r->>'ok')::boolean and public.work_order_final_quotation_missing(wo),'D-19 variation order needs the revised quotation even at the same amount');
@@ -208,12 +225,23 @@ begin
     '{"cost_type":"service","description":"Contractor repair","unit":"job","quantity":1020,"unit_rate":620}');
   perform pg_temp.assert_true((r->>'ok')::boolean,'D-21 Technician corrects a cost line before the review: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   reset role;
-  perform pg_temp.assert_true((select status='draft' from public.work_order_final_cost_submissions where work_order_id=wo),'D-21 saved final cost reset by the correction');
-  perform pg_temp.assert_true(public.work_order_endorsement_missing(wo,'review'),'D-21 endorsement no longer counts');
+  -- D-22: for contractor work the actual cost is the final contractor charge, so an itemised-line change leaves it as saved.
+  perform pg_temp.assert_true((select status<>'draft' and confirmed_actual_cost=620 from public.work_order_final_cost_submissions where work_order_id=wo),'D-22 contractor actual cost stays the final contractor charge');
+  perform pg_temp.assert_true(not public.work_order_endorsement_missing(wo,'review'),'D-22 endorsement unaffected by itemised lines');
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":620,"confirmed_actual_cost":999999,"comments":"Final account","variation_order":true,"variation_justification":"Contractor reduced labour after site check"}');
+  perform pg_temp.assert_true((r->>'ok')::boolean and (r->'final_cost'->>'confirmed_actual_cost')::numeric=620,'D-22 actual cost taken from the contractor charge, not the ledger: '||coalesce(r->>'code',''));
+  reset role;
   perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
   r:=public.manage_work_order_actual_cost(wo,(select c.id from public.work_order_cost_lines c where c.work_order_id=wo and c.cost_phase='actual' limit 1),
     '{"cost_type":"service","description":"Contractor repair","unit":"job","quantity":1,"unit_rate":620}');
   perform pg_temp.assert_true((r->>'ok')::boolean,'D-21 cost line back to S$620');
+  -- D-23: a line typed in by mistake can be deleted by its owner, with an audit entry.
+  r:=public.manage_work_order_actual_cost(wo,null,'{"cost_type":"material","description":"Mistaken line","unit":"lump sum","quantity":1020,"unit_rate":13500}');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'D-23 mistaken line added');
+  r:=public.manage_work_order_actual_cost(wo,(r->'cost_line'->>'id')::uuid,'{"operation":"delete"}');
+  perform pg_temp.assert_true((r->>'ok')::boolean and not exists(select 1 from public.work_order_cost_lines c where c.description='Mistaken line' and c.work_order_id=wo),'D-23 owner deletes the mistaken line: '||coalesce(r->>'code',''));
+  perform pg_temp.assert_true(exists(select 1 from public.activity_logs l where l.work_order_id=wo and l.action='work_order_actual_cost_deleted'),'D-23 deletion audited');
   perform pg_temp.assert_true((public.manage_work_order_actual_cost(wo,null,'{"operation":"confirm"}')->>'ok')::boolean,'D-21 costing confirmed again');
   r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":620,"comments":"Final account","variation_order":true,"variation_justification":"Contractor reduced labour after site check"}');
   perform pg_temp.assert_true((r->>'ok')::boolean,'D-21 final cost saved again: '||coalesce(r->>'code',''));

@@ -207,10 +207,23 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     actualLabourHours: order.actual_labour_hours,
     evidence: evidenceItems,
   });
+  // D-24: contractor work with an approved quotation is submitted with the final cost and the official quotation.
+  const quotationPackageRequired = ["assigned", "in_progress"].includes(status) && !order.in_house_work && !order.emergency_work;
+  const [controlResult, finalCostResult2] = quotationPackageRequired ? await Promise.all([
+    supabase.from("work_order_financial_controls").select("approved_budget").eq("work_order_id", id).maybeSingle(),
+    supabase.from("work_order_final_cost_submissions").select("id,status,variation_order").eq("work_order_id", id).maybeSingle(),
+  ]) : [{ data: null, error: null }, { data: null, error: null }];
+  const approvedBudget = (controlResult.data as { approved_budget: number | null } | null)?.approved_budget ?? null;
+  const savedFinalCost = finalCostResult2.data as { id: string; status: string; variation_order: boolean | null } | null;
+  const revisedQuotationCount = savedFinalCost?.variation_order === true
+    ? (await supabase.from("work_order_final_cost_documents").select("id", { count: "exact", head: true }).eq("final_cost_submission_id", savedFinalCost.id).is("deleted_at", null)).count ?? 0
+    : 0;
   const completionMissing = [
     !String(order.completion_notes ?? "").trim() ? "Work-performed statement has not been recorded." : null,
     order.actual_labour_hours === null || Number(order.actual_labour_hours) < 0 ? "Valid cumulative labour hours have not been recorded." : null,
     !hasActiveAfterEvidence ? "At least one active After photo or PDF is required." : null,
+    quotationPackageRequired && approvedBudget !== null && (!savedFinalCost || savedFinalCost.status === "draft") ? "Final Cost Reconciliation has not been saved (price unchanged, or variation order with the revised quotation)." : null,
+    quotationPackageRequired && approvedBudget !== null && savedFinalCost?.variation_order === true && revisedQuotationCount === 0 ? "The contractor's revised quotation for the variation order has not been attached." : null,
   ].filter((item): item is string => Boolean(item));
   if (completionMissing.length > 0) allowedActions = allowedActions.filter((action) => !["complete", "submit_physical_completion"].includes(action));
   const approvalSummary = approvalReadinessResult.error ? null : approvalReadinessResult.data as { ok?: boolean; ready: boolean; missing_requirements: string[]; lowest_authority: string | null; quoted_cost: number | null; can_approve: boolean; approval_blocker?: string | null; approval_blocker_message: string | null } | null;

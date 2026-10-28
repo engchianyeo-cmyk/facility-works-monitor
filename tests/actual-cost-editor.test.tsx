@@ -53,3 +53,12 @@ test("several quotation lines are entered in one table and saved together", asyn
     expect.objectContaining({ cost_type: "equipment", description: "Vacuum oil plant", unit: "day", quantity: 1.5, unit_rate: 1200 }),
   ]);
 });
+
+test("D-23: the owner deletes a mistaken line after confirming", async () => {
+  const remove = vi.fn().mockResolvedValue(undefined);
+  render(<ActualCostEditor lines={[line]} editable userId="owner" confirmed busy={false} onSave={vi.fn()} onSaveMany={vi.fn()} onDelete={remove} onConfirm={vi.fn()}/>);
+  expect(screen.queryByRole("button", { name: "Add Actual Cost" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Delete line: Motor replacement" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+  expect(remove).toHaveBeenCalledWith("line");
+});
