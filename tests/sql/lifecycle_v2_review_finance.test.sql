@@ -202,6 +202,23 @@ begin
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"x"}')->>'code'='ENDORSEMENT_REQUIRED','D-20 review refused until re-endorsed');
   reset role;
   perform pg_temp.assert_true((pg_temp.endorse(wo)->>'ok')::boolean,'D-20 second Technician endorses again');
+  -- D-21: a cost typed in by mistake is corrected while Submitted for Review, without Reject & Reopen.
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.manage_work_order_actual_cost(wo,(select c.id from public.work_order_cost_lines c where c.work_order_id=wo and c.cost_phase='actual' limit 1),
+    '{"cost_type":"service","description":"Contractor repair","unit":"job","quantity":1020,"unit_rate":620}');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'D-21 Technician corrects a cost line before the review: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
+  reset role;
+  perform pg_temp.assert_true((select status='draft' from public.work_order_final_cost_submissions where work_order_id=wo),'D-21 saved final cost reset by the correction');
+  perform pg_temp.assert_true(public.work_order_endorsement_missing(wo,'review'),'D-21 endorsement no longer counts');
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.manage_work_order_actual_cost(wo,(select c.id from public.work_order_cost_lines c where c.work_order_id=wo and c.cost_phase='actual' limit 1),
+    '{"cost_type":"service","description":"Contractor repair","unit":"job","quantity":1,"unit_rate":620}');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'D-21 cost line back to S$620');
+  perform pg_temp.assert_true((public.manage_work_order_actual_cost(wo,null,'{"operation":"confirm"}')->>'ok')::boolean,'D-21 costing confirmed again');
+  r:=public.save_work_order_final_cost(wo,'{"final_contractor_amount":620,"comments":"Final account","variation_order":true,"variation_justification":"Contractor reduced labour after site check"}');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'D-21 final cost saved again: '||coalesce(r->>'code',''));
+  reset role;
+  perform pg_temp.assert_true((pg_temp.endorse(wo)->>'ok')::boolean,'D-21 second Technician endorses the corrected cost');
   set local role authenticated; perform pg_temp.act(pg_temp.u(4));
   perform pg_temp.assert_true(not (public.work_order_verification_readiness(wo)->'missing_requirements' @> '["Final quotation for the work actually performed (final cost differs from the approved quotation)"]'),'final quotation attached');
   r:=public.verify_completed_work(wo,'{"note":"Work, cost and documents verified."}');

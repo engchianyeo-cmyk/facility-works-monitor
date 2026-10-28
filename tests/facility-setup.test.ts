@@ -184,3 +184,22 @@ describe("Administrator approval of a Work Order they raised", () => {
     expect(read("components/work-orders/work-order-actions.tsx")).toContain("required={props.approvalReasonRequired}");
   });
 });
+
+describe("D-21 correcting an actual cost before the review", () => {
+  it("lets the assigned Technician edit costs while Submitted for Review and resets the final cost", () => {
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace).toContain('((data.order?.status??status)==="completed"&&correctingCosts)');
+    expect(workspace).toContain("Correct the actual costs (before the review)");
+    const migration = read("supabase/migrations/20261028100000_actual_cost_correction_before_review.sql");
+    expect(migration).toContain("if w.status not in ('assigned','in_progress','completed')");
+    expect(migration).toContain("update public.work_order_final_cost_submissions set status='draft'");
+  });
+});
+
+describe("Several actual-cost lines from a quotation", () => {
+  it("offers a multi-line table for materials, equipment and services with running totals", () => {
+    const editor = read("components/work-orders/actual-cost-editor.tsx");
+    for (const text of ["Add several lines from the contractor&apos;s quotation", "Material / consumables", "+ Add another line", "New total actual cost", "Total actual cost:"]) expect(editor).toContain(text);
+    expect(read("components/work-orders/release-one-workspace.tsx")).toContain("onSaveMany={saveCostLines}");
+  });
+});

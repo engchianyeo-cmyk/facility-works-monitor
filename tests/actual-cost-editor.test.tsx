@@ -32,3 +32,24 @@ test("a non-executing actor sees costs without a mutation form", () => {
   expect(screen.queryByRole("button", { name: "Add Actual Cost" })).toBeNull();
   expect(screen.queryByRole("button", { name: /Edit actual cost:/ })).toBeNull();
 });
+
+test("several quotation lines are entered in one table and saved together", async () => {
+  const saveMany = vi.fn().mockResolvedValue(true);
+  render(<ActualCostEditor lines={[]} editable userId="owner" confirmed={false} busy={false} onSave={vi.fn()} onSaveMany={saveMany} onConfirm={vi.fn()}/>);
+  fireEvent.change(screen.getByLabelText("Description, line 1"), { target: { value: "Insulating oil" } });
+  fireEvent.change(screen.getByLabelText("Unit, line 1"), { target: { value: "litre" } });
+  fireEvent.change(screen.getByLabelText("Quantity, line 1"), { target: { value: "1020" } });
+  fireEvent.change(screen.getByLabelText("Unit rate, line 1"), { target: { value: "5.80" } });
+  fireEvent.click(screen.getByRole("button", { name: "+ Add another line" }));
+  fireEvent.change(screen.getByLabelText("Category, line 2"), { target: { value: "equipment" } });
+  fireEvent.change(screen.getByLabelText("Description, line 2"), { target: { value: "Vacuum oil plant" } });
+  fireEvent.change(screen.getByLabelText("Unit, line 2"), { target: { value: "day" } });
+  fireEvent.change(screen.getByLabelText("Quantity, line 2"), { target: { value: "1.5" } });
+  fireEvent.change(screen.getByLabelText("Unit rate, line 2"), { target: { value: "1200" } });
+  expect(screen.getByText(/These lines: S\$7,716\.00/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Save 2 cost lines" }));
+  expect(saveMany).toHaveBeenCalledWith([
+    expect.objectContaining({ cost_type: "material", description: "Insulating oil", unit: "litre", quantity: 1020, unit_rate: 5.8 }),
+    expect.objectContaining({ cost_type: "equipment", description: "Vacuum oil plant", unit: "day", quantity: 1.5, unit_rate: 1200 }),
+  ]);
+});

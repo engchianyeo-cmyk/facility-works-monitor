@@ -417,6 +417,10 @@ export default function WorkOrderActions(props: Props) {
               </button>
             )}
           </div>
+        ) : returnAction ? (
+          <button type="button" disabled={busy !== null} onClick={() => openAction("return")} className="min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
+            {returnAction.label}
+          </button>
         ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No workflow action is currently available for your role and this Work Order state.</p>
         )}

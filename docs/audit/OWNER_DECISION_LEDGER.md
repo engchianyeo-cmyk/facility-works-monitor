@@ -358,6 +358,19 @@ the addition of the VO by Technician 1?" Confirmed 19:24: yes.
    again. A review endorsement given before this change must be given again once a final cost exists.
 4. Database: in migration `20261027140000_final_quotation_variation.sql` with D-19.
 
+### D-21 Correct an actual cost typed in by mistake before the review — 28 October 2026 11:52
+
+Owner: "The Technician is unable to change the actual repair cost which was typed in by mistake. Can you allow
+amendment?" (WO-TEST-010: S$13,770,000.00 entered instead of S$13,500.00.)
+
+1. While the Work Order is Submitted for Review, the assigned Technician may edit their actual-cost lines,
+   without the Approver having to Reject & Reopen. After the review, costs stay locked.
+2. Any correction clears the costing confirmation and resets the saved final cost to draft; the Technician
+   confirms the costing and saves the final cost again (with the variation answer, D-19).
+3. The second Technician's endorsement covers the confirmed actual cost too (D-20), so it must be given again.
+4. Also fixed: Return to Draft is shown even when approval is not available to the signed-in user.
+5. Database: migration `20261028100000_actual_cost_correction_before_review.sql` (WP-AC-M11).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

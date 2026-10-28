@@ -49,3 +49,11 @@ test("Approver retains independent no-payment approval without receiving proposa
   expect(await screen.findByRole("button", { name: "Approve No Payment Required" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Propose No Payment Required" })).toBeNull();
 });
+
+test("D-21: after submission the Technician opens cost correction deliberately", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => workspace("completed") }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="owner" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Correct the actual costs (before the review)" }));
+  expect(await screen.findByRole("button", { name: "Confirm Actual Costing" })).toBeTruthy();
+});
