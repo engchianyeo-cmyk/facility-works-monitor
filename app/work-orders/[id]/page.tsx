@@ -8,6 +8,7 @@ import TechnicianPicker from "@/components/work-orders/technician-picker";
 import CopiedParties from "@/components/work-orders/copied-parties";
 import ActualWorkTimes from "@/components/work-orders/actual-work-times";
 import TechnicianEndorsement, { type Endorsement } from "@/components/work-orders/technician-endorsement";
+import WorkCompletionSteps, { type CompletionStep } from "@/components/work-orders/work-completion-steps";
 import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel } from "@/lib/facility-settings";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
@@ -375,34 +376,22 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     : authorizedExecutionActions(String(order.status), allowedActions)[0]?.label ?? null;
   const location = [order.site, order.location].filter(Boolean).join(" · ") || "Location not recorded";
 
-  return (
-    <main className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
-      <Link href="/work-orders" className="text-sm font-medium text-blue-700 hover:underline">← All work orders</Link>
-
-      <WorkOrderDecisionHeader
-        reference={order.work_order_number}
-        title={order.title}
-        location={location}
-        workType={order.categories?.name ?? operationalLabel(String(order.source))}
-        department={order.departments?.name ?? null}
-        model={decisionModel}
-        incidentHref={relatedIncident ? `/incidents/${relatedIncident.id}` : null}
-        nextAction={nextAction}
-        responsibility={{
-          technician: resolvedAssignee,
-          viewer: identity.displayName,
-          viewerRole: operationalLabel(identity.role),
-          viewerResponsible: isPreparer(context) || order.assigned_technician_id === identity.userId,
-          draftToFinish: status === "draft" && isPreparer(context) && approvalReadiness?.ready === false,
-        }}
-      />
-
-      {status === "draft" && isPreparer(context) && approvalReadiness && (
-        <DraftNextSteps steps={draftNextSteps(approvalReadiness.missing_requirements, id)} justCreated={justCreated} />
-      )}
-
-      <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />
-
+  // Work stage for the assigned Technician: the page follows the order of the tasks (UAT 29 Oct 2026).
+  const workStage = ["assigned", "in_progress"].includes(status) && order.assigned_technician_id === identity.userId;
+  const contractorPackage = quotationPackageRequired && approvedBudget !== null;
+  const completionSteps: CompletionStep[] = [
+    { label: "Start the work", done: status === "in_progress" || Boolean(order.started_at), href: "#execution-title" },
+    { label: "Add After photos of the finished work", done: hasActiveAfterEvidence, href: "#work-order-evidence" },
+    { label: "Enter when the work actually started and ended", done: Boolean(actualTimes.started && actualTimes.ended), href: "#actual-work-times" },
+    { label: "Confirm the cost record", done: Boolean(order.actual_costs_confirmed_at), href: "#actual-cost-heading", note: contractorPackage ? "Itemised lines are optional; confirm even if there are none." : undefined },
+    ...(contractorPackage ? [
+      { label: "Final Cost Reconciliation: price unchanged, or variation order", done: Boolean(savedFinalCost && savedFinalCost.status !== "draft"), href: "#final-cost-heading" },
+      ...(savedFinalCost?.variation_order === true ? [{ label: "Attach the contractor's revised quotation", done: revisedQuotationCount > 0, href: "#final-cost-heading" }] : []),
+    ] : []),
+    { label: "Record the work done (statement and labour hours)", done: Boolean(String(order.completion_notes ?? "").trim()) && order.actual_labour_hours !== null && order.actual_labour_hours !== undefined, href: "#execution-title" },
+    { label: "Submit Physical Completion for review", done: false, href: "#execution-title", note: completionMissing.length ? `Still needed: ${completionMissing.length} item${completionMissing.length === 1 ? "" : "s"} above.` : "Everything is ready." },
+  ];
+  const actionsEl = (
       <WorkOrderActions
         id={id}
         reference={order.work_order_number}
@@ -441,8 +430,50 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           approvedAmount,
         } : undefined}
       />
+  );
+  const evidenceEl = (
+      <div id="work-order-evidence">
+        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} readOnlyReason={status==="submitted" ? "This Work Order is awaiting approval. The preparer may still add supporting photos, video or voice notes; other users view evidence only." : !order.assigned_technician_id ? "This Work Order has no assigned field owner. Authorized management must record an assignment before field evidence can be added." : undefined} />
+      </div>
+  );
 
-      {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
+  return (
+    <main className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
+      <Link href="/work-orders" className="text-sm font-medium text-blue-700 hover:underline">← All work orders</Link>
+
+      <WorkOrderDecisionHeader
+        reference={order.work_order_number}
+        title={order.title}
+        location={location}
+        workType={order.categories?.name ?? operationalLabel(String(order.source))}
+        department={order.departments?.name ?? null}
+        model={decisionModel}
+        incidentHref={relatedIncident ? `/incidents/${relatedIncident.id}` : null}
+        nextAction={nextAction}
+        responsibility={{
+          technician: resolvedAssignee,
+          viewer: identity.displayName,
+          viewerRole: operationalLabel(identity.role),
+          viewerResponsible: isPreparer(context) || order.assigned_technician_id === identity.userId,
+          draftToFinish: status === "draft" && isPreparer(context) && approvalReadiness?.ready === false,
+        }}
+      />
+
+      {status === "draft" && isPreparer(context) && approvalReadiness && (
+        <DraftNextSteps steps={draftNextSteps(approvalReadiness.missing_requirements, id)} justCreated={justCreated} />
+      )}
+
+      {workStage ? <>
+        <WorkCompletionSteps steps={completionSteps} />
+        {evidenceEl}
+        {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
+        <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />
+        {actionsEl}
+      </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />}
+
+      {!workStage && actionsEl}
+
+      {!workStage && showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
       {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} />}
 
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
@@ -519,9 +550,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
 
       <DocumentCorrectionControl workOrderId={id} role={identity.role} status={status} openReason={openDocumentCorrection?.reason ?? null} />
 
-      <div id="work-order-evidence">
-        <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} readOnlyReason={status==="submitted" ? "This Work Order is awaiting approval. The preparer may still add supporting photos, video or voice notes; other users view evidence only." : !order.assigned_technician_id ? "This Work Order has no assigned field owner. Authorized management must record an assignment before field evidence can be added." : undefined} />
-      </div>
+      {!workStage && evidenceEl}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-4 font-semibold">Workflow timeline</h2>

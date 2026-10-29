@@ -457,6 +457,16 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 22:22 | Backup of `public` + `supabase_migrations` (2,248,611 bytes, `.git/preview-backup-20261028-pre-m11.sql`) | Owner, guided |
 | 22:28 | Increment applied (`build-preview-increment.mjs … 20261027140000`, sha256 `da0f60f5…1458b`, matching the local rehearsal): `20261028100000` actual-cost correction before the review; preflight 60 ledger entries; ledger now 61; COMMIT (first attempt refused at login, EAUTHQUERY, nothing changed) | Owner, guided |
 
+### Preview rollout record — 29 October 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 00:34 | `release:verify` PASS (30/30 Playwright) after fixing the invoice-received date to use the Singapore calendar | Owner |
+| 00:36 | Commit `fea8de6` pushed (D-22, D-23, D-24, Singapore invoice date) | Owner |
+| 00:38 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com` | Owner, guided |
+| 00:38 | Backup of `public` + `supabase_migrations` (2,275,752 bytes, `.git/preview-backup-20261029-pre-m12.sql`) | Owner, guided |
+| 00:40 | Increment applied (sha256 `972b877f…42fc8f`, matching the local rehearsal): `20261028120000` contractor actual cost from the final charge, cost-line delete, submission with the official quotation; preflight 61; ledger now 62; COMMIT | Owner, guided |
+
 ## D. Decisions still open (not recoverable locally)
 
 1. ~~Emergency commercial exception (R1-003)~~ resolved by D-01.6 and D-03.3.

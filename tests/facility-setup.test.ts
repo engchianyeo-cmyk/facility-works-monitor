@@ -241,3 +241,16 @@ describe("Invoice received date uses the Singapore calendar", () => {
     expect(workspace).not.toContain("max={new Date().toISOString().slice(0,10)}");
   });
 });
+
+describe("Guided work stage (UAT 29 Oct 2026)", () => {
+  it("lists the Technician's steps in page order and arranges the sections to match", () => {
+    const page = read("app/work-orders/[id]/page.tsx");
+    expect(page).toContain("<WorkCompletionSteps steps={completionSteps} />");
+    const order = ["<WorkCompletionSteps", "{evidenceEl}", "<ActualWorkTimes workOrderId={id}", "<ReleaseOneWorkspace", "{actionsEl}"].map((text) => page.indexOf(text, page.indexOf("{workStage ? <>")));
+    expect(order.every((position, index) => position > 0 && (index === 0 || position > order[index - 1]))).toBe(true);
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace.indexOf("{costEditor}\n      <section className=\"mt-6 border-y-2")).toBeGreaterThan(0);
+    expect(workspace).toContain("Next: record the work done and click");
+    expect(read("components/work-orders/work-completion-steps.tsx")).toContain("Steps to submit this Work Order for review");
+  });
+});

@@ -150,6 +150,8 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.reload();
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();
     await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
+    // After submission the page leaves the guided work-stage layout; reload so the sections have settled.
+    await page.reload();
     await actualTimes(page);
     await logout(page);
     await endorsed(page, workOrderPath);
@@ -237,6 +239,8 @@ test.describe("Work Order Lifecycle v2", () => {
     await expect(page.getByRole("status").filter({ hasText: "Actual costing confirmed" })).toBeVisible();
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();
     await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
+    // After submission the page leaves the guided work-stage layout; reload so the sections have settled.
+    await page.reload();
     await actualTimes(page);
     await logout(page);
     await endorsed(page, workOrderPath);

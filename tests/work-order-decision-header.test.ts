@@ -124,7 +124,9 @@ describe("Work Order decision header presentation", () => {
       "order-first",
     ]) expect(component).toContain(contract);
     expect(component).not.toContain("overflow-x-auto");
-    expect(page.indexOf("<WorkOrderDecisionHeader")).toBeLessThan(page.indexOf("<WorkOrderActions"));
+    // The actions panel is built before the return (so the work stage can reorder sections) and rendered after the header.
+    expect(page.indexOf("<WorkOrderActions")).toBeGreaterThan(0);
+    expect(page.indexOf("<WorkOrderDecisionHeader")).toBeLessThan(page.indexOf("{actionsEl}"));
   });
 });
 
