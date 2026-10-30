@@ -317,6 +317,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const endorsementStatus = (endorsementStatusResult && !endorsementStatusResult.error ? endorsementStatusResult.data : null) as
     { ok?: boolean; due?: boolean; superseded?: boolean; blocked?: { code: string; message: string } | null;
       final_cost?: { final_contractor_amount: number; variation_order: boolean | null; variation_justification: string | null; documents: number } | null } | null;
+  // A Technician who can check this Work Order is told in advance while the work is still under way (D-25 follow-up, 30 Oct).
+  const upcomingCheck = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by
+    && ["assigned", "in_progress"].includes(status) && ["before_review", "both"].includes(endorsementStageValue);
   const reviewEndorsementDue = status === "completed" && endorsementStatus?.ok === true && endorsementStatus.due === true;
   const endorsementRequired = (status === "draft" && Boolean(approvalSummary?.missing_requirements?.includes("Second Technician endorsement")))
     || (status === "completed" && (reviewEndorsementDue || Boolean(verificationReadiness?.missing_requirements?.includes("Second Technician endorsement"))));
@@ -484,7 +487,12 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         </dl>
       </section>
 
-      {endorsementRequired && canEndorse && <a href="#technician-endorsement" className="block rounded-xl border-2 border-amber-500 bg-amber-100 p-4 text-amber-950 shadow-sm motion-safe:animate-pulse">
+      {upcomingCheck && <div role="note" className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
+        <span className="block font-black">You may be the independent checker for this Work Order</span>
+        <span className="mt-1 block text-sm">No action yet. Your endorsement will be needed after the assigned Technician submits Physical Completion; a flashing banner will then appear here, and the endorsement panel at the end of the page will turn red with your checklist.</span>
+      </div>}
+
+      {endorsementRequired && canEndorse && <a href="#technician-endorsement" className="block rounded-xl border-4 border-red-600 bg-amber-100 p-4 text-amber-950 shadow-sm motion-safe:animate-pulse">
         <span className="block text-lg font-black">You are the independent checker for this Work Order</span>
         <span className="mt-1 block text-sm">Your endorsement is needed. Go to your checklist: {status === "draft" ? "site evidence and quotations" : "verify on site the work done and the materials installed against the contractor's final quotation, and the site evidence"}{checkerQuotations.length > 1 ? ", and the basis of the award against the competing quotations" : ""}.</span>
       </a>}

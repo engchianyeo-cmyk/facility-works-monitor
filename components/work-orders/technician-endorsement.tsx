@@ -59,7 +59,9 @@ export default function TechnicianEndorsement({ workOrderId, required, canEndors
     finally { setBusy(false); }
   }
 
-  return <section id="technician-endorsement" className="rounded-xl border border-amber-200 bg-amber-50 p-5" aria-labelledby="technician-endorsement-title">
+  const actionNeeded = Boolean(required && canEndorse && !blocked);
+  return <section id="technician-endorsement" className={`rounded-xl p-5 ${actionNeeded ? "border-4 border-red-600 bg-amber-50 shadow-lg" : "border border-amber-200 bg-amber-50"}`} aria-labelledby="technician-endorsement-title">
+    {actionNeeded && <p className="mb-3 inline-block rounded bg-red-600 px-3 py-1 text-sm font-black uppercase tracking-wide text-white">Action needed — your endorsement</p>}
     <h2 id="technician-endorsement-title" className="font-semibold text-amber-950">Second Technician endorsement</h2>
     <p className="mt-1 text-sm text-amber-900">A second Technician of this facility confirms the Work Order is authentic. Both Technicians share joint and several responsibility. This facility: {stageSetting}.</p>
     {required && <p className="mt-2 text-sm font-bold text-amber-900">Endorsement is needed now.</p>}

@@ -30,3 +30,11 @@ test("D-25: the checker can only endorse after ticking every check and stating t
   fireEvent.change(screen.getByLabelText(/Basis of the award/), { target: { value: "Lowest compliant quotation for the same scope." } });
   expect(button.disabled).toBe(false);
 });
+
+test("the endorsement panel is highlighted in red only when the checker must act", () => {
+  const { unmount } = render(<TechnicianEndorsement workOrderId="wo" required canEndorse endorsements={[]} stageSetting="Before the Approver's review" stage="review" quotations={[]} />);
+  expect(screen.getByText("Action needed — your endorsement")).toBeTruthy();
+  unmount();
+  render(<TechnicianEndorsement workOrderId="wo" required={false} canEndorse endorsements={[]} stageSetting="Before the Approver's review" stage="review" quotations={[]} />);
+  expect(screen.queryByText("Action needed — your endorsement")).toBeNull();
+});

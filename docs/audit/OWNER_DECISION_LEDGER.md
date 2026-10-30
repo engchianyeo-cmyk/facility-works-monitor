@@ -433,6 +433,27 @@ awarded contractor's quotation shall be reviewed with other competitors' quotati
 4. The endorsing Technician is added to the copied parties automatically and cannot be removed from them.
 5. Database: migration `20261030100000_independent_checker.sql` (WP-IC-M13).
 
+### D-26 Commercial forms only for the assigned Technician; contractor CSV panel retired — 30 October 2026 19:45 (refines D-22, D-25)
+
+Owner 19:41 asked what the "Contractor actual costs" CSV upload is for, and noted that the statement "I supervised
+this work…" was not what had been agreed for Technician 2.
+
+1. The "I supervised this work…" box is Technician 1's declaration in Final Cost Reconciliation, not Technician 2's
+   endorsement. It now reads "As the assigned Technician, I supervised this work and verified on site…".
+2. Final Cost Reconciliation, the revised-quotation attachment and the invoice and payment entries appear only for
+   the assigned Technician. Other Technicians, including the independent checker, no longer see them. The database
+   already refused anyone else.
+3. Technician 2's only endorsement remains the D-25 checklist panel ("verify, need not supervise").
+4. The contractor-CSV upload panel is removed from the Work Order page: under D-22 the actual cost is the final
+   contractor charge backed by the attached quotation, and the optional itemised record uses the multi-line table.
+   The component and API route stay unused until Stage 2 decides on CSV import.
+5. Owner 19:53: highlight the endorsement so the Technician does not miss it. While the work is under way, a
+   Technician who may be the checker sees a non-flashing note ("No action yet…"). Once Physical Completion is
+   submitted and the endorsement is due, the banner flashes with a red border and the endorsement panel at the end
+   of the page has a red border and an "Action needed — your endorsement" label.
+6. Owner 19:56: Technician 2 keeps seeing the costs (quotation prices, final charge, variation order and the
+   quotation documents), because the D-25 award-basis check needs the competing prices. No change.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
@@ -496,6 +517,7 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | Before 18:14 | Increment built (sha256 `890177de…`, matching the local rehearsal) and applied: `20261030100000` independent checker (D-25: endorsement checklist, basis of award, Technician 2 auto-copied); ledger now 63. The exact apply time was not captured, because a later attempt failed at login (EAUTHQUERY) | Owner, guided |
 | 18:14 | A repeat apply was refused by the preflight ("Preview ledger ends at 20261030100000, expected 20261028120000"); rolled back, nothing changed | Owner, guided |
 | 18:15 | Read-only check: latest ledger entry `20261030100000 independent_checker`; `work_order_endorsements.checklist` present; `endorse_work_order(p_work_order_id uuid, p_statement text, p_checklist jsonb)` | Owner, guided |
+| 19:03 | `release:verify` PASS (30/30 Playwright); commit `4687b4d` pushed to `uat/claude-review` (9 files: review-order Work Order layout with the timeline first and the decision last, red action highlights, verify-not-supervise checklist wording, Closure label, copied-parties note, this M13 record); Vercel Preview build triggered; no database change | Owner |
 
 ## D. Decisions still open (not recoverable locally)
 

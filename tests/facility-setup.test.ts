@@ -313,3 +313,15 @@ describe("Work Order page review order", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 });
+
+describe("Independent checker notices (30 Oct 2026)", () => {
+  const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+  it("tells a possible checker in advance while the work is under way, without asking for action", () => {
+    expect(page).toContain("const upcomingCheck =");
+    expect(page).toContain("You may be the independent checker for this Work Order");
+    expect(page).toContain("No action yet.");
+  });
+  it("flashes the checker banner with a red border when the endorsement is due", () => {
+    expect(page).toMatch(/endorsementRequired && canEndorse && <a href="#technician-endorsement" className="[^"]*border-red-600[^"]*motion-safe:animate-pulse/);
+  });
+});

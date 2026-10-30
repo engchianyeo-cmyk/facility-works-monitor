@@ -57,3 +57,15 @@ test("D-21: after submission the Technician opens cost correction deliberately",
   fireEvent.click(await screen.findByRole("button", { name: "Correct the actual costs (before the review)" }));
   expect(await screen.findByRole("button", { name: "Confirm Actual Costing" })).toBeTruthy();
 });
+
+test("only the assigned Technician sees the Final Cost Reconciliation form; the independent checker does not", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => workspace("completed") }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="owner" />);
+  expect(await screen.findByRole("button", { name: "Save Final Cost Reconciliation" })).toBeTruthy();
+  expect(screen.getByText(/As the assigned Technician, I supervised this work/)).toBeTruthy();
+  cleanup();
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="checker" />);
+  await screen.findByRole("heading", { name: "Closure Financial Disposition" });
+  expect(screen.queryByRole("button", { name: "Save Final Cost Reconciliation" })).toBeNull();
+  expect(screen.queryByText(/I supervised this work/)).toBeNull();
+});
