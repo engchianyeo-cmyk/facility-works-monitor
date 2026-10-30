@@ -249,7 +249,7 @@ describe("Guided work stage (UAT 29 Oct 2026)", () => {
     const order = ["<WorkCompletionSteps", "{evidenceEl}", "<ActualWorkTimes workOrderId={id}", "<ReleaseOneWorkspace", "{actionsEl}"].map((text) => page.indexOf(text, page.indexOf("{workStage ? <>")));
     expect(order.every((position, index) => position > 0 && (index === 0 || position > order[index - 1]))).toBe(true);
     const workspace = read("components/work-orders/release-one-workspace.tsx");
-    expect(workspace.indexOf("{costEditor}\n      <section className=\"mt-6 border-y-2")).toBeGreaterThan(0);
+    expect(workspace.indexOf("{costEditor}\n      <section className={`mt-6 px-4 py-5")).toBeGreaterThan(0);
     expect(workspace).toContain("Next: record the work done and click");
     expect(read("components/work-orders/work-completion-steps.tsx")).toContain("Steps to submit this Work Order for review");
   });
@@ -268,5 +268,48 @@ describe("D-25 independent checker", () => {
     const migration = read("supabase/migrations/20261030100000_independent_checker.sql");
     expect(migration).toContain("insert into public.work_order_copied_parties(work_order_id, profile_id, added_by) values (w.id, actor_id, actor_id)");
     expect(migration).toContain("AWARD_BASIS_REQUIRED");
+  });
+});
+
+describe("Closure status in plain words", () => {
+  it("no longer labels a Work Order 'unresolved' before it is due", () => {
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace).not.toContain('??"unresolved"');
+    for (const label of ["after the work is Completed", "awaiting invoice and payment", "ready to close: paid"]) expect(workspace).toContain(label);
+  });
+});
+
+describe("Red highlight where the Technician must act", () => {
+  it("marks the cost record and Final Cost sections and lists what blocks submission", () => {
+    expect(read("components/work-orders/actual-cost-editor.tsx")).toContain("Action needed: check the lines, then click");
+    const workspace = read("components/work-orders/release-one-workspace.tsx");
+    expect(workspace).toContain("const finalCostActionNeeded=");
+    expect(workspace).toContain("choose the revised quotation file, then click Attach Revised Quotation");
+    expect(read("components/work-orders/work-order-actions.tsx")).toContain("Action needed before Submit Physical Completion appears here");
+  });
+});
+
+describe("Work Order page review order", () => {
+  const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+  const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+  it("shows the Workflow timeline right after the header", () => {
+    const header = page.indexOf("<WorkOrderDecisionHeader");
+    const timeline = page.indexOf("Workflow timeline</h2>");
+    expect(header).toBeGreaterThan(-1);
+    expect(timeline).toBeGreaterThan(header);
+    expect(timeline).toBeLessThan(page.indexOf("{workStage ? <>"));
+  });
+  it("puts the reviewer's decision last, after the evidence, audit history and drawings", () => {
+    const decision = page.indexOf("{!workStage && actionsEl}");
+    for (const text of ["{!workStage && evidenceEl}", "Show audit history", "<WorkOrderDrawings", "<TechnicianEndorsement"]) {
+      expect(page.indexOf(text)).toBeGreaterThan(-1);
+      expect(page.indexOf(text)).toBeLessThan(decision);
+    }
+    expect(page.indexOf("</main>", decision)).toBeGreaterThan(decision);
+  });
+  it("groups the cost sections together in review order", () => {
+    const order = ['title="Proposal / Quotation"', "{costEditor}", 'id="final-cost-heading"', 'title="Purchase reference"', 'id="payment-heading"', 'id="closure-heading"'].map((text) => workspace.indexOf(text, workspace.indexOf("Cost sections in review order")));
+    order.forEach((index) => expect(index).toBeGreaterThan(-1));
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 });

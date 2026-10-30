@@ -114,7 +114,7 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.reload();
     await expect(page.getByText("Ready to submit for approval")).toBeVisible();
     await page.getByRole("button", { name: "Submit for approval" }).click();
-    await expect(page.getByText("Awaiting Approval").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Awaiting Approval").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     await logout(page);
 
     // 3. Approver (facility member, within S$250,000) approves work and quotation.
@@ -122,13 +122,13 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.getByRole("button", { name: "Approve Work and Quotation" }).click();
     await page.getByLabel("Approval note (reason required for Administrator self-approval)").fill("Approved: within limit, quotation matches scope.");
     await page.getByRole("button", { name: "Confirm approval" }).click();
-    await expect(page.getByText("Approved — Contractor to Proceed").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Approved — Contractor to Proceed").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     await logout(page);
 
     // 4. Technician witnesses and records the work.
     await login(page, technicianEmail, technicianPassword, workOrderPath);
     await page.getByRole("button", { name: "Start work" }).click();
-    await expect(page.getByText("Work in Progress").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Work in Progress").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     const evidence = page.locator("section").filter({ has: page.getByRole("heading", { name: "Evidence" }) });
     await evidence.getByLabel("Category").selectOption("after");
     await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({ name: `after-${runId}.png`, mimeType: "image/png", buffer: PNG });
@@ -158,7 +158,7 @@ test.describe("Work Order Lifecycle v2", () => {
     // The steps panel only shows during the work, so its disappearance proves the submission went through
     // (the timeline also contains the words "Submitted for Review").
     await expect(page.getByRole("heading", { name: "Steps to submit this Work Order for review" })).toHaveCount(0, { timeout: 20_000 });
-    await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Submitted for Review").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     // After submission the page leaves the guided work-stage layout; reload so the sections have settled.
     await page.reload();
     await actualTimes(page);
@@ -201,7 +201,7 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.getByLabel("Payment reference").fill(`PAY-${runId}`);
     await page.getByLabel("Finance note").fill("Paid per contractor terms.");
     await page.getByRole("button", { name: "Record Payment and Close" }).click();
-    await expect(page.getByText(/^Closed$/).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/^Closed$/).filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("In-house Work Order follows the same approvals with pricing waived and closes at review (D-07)", async ({ page }, testInfo) => {
@@ -221,19 +221,19 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.reload();
     await expect(page.getByRole("button", { name: "Prepare Proposal" })).toHaveCount(0);
     await page.getByRole("button", { name: "Submit for approval" }).click();
-    await expect(page.getByText("Awaiting Approval").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Awaiting Approval").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     await logout(page);
 
     await login(page, approverEmail, approverPassword, workOrderPath);
     await page.getByRole("button", { name: "Approve Work and Quotation" }).click();
     await page.getByLabel("Approval note (reason required for Administrator self-approval)").fill("In-house repaint approved.");
     await page.getByRole("button", { name: "Confirm approval" }).click();
-    await expect(page.getByText("Approved — Contractor to Proceed").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Approved — Contractor to Proceed").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     await logout(page);
 
     await login(page, technicianEmail, technicianPassword, workOrderPath);
     await page.getByRole("button", { name: "Start work" }).click();
-    await expect(page.getByText("Work in Progress").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Work in Progress").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     const evidence = page.locator("section").filter({ has: page.getByRole("heading", { name: "Evidence" }) });
     await evidence.getByLabel("Category").selectOption("after");
     await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({ name: `repaint-${runId}.png`, mimeType: "image/png", buffer: PNG });
@@ -251,7 +251,7 @@ test.describe("Work Order Lifecycle v2", () => {
     // The steps panel only shows during the work, so its disappearance proves the submission went through
     // (the timeline also contains the words "Submitted for Review").
     await expect(page.getByRole("heading", { name: "Steps to submit this Work Order for review" })).toHaveCount(0, { timeout: 20_000 });
-    await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Submitted for Review").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     // After submission the page leaves the guided work-stage layout; reload so the sections have settled.
     await page.reload();
     await actualTimes(page);
@@ -263,6 +263,6 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.getByRole("button", { name: "Approve as Completed" }).first().click();
     await page.getByLabel("Review note (required for a cost variance or Administrator self-review)").fill("In-house repaint verified.");
     await reviewed(page, page.getByRole("button", { name: "Approve as Completed" }).last());
-    await expect(page.getByText(/^Closed$/).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/^Closed$/).filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
   });
 });

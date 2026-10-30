@@ -467,9 +467,26 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         }}
       />
 
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="mb-4 font-semibold">Workflow timeline</h2>
+        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {timelineSteps(order, latestEndorsement, endorsementStageValue).map((step) => (
+            <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+              <p className="font-semibold">{step.label}</p>
+              <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
+            </li>
+          ))}
+        </ol>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (actual start → end, entered by the Technician)</dt><dd className="mt-1 text-slate-700">{formatDuration(actualTimes.started, actualTimes.ended) ?? "Not yet entered"}</dd></div>
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Labour hours recorded</dt><dd className="mt-1 text-slate-700">{order.actual_labour_hours === null || order.actual_labour_hours === undefined ? "Not yet recorded" : `${order.actual_labour_hours} h`}</dd></div>
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Overall (created → closed)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.created_at, order.closed_at) ?? "Open"}</dd></div>
+        </dl>
+      </section>
+
       {endorsementRequired && canEndorse && <a href="#technician-endorsement" className="block rounded-xl border-2 border-amber-500 bg-amber-100 p-4 text-amber-950 shadow-sm motion-safe:animate-pulse">
         <span className="block text-lg font-black">You are the independent checker for this Work Order</span>
-        <span className="mt-1 block text-sm">Your endorsement is needed. Go to your checklist: {status === "draft" ? "site evidence and quotations" : "the supervised work, the contractor's final quotation, the site evidence"}{checkerQuotations.length > 1 ? ", and the basis of the award against the competing quotations" : ""}.</span>
+        <span className="mt-1 block text-sm">Your endorsement is needed. Go to your checklist: {status === "draft" ? "site evidence and quotations" : "verify on site the work done and the materials installed against the contractor's final quotation, and the site evidence"}{checkerQuotations.length > 1 ? ", and the basis of the award against the competing quotations" : ""}.</span>
       </a>}
 
       {status === "draft" && isPreparer(context) && approvalReadiness && (
@@ -484,10 +501,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         {actionsEl}
       </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />}
 
-      {!workStage && actionsEl}
-
       {!workStage && showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
-      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} stage={status === "draft" ? "submission" : "review"} inHouse={Boolean(order.in_house_work)} quotations={checkerQuotations} />}
 
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "Engineering System: Not configured"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>
@@ -565,22 +579,6 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
 
       {!workStage && evidenceEl}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 font-semibold">Workflow timeline</h2>
-        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {timelineSteps(order, latestEndorsement, endorsementStageValue).map((step) => (
-            <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-              <p className="font-semibold">{step.label}</p>
-              <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
-            </li>
-          ))}
-        </ol>
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (actual start → end, entered by the Technician)</dt><dd className="mt-1 text-slate-700">{formatDuration(actualTimes.started, actualTimes.ended) ?? "Not yet entered"}</dd></div>
-          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Labour hours recorded</dt><dd className="mt-1 text-slate-700">{order.actual_labour_hours === null || order.actual_labour_hours === undefined ? "Not yet recorded" : `${order.actual_labour_hours} h`}</dd></div>
-          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Overall (created → closed)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.created_at, order.closed_at) ?? "Open"}</dd></div>
-        </dl>
-      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <details>
@@ -614,6 +612,10 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       </section>}
 
       <WorkOrderDrawings drawings={markupDrawingsFor(facilityDrawings)} canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
+
+      {/* The reviewer's decision comes last, after the costs, evidence and records above. */}
+      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} stage={status === "draft" ? "submission" : "review"} inHouse={Boolean(order.in_house_work)} quotations={checkerQuotations} />}
+      {!workStage && actionsEl}
     </main>
   );
 }

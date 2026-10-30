@@ -424,6 +424,9 @@ awarded contractor's quotation shall be reviewed with other competitors' quotati
    materials and labour; the contractor's final quotation, with any variation; the site field evidence; with
    competing quotations, the awarded quotation against the competitors). With competing quotations the checker also
    writes the basis of the award. The quotations are shown for comparison. Endorse is enabled only when all are done.
+   Owner 16:36: Technician 2 "need not supervise the work but he has to verify the work is done according to the
+   materials installed and quotation justified it" - the first two checks are worded as on-site verification of the
+   work and materials against the final quotation, and the quotation justifying them.
    Submission stage (if the facility uses it): site evidence; quotation scope; award basis when quotations compete.
 3. The database refuses an endorsement without every check (CHECKLIST_REQUIRED) or, with competing quotations,
    without the basis of the award (AWARD_BASIS_REQUIRED); the ticked checks are stored with the endorsement.
@@ -485,6 +488,14 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 00:38 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com` | Owner, guided |
 | 00:38 | Backup of `public` + `supabase_migrations` (2,275,752 bytes, `.git/preview-backup-20261029-pre-m12.sql`) | Owner, guided |
 | 00:40 | Increment applied (sha256 `972b877f…42fc8f`, matching the local rehearsal): `20261028120000` contractor actual cost from the final charge, cost-line delete, submission with the official quotation; preflight 61; ledger now 62; COMMIT | Owner, guided |
+
+### Preview rollout record — 30 October 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| Before 18:14 | Increment built (sha256 `890177de…`, matching the local rehearsal) and applied: `20261030100000` independent checker (D-25: endorsement checklist, basis of award, Technician 2 auto-copied); ledger now 63. The exact apply time was not captured, because a later attempt failed at login (EAUTHQUERY) | Owner, guided |
+| 18:14 | A repeat apply was refused by the preflight ("Preview ledger ends at 20261030100000, expected 20261028120000"); rolled back, nothing changed | Owner, guided |
+| 18:15 | Read-only check: latest ledger entry `20261030100000 independent_checker`; `work_order_endorsements.checklist` present; `endorse_work_order(p_work_order_id uuid, p_statement text, p_checklist jsonb)` | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

@@ -18,8 +18,8 @@ export type QuotationSummary = { id: string; contractor: string; amount: number;
 /** D-25: the independent checker's minimum checks, by endorsement stage. */
 export function checkerChecks(stage: "submission" | "review", inHouse: boolean, competing: boolean) {
   const checks: Array<{ key: string; label: string }> = stage === "review" ? [
-    { key: "supervised_work", label: "I checked the supervised work on site against the materials used and the labour performed." },
-    ...(inHouse ? [] : [{ key: "final_quotation", label: "I reviewed the work against the contractor's final quotation (and the revised quotation and justification, if there is a variation order)." }]),
+    { key: "supervised_work", label: "I verified on site that the work has been done and that the materials installed and the labour performed match the contractor's final quotation. (You need not have supervised the work yourself.)" },
+    ...(inHouse ? [] : [{ key: "final_quotation", label: "I checked that the contractor's final quotation justifies the work done and the materials installed (including the revised quotation and its justification, if there is a variation order)." }]),
     { key: "field_evidence", label: "I reviewed the site field evidence (After photos and records) of the work completed." },
   ] : [
     { key: "site_evidence", label: "I reviewed the site evidence (Before photos) and the condition reported." },

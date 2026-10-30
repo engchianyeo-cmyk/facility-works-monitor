@@ -375,6 +375,14 @@ export default function WorkOrderActions(props: Props) {
           <p className="mt-1">Marking work Completed requires a clear work-performed statement, cumulative labour hours, and at least one active After photo or PDF. Before evidence should be added whenever the original condition can be recorded safely.</p>
         </div>
 
+        {["assigned", "in_progress"].includes(props.status) && props.completionMissing.length > 0 && !props.formalCompletionAuthority && (
+          <section aria-labelledby="submit-missing-title" className="rounded-xl border-2 border-red-500 bg-red-50 p-4 text-red-900">
+            <p id="submit-missing-title" className="font-black">Action needed before Submit Physical Completion appears here</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{props.completionMissing.map((item) => <li key={item}>{item}</li>)}</ul>
+            <p className="mt-2 text-xs">The steps panel at the top of the page links to each place.</p>
+          </section>
+        )}
+
         {props.canRecordWork && (
           <button type="button" disabled={busy !== null} onClick={() => setInteraction("record_work")} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white disabled:opacity-50">
             Record Work Done

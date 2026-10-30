@@ -15,7 +15,7 @@ const typeLabel = (value: string) => COST_TYPES.find(([code]) => code === value)
 const sgd = (value: number) => `S$${value.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const blankRow = (key: number): DraftRow => ({ key, cost_type: "material", description: "", unit: "", quantity: "1", unit_rate: "" });
 
-export default function ActualCostEditor({ lines, editable, userId, confirmed, busy, onSave, onSaveMany, onDelete, onConfirm, contractorWork = false }: {
+export default function ActualCostEditor({ lines, editable, userId, confirmed, busy, onSave, onSaveMany, onDelete, onConfirm, contractorWork = false, actionNeeded = false }: {
   lines: ActualCostLine[]; editable: boolean; userId: string; confirmed: boolean; busy: boolean;
   onSave: (payload: Record<string, unknown>) => Promise<void>; onConfirm: () => Promise<void>;
   /** Saves several lines in one go (e.g. every line of the contractor's revised quotation); resolves true when all were saved. */
@@ -24,6 +24,8 @@ export default function ActualCostEditor({ lines, editable, userId, confirmed, b
   contractorWork?: boolean;
   /** D-23: deletes the field owner's own uncertified line (audited). */
   onDelete?: (costLineId: string) => Promise<void>;
+  /** Red highlight: the Technician still has to confirm the cost record. */
+  actionNeeded?: boolean;
 }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [rows, setRows] = useState<DraftRow[]>([blankRow(1)]);
@@ -39,7 +41,8 @@ export default function ActualCostEditor({ lines, editable, userId, confirmed, b
     && !line.technician_certified_at && !line.approved_at;
   const editing = actual.find(line => line.id === editingId && canEdit(line));
   const input = "mt-1 min-h-11 w-full rounded border border-slate-300 bg-white px-3 text-sm";
-  return <section className="mt-6 border-t border-slate-200 pt-5" aria-labelledby="actual-cost-heading">
+  return <section className={`mt-6 pt-5 ${actionNeeded ? "rounded border-4 border-red-500 bg-red-50 px-4 pb-4" : "border-t border-slate-200"}`} aria-labelledby="actual-cost-heading">
+    {actionNeeded && <p className="mb-2 inline-block rounded bg-red-600 px-3 py-1 text-sm font-black text-white">Action needed: check the lines, then click {confirmed ? "Reconfirm" : "Confirm"} Actual Costing</p>}
     <h3 id="actual-cost-heading" className="font-black">{contractorWork ? "Itemised cost record (optional)" : "Actual Cost"}</h3>
     {contractorWork && <p className="mt-1 text-sm text-slate-700">For contractor work the actual cost is the <strong>final contractor charge</strong> entered in Final Cost Reconciliation, backed by the attached quotation. Lines here are optional, for example your own staff&apos;s labour or materials you supplied. Confirm the record (even if empty) before submitting the work for review.</p>}
     <p className="mt-1 text-sm text-slate-600">{confirmed ? "Confirmed" : "Draft"} execution costs. Changes require costing confirmation again; approved quotations and certified lines retain their controls.</p>

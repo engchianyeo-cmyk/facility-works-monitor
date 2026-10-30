@@ -36,7 +36,7 @@ export default function CopiedParties({ workOrderId, people, selected, canEdit }
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="copied-parties-title" className="font-semibold text-slate-900">Copied parties</h2>
-          <p className="mt-1 text-sm text-slate-600">Notified at each stage and when the contractor invoice is uploaded. Finance is copied automatically when the Work Order is Completed.</p>
+          <p className="mt-1 text-sm text-slate-600">Notified at each stage and when the contractor invoice is uploaded. Finance is copied automatically when the Work Order is Completed, and the second Technician (independent checker) as soon as they endorse. The preparer can also add the second Technician here beforehand with Change.</p>
         </div>
         {canEdit && !editing && <button type="button" onClick={() => setEditing(true)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-bold">Change</button>}
       </div>
