@@ -69,3 +69,21 @@ test("only the assigned Technician sees the Final Cost Reconciliation form; the 
   expect(screen.queryByRole("button", { name: "Save Final Cost Reconciliation" })).toBeNull();
   expect(screen.queryByText(/I supervised this work/)).toBeNull();
 });
+
+test("a chosen revised quotation is flagged in red until it is attached, then confirmed", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  const base = workspace("in_progress");
+  const withVariation = { ...base, data: { ...base.data, finalCost: { id: "fc", status: "variance_approved", variation_order: true, final_contractor_amount: 13500, confirmed_actual_cost: 13500, variation_justification: "Extra oil and gasket work.", comments: "Checked." } } };
+  const fetcher = vi.fn().mockImplementation(async (url: string) => ({ ok: true, json: async () => (String(url).includes("commercial-documents") ? { ok: true } : withVariation) }));
+  vi.stubGlobal("fetch", fetcher);
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="in_progress" userId="owner" />);
+  const button = await screen.findByRole("button", { name: "Attach Revised Quotation" });
+  expect(button.className).toContain("bg-red-600");
+  const input = button.closest("form")!.querySelector("input[type=file]") as HTMLInputElement;
+  const file = new File(["%PDF-1.4"], "Revised_Quotation_VO.pdf", { type: "application/pdf" });
+  fireEvent.change(input, { target: { files: [file] } });
+  expect(screen.getByText(/File chosen but not attached yet/)).toBeTruthy();
+  fireEvent.submit(button.closest("form")!);
+  expect(await screen.findByText("Attached ✓ Revised_Quotation_VO.pdf")).toBeTruthy();
+  expect(fetcher.mock.calls.some(([url]) => String(url).includes("commercial-documents"))).toBe(true);
+});

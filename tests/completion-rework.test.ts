@@ -44,7 +44,7 @@ describe("completion review and rework interaction", () => {
   test("presents technician correction context from immutable audit history", () => {
     expect(activeReworkContext("in_progress", [returned])).toMatchObject({ cycle: 2, reason: "Provide the final insulation resistance reading." });
     expect(component).toContain("Completed Work rejected for correction");
-    expect(component).toContain("Record Work Done");
+    expect(component).toContain("Physical Completion — record the work done");
     expect(page).toContain("activeReworkContext");
   });
 

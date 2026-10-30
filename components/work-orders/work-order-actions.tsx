@@ -385,7 +385,7 @@ export default function WorkOrderActions(props: Props) {
 
         {props.canRecordWork && (
           <button type="button" disabled={busy !== null} onClick={() => setInteraction("record_work")} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white disabled:opacity-50">
-            Record Work Done
+            Physical Completion
           </button>
         )}
 
@@ -436,7 +436,7 @@ export default function WorkOrderActions(props: Props) {
         {interaction === "record_work" && (
           <form onSubmit={submitWorkRecord} aria-describedby="completion-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
             <div>
-              <h3 className="font-black">Record Work Done</h3>
+              <h3 className="font-black">Physical Completion — record the work done</h3>
               <p id="completion-help" className="mt-1 text-sm text-slate-600">Saving this execution record does not formally complete or close the Work Order. The responsible field person submits physical completion; an independent authorised person verifies it afterward.</p>
             </div>
             <label className="block text-sm font-bold">Work performed statement <span aria-hidden="true">*</span>

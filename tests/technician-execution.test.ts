@@ -58,7 +58,7 @@ describe("Technician execution interaction", () => {
 
   test("uses canonical completion language without claiming approval", () => {
     expect(WORK_RECORD_SUCCESS).toBe("Work record saved. Awaiting authorised completion.");
-    expect(component).toContain("Record Work Done");
+    expect(component).toContain("Physical Completion — record the work done");
     expect(component).toContain("does not formally complete or close");
   });
 

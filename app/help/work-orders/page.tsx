@@ -30,7 +30,7 @@ const STEPS: Array<{ title: string; when: string; items: string[] }> = [
     when: "After approval",
     items: [
       "Tap Start work when the job begins (the start time is logged automatically).",
-      "Add After photos, then Record Work Done with the work performed and labour hours.",
+      "Add After photos, then open Physical Completion and record the work performed and labour hours.",
       "Enter the actual costs, confirm them, and tap Submit Physical Completion (the end time is logged automatically).",
     ],
   },

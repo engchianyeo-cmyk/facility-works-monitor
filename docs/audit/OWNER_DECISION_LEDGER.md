@@ -453,6 +453,10 @@ this work…" was not what had been agreed for Technician 2.
    of the page has a red border and an "Action needed — your endorsement" label.
 6. Owner 19:56: Technician 2 keeps seeing the costs (quotation prices, final charge, variation order and the
    quotation documents), because the D-25 award-basis check needs the competing prices. No change.
+7. Owner 21:54: the selected variation choice and Save Final Cost Reconciliation are red until the final cost is
+   saved; Attach Revised Quotation is red while the revised quotation is missing. A chosen file that has not been
+   uploaded is flagged in red ("File chosen but not attached yet"), and a successful upload shows "Attached ✓" next
+   to the button and refreshes the page's action box. The "Record Work Done" button is renamed "Physical Completion".
 
 ### Preview rollout record — 21 October 2026
 

@@ -54,7 +54,7 @@ export function deriveWorkOrderOperationalStage(input: {
       return { label: "Work Record Submitted", nextAction: "Complete Work Record", completion };
     }
     if (input.status === "in_progress" || input.startedAt) {
-      return { label: "Work In Progress", nextAction: "Record Work Done", completion };
+      return { label: "Work In Progress", nextAction: "Physical Completion — record the work done", completion };
     }
     return { label: "Assigned — Not Started", nextAction: "Start Work", completion };
   }

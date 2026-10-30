@@ -134,7 +134,7 @@ test.describe("Work Order Lifecycle v2", () => {
     await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({ name: `after-${runId}.png`, mimeType: "image/png", buffer: PNG });
     await evidence.getByRole("button", { name: "Add evidence" }).click();
     await expect(evidence.getByText(`after-${runId}.png`)).toBeVisible({ timeout: 20_000 });
-    await page.getByRole("button", { name: "Record Work Done" }).click();
+    await page.getByRole("button", { name: "Physical Completion", exact: true }).click();
     await page.getByLabel("Work performed statement").fill("Bearing replaced and coupling realigned; vibration normal.");
     await page.getByLabel("Cumulative labour hours").fill("3");
     await page.getByRole("button", { name: "Save Work Record" }).click();
@@ -239,7 +239,7 @@ test.describe("Work Order Lifecycle v2", () => {
     await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({ name: `repaint-${runId}.png`, mimeType: "image/png", buffer: PNG });
     await evidence.getByRole("button", { name: "Add evidence" }).click();
     await expect(evidence.getByText(`repaint-${runId}.png`)).toBeVisible({ timeout: 20_000 });
-    await page.getByRole("button", { name: "Record Work Done" }).click();
+    await page.getByRole("button", { name: "Physical Completion", exact: true }).click();
     await page.getByLabel("Work performed statement").fill("Door sanded, primed and repainted by in-house staff.");
     await page.getByLabel("Cumulative labour hours").fill("2");
     await page.getByRole("button", { name: "Save Work Record" }).click();

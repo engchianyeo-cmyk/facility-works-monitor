@@ -250,7 +250,7 @@ describe("Guided work stage (UAT 29 Oct 2026)", () => {
     expect(order.every((position, index) => position > 0 && (index === 0 || position > order[index - 1]))).toBe(true);
     const workspace = read("components/work-orders/release-one-workspace.tsx");
     expect(workspace.indexOf("{costEditor}\n      <section className={`mt-6 px-4 py-5")).toBeGreaterThan(0);
-    expect(workspace).toContain("Next: record the work done and click");
+    expect(workspace).toContain("below, record the work done, then click Submit Physical Completion.");
     expect(read("components/work-orders/work-completion-steps.tsx")).toContain("Steps to submit this Work Order for review");
   });
 });
