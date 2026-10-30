@@ -38,3 +38,11 @@ test("the endorsement panel is highlighted in red only when the checker must act
   render(<TechnicianEndorsement workOrderId="wo" required={false} canEndorse endorsements={[]} stageSetting="Before the Approver's review" stage="review" quotations={[]} />);
   expect(screen.queryByText("Action needed — your endorsement")).toBeNull();
 });
+
+test("the Approver sees the checker's confirmed checks and basis of the award", () => {
+  render(<TechnicianEndorsement workOrderId="wo" required={false} canEndorse={false} stageSetting="Before the Approver's review" stage="review" quotations={[]}
+    endorsements={[{ id: "e1", stage: "review", endorser: "Ying Zhang", statement: "Inspected the transformer and the photos.", endorsed_at: "2026-10-30T14:30:00Z", checks: ["supervised_work", "award_basis"], awardBasis: "Lowest compliant quotation for the same scope." }]} />);
+  expect(screen.getByText("Checks confirmed by the independent checker")).toBeTruthy();
+  expect(screen.getByText(/I verified on site that the work has been done/)).toBeTruthy();
+  expect(screen.getByText("Lowest compliant quotation for the same scope.")).toBeTruthy();
+});

@@ -255,7 +255,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     supabase.from("work_order_copied_parties").select("profile_id").eq("work_order_id", id),
     supabase.rpc("work_order_people_directory"),
     canSetTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
-    supabase.from("work_order_endorsements").select("id,stage,endorsed_by,statement,endorsed_at").eq("work_order_id", id).order("endorsed_at", { ascending: true }),
+    supabase.from("work_order_endorsements").select("id,stage,endorsed_by,statement,endorsed_at,checklist").eq("work_order_id", id).order("endorsed_at", { ascending: true }),
     order.facility_id ? supabase.from("facility_settings").select("endorsement_stage").eq("facility_id", order.facility_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     order.facility_id ? supabase.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", order.facility_id).eq("active", true).order("code") : Promise.resolve({ data: [], error: null }),
   ]);
@@ -266,8 +266,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const people = (directoryResult.error ? [] : (directoryResult.data ?? []) as Array<{ id: string; display_name: string; role: string }>).map((person) => ({ id: person.id, name: person.display_name, role: person.role }));
   const facilityTechnicians = (facilityTechniciansResult.error ? [] : (facilityTechniciansResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null }>).map((item) => ({ id: item.id, name: item.display_name, detail: item.trade_discipline }));
   const nameById = new Map(people.map((person) => [person.id, person.name]));
-  const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string }>)
-    .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at }));
+  const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string; checklist?: { checks?: string[]; award_basis_note?: string | null } | null }>)
+    .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at, checks: row.checklist?.checks ?? [], awardBasis: row.checklist?.award_basis_note ?? null }));
   // D-25: quotations for the independent checker to compare (awarded = approved, else recommended contractor).
   const quotationResult = ["draft", "completed"].includes(status) ? await supabase.rpc("work_order_contractor_quotations", { p_work_order_id: id }) : null;
   const rawQuotations = quotationResult && !quotationResult.error && quotationResult.data && typeof quotationResult.data === "object"

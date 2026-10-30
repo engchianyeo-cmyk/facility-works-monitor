@@ -457,6 +457,14 @@ this work…" was not what had been agreed for Technician 2.
    saved; Attach Revised Quotation is red while the revised quotation is missing. A chosen file that has not been
    uploaded is flagged in red ("File chosen but not attached yet"), and a successful upload shows "Attached ✓" next
    to the button and refreshes the page's action box. The "Record Work Done" button is renamed "Physical Completion".
+8. Owner 22:08: the "Next authorized action" button (e.g. Submit Physical Completion, Approve as Completed) is red,
+   labelled "yours to click", since it is shown only to the person who must act.
+9. Owner 22:23: the Approver sees Technician 2's endorsement in full: who and when, the statement, each check
+   confirmed (ticked labels) and the basis of the award. A saved final cost shows as a "Saved ✓" summary; the form
+   reopens only on "Change the final cost".
+10. Owner 22:24: every Approver action is red for consistency: the independent approval forms (quotation approval,
+    final cost variance authorisation, payment and no-payment approval) carry an "Action needed — your approval"
+    label, a red button and a reason of at least 10 characters; the Approver's confirm buttons are red too.
 
 ### Preview rollout record — 21 October 2026
 

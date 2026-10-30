@@ -2,7 +2,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export type Endorsement = { id: string; stage: "submission" | "review"; endorser: string; statement: string; endorsed_at: string };
+export type Endorsement = { id: string; stage: "submission" | "review"; endorser: string; statement: string; endorsed_at: string; checks?: string[]; awardBasis?: string | null };
+
+/** Labels for every check key, so the Approver sees what the checker confirmed (D-25). */
+const CHECK_LABELS = new Map([...checkerChecks("review", false, true), ...checkerChecks("submission", false, true)].map((check) => [check.key, check.label]));
 
 const STAGE_LABEL = { submission: "Before submission", review: "Before the Approver's review" } as const;
 
@@ -78,6 +81,9 @@ export default function TechnicianEndorsement({ workOrderId, required, canEndors
       ? <ul className="mt-3 space-y-2 text-sm">{endorsements.map((item) => <li key={item.id} className="rounded-lg border border-amber-200 bg-white p-3">
           <p className="font-semibold">{item.endorser} · {STAGE_LABEL[item.stage]} · {new Date(item.endorsed_at).toLocaleString("en-SG")}</p>
           <p className="mt-1 whitespace-pre-wrap text-slate-700">{item.statement}</p>
+          {item.checks && item.checks.length > 0 && <div className="mt-2"><p className="font-semibold text-emerald-900">Checks confirmed by the independent checker</p>
+            <ul className="mt-1 space-y-1">{item.checks.map((key) => <li key={key} className="flex gap-2"><span aria-hidden="true" className="font-black text-emerald-700">✓</span><span>{CHECK_LABELS.get(key) ?? key}</span></li>)}</ul></div>}
+          {item.awardBasis && <p className="mt-2"><span className="font-semibold">Basis of the award:</span> <span className="whitespace-pre-wrap">{item.awardBasis}</span></p>}
         </li>)}</ul>
       : <p className="mt-3 text-sm text-slate-600">Not yet endorsed.</p>}
     {required && canEndorse && !blocked && <form onSubmit={endorse} className="mt-4 space-y-3">

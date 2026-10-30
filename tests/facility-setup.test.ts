@@ -325,3 +325,24 @@ describe("Independent checker notices (30 Oct 2026)", () => {
     expect(page).toMatch(/endorsementRequired && canEndorse && <a href="#technician-endorsement" className="[^"]*border-red-600[^"]*motion-safe:animate-pulse/);
   });
 });
+
+describe("Next authorized action is red (UAT 30 Oct 2026)", () => {
+  it("shows the one action waiting for this person as a red button", () => {
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    const block = actions.slice(actions.indexOf("Next authorized action — yours to click"), actions.indexOf("{busy === primary.action"));
+    expect(block).toContain("bg-red-600");
+    expect(block).not.toContain("bg-blue-700");
+  });
+});
+
+describe("Approver decisions are red (UAT 30 Oct 2026)", () => {
+  it("shows every independent approval form and confirm button in red", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    const form = workspace.slice(workspace.indexOf("function ApprovalForm("), workspace.indexOf("function ReturnForm("));
+    expect(form).toContain("Action needed — your approval");
+    expect(form).toContain("bg-red-600");
+    expect(form).not.toContain("bg-emerald-700");
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    expect(actions).toMatch(/bg-red-600[^"]*">\{busy === "approve"/);
+  });
+});

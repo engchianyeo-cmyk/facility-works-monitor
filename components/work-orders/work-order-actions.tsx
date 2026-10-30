@@ -415,8 +415,9 @@ export default function WorkOrderActions(props: Props) {
 
         {primary ? (
           <div>
-            <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Next authorized action</p>
-            <button type="button" disabled={busy !== null} onClick={() => openAction(primary.action)} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white shadow-sm hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50">
+            <p className="mb-2 text-xs font-black uppercase tracking-wide text-red-700">Next authorized action — yours to click</p>
+            {/* UAT 30 Oct 2026: the one action waiting for this person is red, matching the other "action needed" highlights. */}
+            <button type="button" disabled={busy !== null} onClick={() => openAction(primary.action)} className="min-h-12 w-full rounded-xl bg-red-600 px-5 py-3 text-base font-black text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50">
               {busy === primary.action ? "Submitting…" : primary.label}
             </button>
             {returnAction && (
@@ -447,7 +448,7 @@ export default function WorkOrderActions(props: Props) {
             </label>
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><span className="font-bold">Evidence:</span> Add active After photo or PDF evidence separately before authorised completion.</div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50">{busy === "record_work" ? "Saving work record…" : "Save Work Record"}</button>
+              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-red-600 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:opacity-50">{busy === "record_work" ? "Saving work record…" : "Save Work Record"}</button>
               <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">Keep working</button>
             </div>
           </form>
@@ -492,7 +493,7 @@ export default function WorkOrderActions(props: Props) {
               <textarea rows={3} maxLength={1000} required={props.approvalReasonRequired} minLength={props.approvalReasonRequired ? 3 : undefined} value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-blue-700 px-5 font-black text-white disabled:opacity-50">{busy === "approve" ? "Submitting approval…" : "Confirm approval"}</button>
+              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-red-600 px-5 font-black text-white disabled:opacity-50">{busy === "approve" ? "Submitting approval…" : "Confirm approval"}</button>
               <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>

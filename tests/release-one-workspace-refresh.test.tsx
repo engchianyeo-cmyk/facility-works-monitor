@@ -73,7 +73,7 @@ test("only the assigned Technician sees the Final Cost Reconciliation form; the 
 test("a chosen revised quotation is flagged in red until it is attached, then confirmed", async () => {
   const { fireEvent } = await import("@testing-library/react");
   const base = workspace("in_progress");
-  const withVariation = { ...base, data: { ...base.data, finalCost: { id: "fc", status: "variance_approved", variation_order: true, final_contractor_amount: 13500, confirmed_actual_cost: 13500, variation_justification: "Extra oil and gasket work.", comments: "Checked." } } };
+  const withVariation = { ...base, data: { ...base.data, final_cost: { id: "fc", status: "variance_approved", variation_order: true, final_contractor_amount: 13500, confirmed_actual_cost: 13500, variation_justification: "Extra oil and gasket work.", comments: "Checked." } } };
   const fetcher = vi.fn().mockImplementation(async (url: string) => ({ ok: true, json: async () => (String(url).includes("commercial-documents") ? { ok: true } : withVariation) }));
   vi.stubGlobal("fetch", fetcher);
   render(<ReleaseOneWorkspace id="work-order" role="technician" status="in_progress" userId="owner" />);
@@ -86,4 +86,15 @@ test("a chosen revised quotation is flagged in red until it is attached, then co
   fireEvent.submit(button.closest("form")!);
   expect(await screen.findByText("Attached ✓ Revised_Quotation_VO.pdf")).toBeTruthy();
   expect(fetcher.mock.calls.some(([url]) => String(url).includes("commercial-documents"))).toBe(true);
+});
+
+test("a saved final cost shows as a summary and reopens only on request", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  const base = workspace("completed");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...base, data: { ...base.data, final_cost: { id: "fc", status: "variance_approved", variation_order: true, final_contractor_amount: 13500, confirmed_actual_cost: 13500, variation_justification: "Extra oil and gasket work.", comments: "Checked.", submitted_at: "2026-10-30T13:00:00Z" } } }) }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="owner" />);
+  expect(await screen.findByText("Saved ✓ Final Cost Reconciliation")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save Final Cost Reconciliation" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Change the final cost" }));
+  expect(screen.getByRole("button", { name: "Save Final Cost Reconciliation" })).toBeTruthy();
 });
