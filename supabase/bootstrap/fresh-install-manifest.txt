@@ -74,3 +74,4 @@ supabase/migrations/20261027120000_facility_setup.sql
 supabase/migrations/20261027140000_final_quotation_variation.sql
 supabase/migrations/20261028100000_actual_cost_correction_before_review.sql
 supabase/migrations/20261028120000_actual_cost_from_contractor_charge.sql
+supabase/migrations/20261030100000_independent_checker.sql

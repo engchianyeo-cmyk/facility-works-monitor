@@ -67,6 +67,11 @@ async function actualTimes(page: Page) {
 /** D-11: a second Technician of the facility endorses the Work Order before the Approver's review (facility default). */
 async function endorsed(page: Page, workOrderPath: string) {
   await login(page, technician2Email, technician2Password, workOrderPath);
+  // D-25: the independent checker ticks every minimum check (and states the basis of an award against competitors).
+  const checklist = page.getByRole("group", { name: "Tick each check you have done" });
+  for (const box of await checklist.getByRole("checkbox").all()) await box.check();
+  const awardBasis = page.getByLabel(/Basis of the award/);
+  if (await awardBasis.count()) await awardBasis.fill("Lowest compliant quotation for the same scope.");
   await page.getByLabel("What did you check?").fill("Inspected the work on site and the photos; it is as recorded.");
   await page.getByRole("button", { name: "Endorse as authentic" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Endorsement recorded" })).toBeVisible({ timeout: 20_000 });
@@ -148,7 +153,11 @@ test.describe("Work Order Lifecycle v2", () => {
     });
     expect(finalUpload.status(), `final quotation upload: ${await finalUpload.text()}`).toBe(201);
     await page.reload();
+    await page.waitForLoadState("load");
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();
+    // The steps panel only shows during the work, so its disappearance proves the submission went through
+    // (the timeline also contains the words "Submitted for Review").
+    await expect(page.getByRole("heading", { name: "Steps to submit this Work Order for review" })).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
     // After submission the page leaves the guided work-stage layout; reload so the sections have settled.
     await page.reload();
@@ -237,7 +246,11 @@ test.describe("Work Order Lifecycle v2", () => {
     await expect(page.getByRole("status").filter({ hasText: "Work record saved" })).toBeVisible();
     await page.getByRole("button", { name: "Confirm Actual Costing" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Actual costing confirmed" })).toBeVisible();
+    await page.waitForLoadState("load");
     await page.getByRole("button", { name: "Submit Physical Completion" }).click();
+    // The steps panel only shows during the work, so its disappearance proves the submission went through
+    // (the timeline also contains the words "Submitted for Review").
+    await expect(page.getByRole("heading", { name: "Steps to submit this Work Order for review" })).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByText("Submitted for Review").first()).toBeVisible({ timeout: 20_000 });
     // After submission the page leaves the guided work-stage layout; reload so the sections have settled.
     await page.reload();

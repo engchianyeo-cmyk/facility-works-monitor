@@ -58,7 +58,7 @@ describe("D-11 second Technician endorsement and actual work times", () => {
     mocks.identity.mockResolvedValue({ role: "technician" });
     expect((await endorse(request("/api/work-orders/wo-1/endorsement", { statement: "short" }), context)).status).toBe(400);
     expect((await endorse(request("/api/work-orders/wo-1/endorsement", { statement: "Checked the site and photos." }), context)).status).toBe(200);
-    expect(mocks.rpc).toHaveBeenCalledWith("endorse_work_order", { p_work_order_id: "wo-1", p_statement: "Checked the site and photos." });
+    expect(mocks.rpc).toHaveBeenCalledWith("endorse_work_order", { p_work_order_id: "wo-1", p_statement: "Checked the site and photos.", p_checklist: {} });
   });
 
   it("returns a refused endorsement as an error", async () => {

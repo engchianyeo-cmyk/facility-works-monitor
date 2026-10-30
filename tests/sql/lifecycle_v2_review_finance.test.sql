@@ -110,7 +110,7 @@ end;$$;
 create function pg_temp.endorse(wo uuid) returns jsonb language plpgsql as $$
 declare r jsonb; begin
   perform pg_temp.act(pg_temp.u(2)); set local role authenticated;
-  r:=public.endorse_work_order(wo,'Checked on site: work and final cost as recorded.');
+  r:=public.endorse_work_order(wo,'Checked on site: work and final cost as recorded.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb);
   reset role; return r;
 end;$$;
 

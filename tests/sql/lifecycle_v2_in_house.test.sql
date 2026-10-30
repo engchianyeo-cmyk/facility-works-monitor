@@ -91,7 +91,7 @@ begin
   reset role;
   -- D-11: a second Technician endorses the work as authentic before the review.
   perform pg_temp.act(pg_temp.u(2)); set local role authenticated;
-  r:=public.endorse_work_order(wo,'Checked on site: work done as recorded.');
+  r:=public.endorse_work_order(wo,'Checked on site: work done as recorded.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb);
   perform pg_temp.assert_true((r->>'ok')::boolean and r->'endorsement' is not null,'second Technician endorses: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
   reset role;
 end;$$;

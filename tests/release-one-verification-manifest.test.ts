@@ -18,7 +18,7 @@ describe("canonical non-Production Release-1 migration manifest", () => {
       ...migrations.map((name) => `supabase/migrations/${name}`),
     ]);
     expect(manifest.at(-1)).toBe(
-      "supabase/migrations/20261028120000_actual_cost_from_contractor_charge.sql",
+      "supabase/migrations/20261030100000_independent_checker.sql",
     );
   });
 

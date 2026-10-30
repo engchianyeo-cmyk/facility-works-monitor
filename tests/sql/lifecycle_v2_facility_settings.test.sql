@@ -104,16 +104,21 @@ begin
   reset role; perform pg_temp.site(wo); set local role authenticated;
   perform pg_temp.assert_true(public.work_order_approval_summary(wo)->'missing_requirements' @> '["Second Technician endorsement"]','summary lists the endorsement');
   perform pg_temp.assert_true(public.transition_work_order(wo,'submit')->>'code'='ENDORSEMENT_REQUIRED','submission waits for the endorsement');
-  perform pg_temp.assert_true(public.endorse_work_order(wo,'I checked it myself.')->>'code'='ACCESS_DENIED','the responsible Technician cannot endorse');
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'I checked it myself.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'code'='ACCESS_DENIED','the responsible Technician cannot endorse');
   perform pg_temp.act(pg_temp.u(14));
-  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site.')->>'code'='ACCESS_DENIED','a Technician of another facility cannot endorse');
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'code'='ACCESS_DENIED','a Technician of another facility cannot endorse');
   perform pg_temp.act(pg_temp.u(3));
-  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site.')->>'code'='ACCESS_DENIED','an Approver cannot endorse');
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'code'='ACCESS_DENIED','an Approver cannot endorse');
   perform pg_temp.act(pg_temp.u(2));
-  perform pg_temp.assert_true(public.endorse_work_order(wo,'short')->>'code'='VALIDATION_ERROR','the statement must say what was checked');
-  r:=public.endorse_work_order(wo,'Checked the photos and the site: door corroded as described.');
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'short','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'code'='VALIDATION_ERROR','the statement must say what was checked');
+  -- D-25: the independent checker must tick every minimum check.
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site.','{"site_evidence":true}'::jsonb)->>'code'='CHECKLIST_REQUIRED','D-25 every check must be ticked');
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site.')->>'code'='CHECKLIST_REQUIRED','D-25 no checklist refused');
+  r:=public.endorse_work_order(wo,'Checked the photos and the site: door corroded as described.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb);
   perform pg_temp.assert_true((r->>'ok')::boolean and r->'endorsement'->>'stage'='submission','second Technician endorses the Draft');
-  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site again.')->>'code'='NO_CHANGE','repeat endorsement is NO_CHANGE');
+  perform pg_temp.assert_true(exists(select 1 from public.work_order_copied_parties c where c.work_order_id=wo and c.profile_id=pg_temp.u(2)),'D-25 independent checker copied on the Work Order');
+  perform pg_temp.assert_true((r->'endorsement'->'checklist'->'checks') ? 'site_evidence','D-25 ticked checks recorded with the endorsement');
+  perform pg_temp.assert_true(public.endorse_work_order(wo,'Checked the photos and the site again.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'code'='NO_CHANGE','repeat endorsement is NO_CHANGE');
   perform pg_temp.act(pg_temp.u(1));
   perform pg_temp.assert_true(public.transition_work_order(wo,'submit')->'work_order'->>'status'='submitted','endorsed Draft is submitted');
   perform pg_temp.act(pg_temp.u(4));
@@ -121,7 +126,7 @@ begin
   perform pg_temp.act(pg_temp.u(1));
   perform pg_temp.assert_true(public.transition_work_order(wo,'submit')->>'code'='ENDORSEMENT_REQUIRED','a returned Draft needs a fresh endorsement');
   perform pg_temp.act(pg_temp.u(2));
-  perform pg_temp.assert_true((public.endorse_work_order(wo,'Checked the updated Draft and photos.')->>'ok')::boolean,'fresh endorsement');
+  perform pg_temp.assert_true((public.endorse_work_order(wo,'Checked the updated Draft and photos.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'ok')::boolean,'fresh endorsement');
   perform pg_temp.act(pg_temp.u(1));
   perform pg_temp.assert_true(public.transition_work_order(wo,'submit')->'work_order'->>'status'='submitted','resubmitted');
   perform pg_temp.act(pg_temp.u(3));
@@ -162,7 +167,7 @@ begin
   perform pg_temp.act(pg_temp.u(4));
   perform pg_temp.assert_true(public.verify_completed_work(wo,'{"note":"x"}')->>'code'='ENDORSEMENT_REQUIRED','review waits for the endorsement (the Draft endorsement does not count)');
   perform pg_temp.act(pg_temp.u(2));
-  perform pg_temp.assert_true((public.endorse_work_order(wo,'Inspected the repainted door on site.')->>'ok')::boolean,'second Technician endorses before the review');
+  perform pg_temp.assert_true((public.endorse_work_order(wo,'Inspected the repainted door on site.','{"supervised_work":true,"final_quotation":true,"field_evidence":true,"site_evidence":true,"quotation_scope":true,"award_basis":true,"award_basis_note":"Lowest compliant quotation from an eligible contractor"}'::jsonb)->>'ok')::boolean,'second Technician endorses before the review');
   perform pg_temp.act(pg_temp.u(4));
   r:=public.verify_completed_work(wo,'{"note":"Repaint verified."}');
   perform pg_temp.assert_true(r->'work_order'->>'status'='reviewed','approved as Completed: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));

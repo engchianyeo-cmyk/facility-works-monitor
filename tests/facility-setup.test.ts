@@ -254,3 +254,19 @@ describe("Guided work stage (UAT 29 Oct 2026)", () => {
     expect(read("components/work-orders/work-completion-steps.tsx")).toContain("Steps to submit this Work Order for review");
   });
 });
+
+describe("D-25 independent checker", () => {
+  it("lists the minimum checks per stage, including the basis of the award when quotations compete", async () => {
+    const { checkerChecks } = await import("@/components/work-orders/technician-endorsement");
+    expect(checkerChecks("review", false, true).map((check) => check.key)).toEqual(["supervised_work", "final_quotation", "field_evidence", "award_basis"]);
+    expect(checkerChecks("review", true, false).map((check) => check.key)).toEqual(["supervised_work", "field_evidence"]);
+    expect(checkerChecks("submission", false, false).map((check) => check.key)).toEqual(["site_evidence", "quotation_scope"]);
+  });
+  it("flashes a banner for the checker, passes the checklist and copies the checker", () => {
+    expect(read("app/work-orders/[id]/page.tsx")).toContain("You are the independent checker for this Work Order");
+    expect(read("app/api/work-orders/[id]/endorsement/route.ts")).toContain("p_checklist: checklist");
+    const migration = read("supabase/migrations/20261030100000_independent_checker.sql");
+    expect(migration).toContain("insert into public.work_order_copied_parties(work_order_id, profile_id, added_by) values (w.id, actor_id, actor_id)");
+    expect(migration).toContain("AWARD_BASIS_REQUIRED");
+  });
+});

@@ -7,7 +7,7 @@ import DocumentCorrectionControl from "@/components/work-orders/document-correct
 import TechnicianPicker from "@/components/work-orders/technician-picker";
 import CopiedParties from "@/components/work-orders/copied-parties";
 import ActualWorkTimes from "@/components/work-orders/actual-work-times";
-import TechnicianEndorsement, { type Endorsement } from "@/components/work-orders/technician-endorsement";
+import TechnicianEndorsement, { type Endorsement, type QuotationSummary } from "@/components/work-orders/technician-endorsement";
 import WorkCompletionSteps, { type CompletionStep } from "@/components/work-orders/work-completion-steps";
 import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel } from "@/lib/facility-settings";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
@@ -268,6 +268,14 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const nameById = new Map(people.map((person) => [person.id, person.name]));
   const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string }>)
     .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at }));
+  // D-25: quotations for the independent checker to compare (awarded = approved, else recommended contractor).
+  const quotationResult = ["draft", "completed"].includes(status) ? await supabase.rpc("work_order_contractor_quotations", { p_work_order_id: id }) : null;
+  const rawQuotations = quotationResult && !quotationResult.error && quotationResult.data && typeof quotationResult.data === "object"
+    ? ((quotationResult.data as { quotations?: unknown }).quotations as Array<{ id: string; vendor_id: string; status: string; total_amount: number; quotation_ref: string | null; contractor_legal_name: string | null }> | undefined) ?? [] : [];
+  const checkerQuotations: QuotationSummary[] = rawQuotations.filter((quote) => ["submitted", "approved"].includes(quote.status)).map((quote) => ({
+    id: quote.id, contractor: quote.contractor_legal_name ?? "Contractor", amount: Number(quote.total_amount), reference: quote.quotation_ref,
+    awarded: quote.status === "approved" || (quote.status === "submitted" && quote.vendor_id === order.recommended_vendor_id),
+  }));
   const latestEndorsement = {
     submission: endorsements.filter((item) => item.stage === "submission").map((item) => item.endorsed_at).sort().at(-1) ?? null,
     review: endorsements.filter((item) => item.stage === "review").map((item) => item.endorsed_at).sort().at(-1) ?? null,
@@ -459,6 +467,11 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         }}
       />
 
+      {endorsementRequired && canEndorse && <a href="#technician-endorsement" className="block rounded-xl border-2 border-amber-500 bg-amber-100 p-4 text-amber-950 shadow-sm motion-safe:animate-pulse">
+        <span className="block text-lg font-black">You are the independent checker for this Work Order</span>
+        <span className="mt-1 block text-sm">Your endorsement is needed. Go to your checklist: {status === "draft" ? "site evidence and quotations" : "the supervised work, the contractor's final quotation, the site evidence"}{checkerQuotations.length > 1 ? ", and the basis of the award against the competing quotations" : ""}.</span>
+      </a>}
+
       {status === "draft" && isPreparer(context) && approvalReadiness && (
         <DraftNextSteps steps={draftNextSteps(approvalReadiness.missing_requirements, id)} justCreated={justCreated} />
       )}
@@ -474,7 +487,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       {!workStage && actionsEl}
 
       {!workStage && showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
-      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} />}
+      {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} stage={status === "draft" ? "submission" : "review"} inHouse={Boolean(order.in_house_work)} quotations={checkerQuotations} />}
 
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "Engineering System: Not configured"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>

@@ -411,6 +411,25 @@ Owner: "The actual official quotation should be attached together with the submi
 3. Emergency work keeps its after-the-fact quotation route; in-house work has no quotation.
 4. Database: added to migration `20261028120000_actual_cost_from_contractor_charge.sql` (not yet applied anywhere).
 
+### D-25 Technician 2 as the independent checker — 30 October 2026 16:09 (refines D-11, D-20)
+
+Owner: flash Technician 2's responsibility on screen with a checklist of to-dos; copied parties should include
+Technician 2's name; "Technician 2 as a minimum must check the supervised work, against the materials and labour
+performed, review it against Contractor's final quotation, review the site field evidence of work completed,
+awarded contractor's quotation shall be reviewed with other competitors' quotations and justify the basis of the award."
+
+1. When an endorsement is due, an eligible Technician sees a banner "You are the independent checker for this
+   Work Order" linking to the endorsement panel.
+2. The panel states the responsibility and lists the minimum checks to tick (review stage: supervised work against
+   materials and labour; the contractor's final quotation, with any variation; the site field evidence; with
+   competing quotations, the awarded quotation against the competitors). With competing quotations the checker also
+   writes the basis of the award. The quotations are shown for comparison. Endorse is enabled only when all are done.
+   Submission stage (if the facility uses it): site evidence; quotation scope; award basis when quotations compete.
+3. The database refuses an endorsement without every check (CHECKLIST_REQUIRED) or, with competing quotations,
+   without the basis of the award (AWARD_BASIS_REQUIRED); the ticked checks are stored with the endorsement.
+4. The endorsing Technician is added to the copied parties automatically and cannot be removed from them.
+5. Database: migration `20261030100000_independent_checker.sql` (WP-IC-M13).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
