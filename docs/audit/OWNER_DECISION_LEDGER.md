@@ -465,6 +465,35 @@ this work…" was not what had been agreed for Technician 2.
 10. Owner 22:24: every Approver action is red for consistency: the independent approval forms (quotation approval,
     final cost variance authorisation, payment and no-payment approval) carry an "Action needed — your approval"
     label, a red button and a reason of at least 10 characters; the Approver's confirm buttons are red too.
+11. Owner 23:25: once saved, the Technician is no longer prompted: the site-verification box, Save Final Cost
+    Reconciliation and Replace Revised Quotation are hidden behind "Change the final cost" (a change cancels the
+    endorsement), so they cannot be clicked unknowingly.
+12. Owner 23:26: invoice and quotation must not be confused at final submission. The invoice was listed twice
+    (the same list rendered in two places); it is now listed once. Upload Invoice is red until done; afterwards an
+    "Uploaded ✓" summary replaces the form, with "Replace the invoice" behind a button. The amount field is labelled
+    "before GST" to match the approved amount.
+13. Owner 23:42: Finance's actions are red too ("Action needed — Finance"): Confirm Invoice Received and Record
+    Payment and Close.
+14. Owner 23:47: payment amounts are labelled "before GST" where they are pre-GST (approved amount, invoice amount,
+    recommended payment, paid amount and the recorded payment). GST is paid with the invoice but not entered.
+15. Owner 23:49: while Finance has to act, the whole Contractor Invoice and Payment section is outlined in red with
+    "Action needed — Finance: confirm the invoice was received" or "… record the payment and close".
+
+### D-27 All facilities overview (view only) — 30 October 2026 23:54
+
+Owner: "The App is intended to service multiple facilities, therefore there should be a page to list down all the
+facilities, all users related to each facility and the unique features/requirement for each facility should be
+listed down as previously discussed. Kindly work out this page for viewing first."
+
+1. **Administration → All Facilities** (`/administration/facilities/overview`, Administrator only, view only):
+   a summary table of every facility (status, staff, areas, drawings, open and closed Work Orders), then one panel
+   per facility with its users (role, name, email, assigned since; Designated Approver marked) and its requirements:
+   Designated Approver, endorsement stage, independent checker (D-25), areas and pins, layout drawings, archive
+   period and off-site copy frequency (D-18, Stage 2, shown "not set yet"), Work Order counts.
+2. A company-wide panel shows what is set once for all facilities today: approval limits, quotations required,
+   contractor payment terms, and the Finance and Administrator users. Open question for the owner: should any of
+   these differ by facility?
+3. Linked from the header ("All Facilities") and from Facilities setup. Editing stays in Facilities setup.
 
 ### Preview rollout record — 21 October 2026
 

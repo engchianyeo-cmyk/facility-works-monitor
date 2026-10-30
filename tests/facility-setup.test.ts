@@ -346,3 +346,37 @@ describe("Approver decisions are red (UAT 30 Oct 2026)", () => {
     expect(actions).toMatch(/bg-red-600[^"]*">\{busy === "approve"/);
   });
 });
+
+describe("Finance actions are red (UAT 30 Oct 2026)", () => {
+  it("shows Confirm Invoice Received and Record Payment and Close as red action buttons", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    expect(workspace).toContain('className="min-h-11 rounded bg-red-600 px-4 font-bold text-white">Confirm Invoice Received</button>');
+    expect(workspace).toContain('className="min-h-11 rounded bg-red-600 px-4 font-bold text-white sm:col-span-2">Record Payment and Close</button>');
+  });
+});
+
+describe("Payment amounts say before GST (UAT 30 Oct 2026)", () => {
+  it("labels the approved, invoice, recommended and paid amounts as before GST", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    for (const text of ["Approved amount (before GST)", "Invoice amount before GST", "Recommended payment before GST", "Paid amount before GST", "before GST / ${data.payment.payment_reference}"]) expect(workspace).toContain(text);
+  });
+});
+
+describe("All facilities overview (UAT 30 Oct 2026)", () => {
+  const page = readFileSync("app/administration/facilities/overview/page.tsx", "utf8");
+  it("is view-only and for the Administrator", () => {
+    expect(page).toContain('identity.role !== "administrator"');
+    expect(page).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(page).not.toMatch(/rpc\("admin_(save|set|add|register|remove)/);
+  });
+  it("lists every facility, its users and its requirements, plus company-wide settings", () => {
+    for (const text of ["Summary (", "Users of this facility", "Designated Approver", "Second Technician endorsement", "Independent checker", "Layout drawings",
+      "Archive closed Work Orders after", "Off-site copy frequency", "Company-wide (applies to every facility)", "Approval limits", "Quotations required", "Contractor payment terms", "Company-wide users"]) {
+      expect(page).toContain(text);
+    }
+  });
+  it("is linked from the header and from Facilities setup", () => {
+    expect(readFileSync("components/site-header.tsx", "utf8")).toContain('href="/administration/facilities/overview"');
+    expect(readFileSync("app/administration/facilities/page.tsx", "utf8")).toContain('href="/administration/facilities/overview"');
+  });
+});

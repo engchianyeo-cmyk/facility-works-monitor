@@ -98,3 +98,40 @@ test("a saved final cost shows as a summary and reopens only on request", async 
   fireEvent.click(screen.getByRole("button", { name: "Change the final cost" }));
   expect(screen.getByRole("button", { name: "Save Final Cost Reconciliation" })).toBeTruthy();
 });
+
+test("once the final cost and its quotation are saved, the declaration box and the replace control are hidden", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  const base = workspace("completed");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...base, data: { ...base.data,
+    final_cost: { id: "fc", status: "variance_approved", variation_order: true, final_contractor_amount: 13500, confirmed_actual_cost: 13500, variation_justification: "Extra oil and gasket work.", comments: "Checked.", submitted_at: "2026-10-30T13:00:00Z" },
+    documents: [{ id: "d1", document_type: "final_invoice", final_cost_submission_id: "fc", original_filename: "Revised_Quotation_VO.pdf", content_type: "application/pdf", byte_size: 100, uploaded_at: "2026-10-30T13:05:00Z" }] } }) }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="owner" />);
+  expect(await screen.findByText("Saved ✓ Final Cost Reconciliation")).toBeTruthy();
+  expect(screen.queryByText(/As the assigned Technician, I supervised/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Replace Revised Quotation" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Change the final cost" }));
+  expect(screen.getByRole("button", { name: "Replace Revised Quotation" })).toBeTruthy();
+});
+
+test("an uploaded invoice is listed once and confirmed, with Replace hidden until asked for", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  const base = workspace("reviewed");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...base, data: { ...base.data,
+    payment: { id: "pay", status: "approved_for_payment", assessed_amount: 13500, invoice_reference: "VQ-INV-2026-1219", invoice_amount: 13500, invoice_uploaded_at: "2026-10-30T15:00:00Z", invoice_received_at: null, payment_due_at: null, paid_at: null },
+    documents: [{ id: "inv", document_type: "invoice", payment_assessment_id: "pay", quotation_id: null, original_filename: "Invoice_VO.pdf", uploaded_at: "2026-10-30T15:00:00Z" }] } }) }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="reviewed" userId="owner" />);
+  expect(await screen.findByText("Uploaded ✓ Contractor invoice VQ-INV-2026-1219")).toBeTruthy();
+  expect(screen.getAllByText("Invoice_VO.pdf")).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Replace Invoice" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Replace the invoice" }));
+  expect(screen.getByRole("button", { name: "Replace Invoice" })).toBeTruthy();
+});
+
+test("the payment section is outlined in red while Finance has to act", async () => {
+  const base = workspace("reviewed");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...base, data: { ...base.data,
+    payment: { id: "pay", status: "approved_for_payment", assessed_amount: 13500, invoice_reference: "VQ-INV-2026-1219", invoice_amount: 13500, invoice_uploaded_at: "2026-10-30T15:00:00Z", invoice_received_at: null, payment_due_at: null, paid_at: null } } }) }));
+  render(<ReleaseOneWorkspace id="work-order" role="finance" status="reviewed" userId="finance-user" />);
+  expect(await screen.findByText("Action needed — Finance: confirm the invoice was received")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Confirm Invoice Received" }).className).toContain("bg-red-600");
+});

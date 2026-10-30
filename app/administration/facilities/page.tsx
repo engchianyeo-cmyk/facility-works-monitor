@@ -74,7 +74,7 @@ export default async function FacilitiesPage() {
   return <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-8">
     <div>
       <p className="text-sm font-semibold text-blue-700">Administration</p>
-      <h1 className="text-3xl font-black">Facilities</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-black">Facilities</h1><Link href="/administration/facilities/overview" className="min-h-11 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white">View all facilities, users and requirements →</Link></div>
       <p className="mt-1 text-slate-600">Add facilities, their areas, layout drawings and staff. Each facility starts on the recommended settings; change them to suit the facility. Every change is recorded with its reason. Area pins on the layout plans are set in <Link href="/administration/facility-locations" className="font-semibold text-blue-700 underline">Facility Locations</Link>.</p>
     </div>
     <details className="rounded-xl border bg-white p-5 sm:p-6">
