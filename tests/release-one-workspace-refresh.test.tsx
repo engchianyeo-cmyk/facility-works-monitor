@@ -135,3 +135,28 @@ test("the payment section is outlined in red while Finance has to act", async ()
   expect(await screen.findByText("Action needed — Finance: confirm the invoice was received")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Confirm Invoice Received" }).className).toContain("bg-red-600");
 });
+
+test("D-29: the preparer chooses contractor or in-house; switching withdraws the draft quotation after confirming", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  const base = workspace("draft");
+  const draft = { ...base, data: { ...base.data, quotations: [{ id: "q1", status: "draft", version_no: 1, total_amount: 829, vendor_id: "v1", contractor_legal_name: "Kelvinbay ACMV Engineering Pte Ltd", quotation_ref: "KBA-Q-2026-0311", currency: "SGD", lines: [] }] } };
+  const fetcher = vi.fn().mockImplementation(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/in-house") ? { ok: true, withdrawn_quotations: [{ id: "q1" }] } : draft) }));
+  vi.stubGlobal("fetch", fetcher);
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="draft" userId="owner" />);
+  expect(await screen.findByText("Who will do this work?")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /In-house staff/ }));
+  expect(screen.getByText(/The draft quotation from Kelvinbay ACMV Engineering Pte Ltd \(KBA-Q-2026-0311\) will be withdrawn/)).toBeTruthy();
+  expect(fetcher.mock.calls.some(([url]) => String(url).includes("/in-house"))).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Withdraw it and use in-house staff" }));
+  expect(await screen.findByText(/In-house staff chosen\. The draft quotation was withdrawn/)).toBeTruthy();
+  expect(fetcher.mock.calls.some(([url]) => String(url).includes("/in-house"))).toBe(true);
+});
+
+test("D-29: an in-house Draft shows the choice with In-house staff selected", async () => {
+  const base = workspace("draft");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...base, data: { ...base.data, order: { ...base.data.order, in_house_work: true } } }) }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="draft" userId="owner" />);
+  expect((await screen.findByRole("button", { name: /In-house staff/ })).getAttribute("aria-pressed")).toBe("true");
+  expect(screen.getByRole("heading", { name: "In-House Services — Pricing Waived" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Use a Contractor Instead" })).toBeNull();
+});

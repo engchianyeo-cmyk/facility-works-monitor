@@ -478,6 +478,10 @@ this work…" was not what had been agreed for Technician 2.
     recommended payment, paid amount and the recorded payment). GST is paid with the invoice but not entered.
 15. Owner 23:49: while Finance has to act, the whole Contractor Invoice and Payment section is outlined in red with
     "Action needed — Finance: confirm the invoice was received" or "… record the payment and close".
+16. Owner 2 Nov 00:43: Technician 1's Draft sections needing attention are red: "Next steps before you submit"
+    (red with the number of steps left; green when ready), the Evidence section while a Before photo is missing,
+    the layout plan while the location is not marked, the Proposal / Quotation section while a quotation is
+    needed, and Edit Work Order while the due date has passed or the reason is missing.
 
 ### D-27 All facilities overview (view only) — 30 October 2026 23:54
 
@@ -494,6 +498,48 @@ listed down as previously discussed. Kindly work out this page for viewing first
    contractor payment terms, and the Finance and Administrator users. Open question for the owner: should any of
    these differ by facility?
 3. Linked from the header ("All Facilities") and from Facilities setup. Editing stays in Facilities setup.
+
+### D-28 Approval limits, quotations rule and payment terms set per facility — 1 November 2026 23:42 (refines D-27)
+
+Owner: "All facilities approval limits, quotations rule or contractor payment terms should differ by facility, However,
+they should be defaulted to a standardised limits including rules and payment terms but they can be changed via a
+definition page."
+
+1. A company standard (today: Approver and Supervisor S$250,000, Facility Manager S$500,000, Administrator no limit;
+   three quotations from S$1,000; 30-day payment terms) applies to every facility by default.
+2. The Administrator may give a facility its own value for any of these, with a reason, on a **Facility Definitions**
+   page; "Return to standard" removes it. Every change is kept in an unchangeable history.
+3. Owner 23:46: a facility without its own value follows later changes to the standard automatically.
+4. Owner 23:46: review a mock-up first. Mock-up published 1 Nov 23:47 (interactive, no data saved). Building the
+   page and applying the facility's values in the approval, quotation and payment steps (one database change, M14)
+   waits for the owner's review.
+5. Owner 2 Nov 00:28: the facility's payment terms take priority over a contractor's own agreed terms.
+6. Owner 2 Nov 00:17: the holding company is Facility Supreme Pte Ltd with 10 facilities, all managed by the
+   Administrator, who can choose to view any one of them. The facility used so far in UAT is named **Facility One**
+   (fictitious). It has its own Facility Manager, Approver, Supervisor and Technicians 1 and 2, and each facility may
+   rename these roles on the Facility Definitions page. Renaming changes only the name shown, not what the role may
+   do. Mock-up updated 2 Nov 00:20.
+7. Owner 2 Nov 00:28: run UAT on one or two more Work Orders at Facility One before building D-28 or creating a
+   new facility. D-28 (M14) is on hold until then.
+
+### D-29 Choosing in-house staff at any point in the Draft — 2 November 2026 01:20 (refines D-07)
+
+Owner: "The 'in-house work' statement has disappeared. It should be able to select this option and close the
+contractor option. This is not too intuitive at the moment." (The option was hidden once a contractor quotation had
+been started, and the database refused the switch until the quotation was withdrawn, which nothing could do.)
+
+1. While the Work Order is a Draft, the preparer always sees **Who will do this work?** with two choices: **A
+   contractor** (quotation, invoice and payment) or **In-house staff** (no pricing; closes when approved as
+   Completed). The selected one is ticked and outlined. With in-house staff chosen, the contractor sections are
+   not shown.
+2. Switching to in-house staff when a contractor quotation has been started asks first: "The draft quotation from
+   … will be withdrawn." On confirming, the open quotation (draft, submitted or returned) is marked withdrawn,
+   kept in the history, logged and no longer listed. Approved quotations are untouched. Switching back to a
+   contractor starts a fresh quotation.
+3. Database: migration `20261102100000_in_house_withdraws_draft_quotation.sql` (WP-IH-M14): quotation status
+   'withdrawn'; `set_work_order_in_house` withdraws the open quotations; the quotation list (scope core) leaves
+   them out. Rehearsed locally on a copy at 63 entries: applied (ledger 64), repeat refused, wrong target refused;
+   increment sha256 `0924fe3f…bf4ab`.
 
 ### Preview rollout record — 21 October 2026
 
@@ -559,6 +605,10 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 18:14 | A repeat apply was refused by the preflight ("Preview ledger ends at 20261030100000, expected 20261028120000"); rolled back, nothing changed | Owner, guided |
 | 18:15 | Read-only check: latest ledger entry `20261030100000 independent_checker`; `work_order_endorsements.checklist` present; `endorse_work_order(p_work_order_id uuid, p_statement text, p_checklist jsonb)` | Owner, guided |
 | 19:03 | `release:verify` PASS (30/30 Playwright); commit `4687b4d` pushed to `uat/claude-review` (9 files: review-order Work Order layout with the timeline first and the decision last, red action highlights, verify-not-supervise checklist wording, Closure label, copied-parties note, this M13 record); Vercel Preview build triggered; no database change | Owner |
+| 21:24 | Commit `a86ae03` pushed (D-26: commercial forms only for the assigned Technician, endorsement highlight and advance notice, CSV panel retired); no database change | Owner |
+| 22:04 | Commit `071220d` pushed (red final-cost and revised-quotation highlights, attach confirmation, Physical Completion button); its new unit test had a fixture error, fixed in `8633869` | Owner |
+| 23:12 | `release:verify` PASS (30/30 Playwright); commit `8633869` (Approver actions in red, endorsement checks and award basis shown to the Approver, saved final-cost summary, red next-action button) | Owner |
+| 31 Oct 00:01 | Commit `b3b421f` (Finance actions in red, payment amounts before GST, saved controls hidden, invoice listed once, D-27 All Facilities overview); `8633869` and `b3b421f` on `uat/claude-review` (confirmed 1 Nov 23:16, "Everything up-to-date"); no database change | Owner |
 
 ## D. Decisions still open (not recoverable locally)
 

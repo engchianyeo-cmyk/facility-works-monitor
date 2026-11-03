@@ -128,6 +128,23 @@ do $t$ declare r jsonb; wo uuid; em uuid; begin
   perform pg_temp.assert_true((public.set_work_order_in_house((r->'work_order'->>'id')::uuid,true)->'work_order'->>'in_house_work')::boolean,'preparer declares in-house in Draft');
   perform pg_temp.act(pg_temp.u(2));
   perform pg_temp.assert_true(public.set_work_order_in_house((r->'work_order'->>'id')::uuid,false)->>'code'='ACCESS_DENIED','other Technician cannot change it');
+  -- D-29: declaring in-house after starting a contractor quotation withdraws the open quotation (kept, not listed).
+  perform pg_temp.act(pg_temp.u(1));
+  r:=public.create_work_order(jsonb_build_object('title','Switch to in-house','location','X','facility_id',(select facility_id from f)));
+  perform pg_temp.assert_true(public.prepare_work_order_proposal((r->'work_order'->>'id')::uuid,'{"vendor_id":"1c600000-0000-4000-8000-0000000000e1","proposed_amount":650,"scope_summary":"Contractor repair"}')->>'ok'='true','draft quotation started');
+  declare sw jsonb; qid uuid; begin
+    qid:=(public.work_order_contractor_quotations((r->'work_order'->>'id')::uuid)->'quotations'->0->>'id')::uuid;
+    perform pg_temp.assert_true(qid is not null,'draft quotation exists');
+    sw:=public.set_work_order_in_house((r->'work_order'->>'id')::uuid,true);
+    perform pg_temp.assert_true((sw->'work_order'->>'in_house_work')::boolean and pg_catalog.jsonb_array_length(sw->'withdrawn_quotations')=1,'in-house declared and the draft quotation withdrawn');
+    perform pg_temp.assert_true(pg_catalog.jsonb_array_length(public.work_order_contractor_quotations((r->'work_order'->>'id')::uuid)->'quotations')=0,'withdrawn quotation not listed');
+    reset role;
+    perform pg_temp.assert_true((select status from public.contractor_quotations where id=qid)='withdrawn','quotation kept as withdrawn');
+    perform pg_temp.assert_true(exists(select 1 from public.activity_logs where work_order_id=(r->'work_order'->>'id')::uuid and action='work_order_quotation_withdrawn'),'withdrawal logged');
+    set local role authenticated;
+    perform pg_temp.assert_true(public.set_work_order_in_house((r->'work_order'->>'id')::uuid,false)->'work_order'->>'in_house_work'='false','back to contractor');
+    perform pg_temp.assert_true(public.prepare_work_order_proposal((r->'work_order'->>'id')::uuid,'{"vendor_id":"1c600000-0000-4000-8000-0000000000e1","proposed_amount":640,"scope_summary":"Contractor repair again"}')->>'ok'='true','a new quotation can be started after switching back');
+  end;
   -- Emergency in-house: starts immediately; no quotation afterwards.
   perform pg_temp.act(pg_temp.u(1));
   r:=public.create_work_order(jsonb_build_object('title','Clear blocked drain','location','Car park','facility_id',(select facility_id from f),'emergency_work',true,'in_house_work',true,'description','Flooding car park entrance; clear drain now.'));

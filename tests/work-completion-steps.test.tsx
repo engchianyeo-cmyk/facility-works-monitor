@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import WorkCompletionSteps from "@/components/work-orders/work-completion-steps";
 import TechnicianEndorsement from "@/components/work-orders/technician-endorsement";
+import DraftNextSteps from "@/components/work-orders/draft-next-steps";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
 
@@ -45,4 +46,12 @@ test("the Approver sees the checker's confirmed checks and basis of the award", 
   expect(screen.getByText("Checks confirmed by the independent checker")).toBeTruthy();
   expect(screen.getByText(/I verified on site that the work has been done/)).toBeTruthy();
   expect(screen.getByText("Lowest compliant quotation for the same scope.")).toBeTruthy();
+});
+
+test("Draft next steps are red while anything is missing and green when ready", () => {
+  const { unmount } = render(<DraftNextSteps justCreated={false} steps={[{ label: "Location marked on the layout plan", how: "Pin it.", href: "#drawings-documents-heading" }, { label: "Before photo, video or voice note of the site", how: "Add it.", href: "#work-order-evidence" }]} />);
+  expect(screen.getByText("Action needed — 2 steps before you submit")).toBeTruthy();
+  unmount();
+  render(<DraftNextSteps justCreated={false} steps={[]} />);
+  expect(screen.queryByText(/Action needed/)).toBeNull();
 });

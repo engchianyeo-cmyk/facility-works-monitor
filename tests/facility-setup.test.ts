@@ -380,3 +380,12 @@ describe("All facilities overview (UAT 30 Oct 2026)", () => {
     expect(readFileSync("app/administration/facilities/page.tsx", "utf8")).toContain('href="/administration/facilities/overview"');
   });
 });
+
+describe("Technician 1's Draft sections in red (UAT 2 Nov 2026)", () => {
+  const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+  it("outlines the evidence, location and quotation sections and the Edit button when the Draft needs them", () => {
+    for (const text of ["Action needed — add a Before photo, video or voice note", "Action needed — mark the location on the layout plan", "quotationNeeded={needsQuotation}", "editNeeded={needsEdit}"]) expect(page).toContain(text);
+    expect(readFileSync("components/work-orders/release-one-workspace.tsx", "utf8")).toContain("Action needed — prepare and submit the contractor quotation");
+    expect(readFileSync("components/work-orders/work-order-actions.tsx", "utf8")).toContain('props.editNeeded ? "bg-red-600 text-white"');
+  });
+});

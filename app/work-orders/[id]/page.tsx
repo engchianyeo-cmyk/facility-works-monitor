@@ -402,6 +402,12 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     { label: "Record the work done (statement and labour hours)", done: Boolean(String(order.completion_notes ?? "").trim()) && order.actual_labour_hours !== null && order.actual_labour_hours !== undefined, href: "#execution-title" },
     { label: "Submit Physical Completion for review", done: false, href: "#execution-title", note: completionMissing.length ? `Still needed: ${completionMissing.length} item${completionMissing.length === 1 ? "" : "s"} above.` : "Everything is ready." },
   ];
+  // UAT 2 Nov 2026: while a Draft is missing something, the preparer's sections that need it are outlined in red.
+  const draftMissing = status === "draft" && isPreparer(context) ? approvalReadiness?.missing_requirements ?? [] : [];
+  const needsBefore = draftMissing.includes("Before photo, video or voice note of the site");
+  const needsLocation = draftMissing.includes("Location marked on the layout plan");
+  const needsQuotation = draftMissing.some((item) => item === "Recommended contractor quotation" || item.startsWith("Quotations:"));
+  const needsEdit = draftMissing.some((item) => item === "Due date has passed — update the due date" || item === "Reason the work is needed");
   const actionsEl = (
       <WorkOrderActions
         id={id}
@@ -416,6 +422,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         allowedActions={allowedActions as WorkOrderAction[]}
         approvalReasonRequired={approvalReasonRequired}
         canEdit={canEdit(context)}
+        editNeeded={needsEdit}
         canDuplicate={isApprovalAuthority(identity.role)}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
         formalCompletionAuthority={identity.role === "administrator" && order.assigned_technician_id !== identity.userId}
@@ -443,7 +450,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       />
   );
   const evidenceEl = (
-      <div id="work-order-evidence">
+      <div id="work-order-evidence" className={needsBefore ? "rounded-xl border-4 border-red-600 p-3" : undefined}>
+        {needsBefore && <p className="mb-2 inline-block rounded bg-red-600 px-3 py-1 text-sm font-black uppercase tracking-wide text-white">Action needed — add a Before photo, video or voice note</p>}
         <EvidencePanel parentType="work_order" parentId={id} canMutate={evidenceCanMutate} canDelete={evidenceCanMutate} readOnlyReason={status==="submitted" ? "This Work Order is awaiting approval. The preparer may still add supporting photos, video or voice notes; other users view evidence only." : !order.assigned_technician_id ? "This Work Order has no assigned field owner. Authorized management must record an assignment before field evidence can be added." : undefined} />
       </div>
   );
@@ -505,9 +513,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         <WorkCompletionSteps steps={completionSteps} />
         {evidenceEl}
         {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
-        <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />
+        <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} />
         {actionsEl}
-      </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} />}
+      </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} />}
 
       {!workStage && showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
 
@@ -619,7 +627,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         </li>)}</ul>
       </section>}
 
+      <div className={needsLocation ? "rounded-xl border-4 border-red-600 p-3" : undefined}>{needsLocation && <p className="mb-2 inline-block rounded bg-red-600 px-3 py-1 text-sm font-black uppercase tracking-wide text-white">Action needed — mark the location on the layout plan</p>}
       <WorkOrderDrawings drawings={markupDrawingsFor(facilityDrawings)} canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
+      </div>
 
       {/* The reviewer's decision comes last, after the costs, evidence and records above. */}
       {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} stage={status === "draft" ? "submission" : "review"} inHouse={Boolean(order.in_house_work)} quotations={checkerQuotations} />}
