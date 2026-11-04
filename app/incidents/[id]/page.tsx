@@ -21,7 +21,7 @@ type DetailedIncident = IncidentRecord & { assigned_technician?: NamedProfile; a
 type Log = { id: string; action: string; actor: string | null; note: string | null; created_at: string; from_status: string | null; to_status: string | null };
 type Notification = { id: string; channel: string | null; provider: string; result_code: string | null; delivery_status: string; attempted_at: string | null };
 type WorkOrder = { id: string; work_order_number: string | null; title: string; status: string; priority: string };
-const fmt = (value: string | null) => value ? new Intl.DateTimeFormat("en-SG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Pending";
+const fmt = (value: string | null) => value ? new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Pending";
 const channelSummary = (rows: Notification[], channel: string) => { const selected = rows.filter(row => row.channel === channel); if (!selected.length) return "Unavailable"; if (selected.some(row => row.delivery_status === "failed")) return "Failed"; if (selected.some(row => row.delivery_status === "pending" || row.delivery_status === "processing")) return "Queued"; return selected.every(row => row.delivery_status === "sent") ? "Delivered" : "Not Configured"; };
 
 export default async function IncidentDetail({ params }: { params: Promise<{ id: string }> }) {

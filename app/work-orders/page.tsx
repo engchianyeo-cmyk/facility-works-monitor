@@ -18,7 +18,7 @@ const ACTIVE_STATUSES = ["draft", "submitted", "approved", "assigned", "in_progr
 
 function formatDate(value: string | null) {
   if (!value) return "Not set";
-  return new Intl.DateTimeFormat("en-SG", { dateStyle: "medium" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium" }).format(new Date(value));
 }
 
 export default async function WorkOrdersPage({ searchParams }: { searchParams: Promise<Search> }) {

@@ -39,6 +39,8 @@ type Props = {
   completionReadiness: CompletionReadiness;
   operationalStage: string;
   completionMissing: string[];
+  /** UAT 4 Nov 2026: the completion checklist is for the assigned Technician only. */
+  assignedToViewer?: boolean;
   approvalReadiness?: { ready: boolean; missing_requirements: string[]; required_authority: string; proposed_cost: number } | null;
   verificationReadiness?: { verification_ready: boolean; missing_requirements: string[]; completion_event_found: boolean; legacy_completion_record: boolean; self_verification_reason_required: boolean } | null;
   recordedWork: string | null;
@@ -73,7 +75,7 @@ function dateTimeLabel(value: string | null) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
     ? "Unavailable"
-    : new Intl.DateTimeFormat("en-SG", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
+    : new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium", timeStyle: "short" }).format(parsed);
 }
 
 export default function WorkOrderActions(props: Props) {
@@ -305,8 +307,8 @@ export default function WorkOrderActions(props: Props) {
       <div className="space-y-5 p-5 sm:p-6">
         {["draft", "submitted"].includes(props.status) && props.approvalReadiness && (
           <section className={`rounded-xl border-2 p-4 ${props.approvalReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
-            <p className="text-xs font-black uppercase tracking-wide">{props.status === "draft" ? "Ready to submit?" : "Approval readiness"}</p>
-            <h3 className="mt-1 font-black">{props.approvalReadiness.ready ? (props.status === "draft" ? "Ready to submit for approval" : "Ready for approval") : (props.status === "draft" ? "Complete these items before submitting" : "Not ready for approval")}</h3>
+            <p className="text-xs font-black uppercase tracking-wide">{props.status === "draft" ? (props.canEdit ? "Ready to submit?" : "Not yet submitted") : "Approval readiness"}</p>
+            <h3 className="mt-1 font-black">{props.status === "draft" && !props.canEdit ? (props.approvalReadiness.ready ? "Ready — waiting for the assigned Technician to submit it" : "Waiting for the assigned Technician to complete and submit it") : props.approvalReadiness.ready ? (props.status === "draft" ? "Ready to submit for approval" : "Ready for approval") : (props.status === "draft" ? "Complete these items before submitting" : "Not ready for approval")}</h3>
             {props.approvalReadiness.proposed_cost > 0 && <p className="mt-2 text-sm">Quotation: S${Number(props.approvalReadiness.proposed_cost).toLocaleString("en-SG", { minimumFractionDigits: 2 })} · Lowest approval level: {roleLabel(props.approvalReadiness.required_authority)}</p>}
             {props.approvalReadiness.missing_requirements.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm">{props.approvalReadiness.missing_requirements.map((item) => <li key={item}>{item.replaceAll("_", " ")}</li>)}</ul>}
           </section>
@@ -377,7 +379,7 @@ export default function WorkOrderActions(props: Props) {
           <p className="mt-1">Marking work Completed requires a clear work-performed statement, cumulative labour hours, and at least one active After photo or PDF. Before evidence should be added whenever the original condition can be recorded safely.</p>
         </div>
 
-        {["assigned", "in_progress"].includes(props.status) && props.completionMissing.length > 0 && !props.formalCompletionAuthority && (
+        {["assigned", "in_progress"].includes(props.status) && props.assignedToViewer && props.completionMissing.length > 0 && !props.formalCompletionAuthority && (
           <section aria-labelledby="submit-missing-title" className="rounded-xl border-2 border-red-500 bg-red-50 p-4 text-red-900">
             <p id="submit-missing-title" className="font-black">Action needed before Submit Physical Completion appears here</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{props.completionMissing.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -433,7 +435,7 @@ export default function WorkOrderActions(props: Props) {
             {returnAction.label}
           </button>
         ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">No workflow action is currently available for your role and this Work Order state.</p>
+          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once the assigned Technician submits it, the approval button appears here in red." : "No workflow action is currently available for your role and this Work Order state."}</p>
         )}
 
         {interaction === "record_work" && (

@@ -15,7 +15,7 @@ type Incident = { id: string; incident_number: string; incident_type: string; se
 type Activity = { id: string; action: string; actor: string | null; note: string | null; created_at: string };
 const terminalWork = new Set(["closed", "cancelled"]); const terminalIncident = new Set(["closed", "cancelled"]);
 const shown = (value: unknown) => value === null || value === undefined || value === "" ? "Not recorded" : String(value);
-const dateTime = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Unavailable" : new Intl.DateTimeFormat("en-SG", { dateStyle: "medium", timeStyle: "short" }).format(date); };
+const dateTime = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Unavailable" : new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium", timeStyle: "short" }).format(date); };
 
 export default async function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; const identity = await getCurrentIdentity(); if (!identity) redirect(`/login?next=/assets/${id}`);

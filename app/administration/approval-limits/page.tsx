@@ -33,7 +33,7 @@ export default async function ApprovalLimitsPage() {
           const values = byVersion(version.id);
           return <li key={version.id} className="rounded border bg-white p-4">
             <p className="font-bold">{["approver", "supervisor", "facility_manager"].map((role) => `${roleLabel(role)} ${money(values[role] ?? null)}`).join(" · ")}</p>
-            <p className="mt-1 text-sm text-slate-600">{new Date(version.created_at).toLocaleString("en-SG")} — {version.change_reason}</p>
+            <p className="mt-1 text-sm text-slate-600">{new Date(version.created_at).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })} — {version.change_reason}</p>
           </li>;
         })}
       </ul>

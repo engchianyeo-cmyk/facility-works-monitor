@@ -389,3 +389,45 @@ describe("Technician 1's Draft sections in red (UAT 2 Nov 2026)", () => {
     expect(readFileSync("components/work-orders/work-order-actions.tsx", "utf8")).toContain('props.editNeeded ? "bg-red-600 text-white"');
   });
 });
+
+describe("Draft wording for people who are not the preparer (UAT 3 Nov 2026)", () => {
+  it("tells the Approver the Draft is waiting for the assigned Technician", () => {
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    for (const text of ["Not yet submitted", "Waiting for the assigned Technician to complete and submit it", "Once the assigned Technician submits it, the approval button appears here in red."]) expect(actions).toContain(text);
+  });
+});
+
+describe("Times are shown in Singapore time (UAT 4 Nov 2026)", () => {
+  it("formats every date and time on the Work Order screens in Asia/Singapore, not the server's UTC", () => {
+    for (const file of ["app/work-orders/[id]/page.tsx", "components/work-orders/work-order-actions.tsx", "components/work-orders/release-one-workspace.tsx", "components/evidence/evidence-panel.tsx", "components/work-orders/actual-work-times.tsx", "components/work-orders/technician-endorsement.tsx"]) {
+      expect(readFileSync(file, "utf8")).toContain('timeZone: "Asia/Singapore"');
+    }
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page.slice(page.indexOf("function formatDateTime"), page.indexOf("function formatDateTime") + 400)).toContain('timeZone: "Asia/Singapore"');
+  });
+});
+
+describe("Evidence removal is confirmed in the card (UAT 4 Nov 2026)", () => {
+  const panel = readFileSync("components/evidence/evidence-panel.tsx", "utf8");
+  it("does not depend on browser pop-ups and shows the result next to the item", () => {
+    expect(panel).not.toContain("window.confirm");
+    expect(panel).not.toContain("window.prompt");
+    for (const text of ["Remove this item? It is taken off the Work Order but kept in the audit history.", "Reason for removing it", "cardMessage?.id === item.id"]) expect(panel).toContain(text);
+  });
+});
+
+describe("Completion checklist only for the assigned Technician (UAT 4 Nov 2026)", () => {
+  it("hides 'Action needed before Submit Physical Completion' from other Technicians", () => {
+    expect(readFileSync("components/work-orders/work-order-actions.tsx", "utf8")).toContain('props.assignedToViewer && props.completionMissing.length > 0');
+    expect(readFileSync("app/work-orders/[id]/page.tsx", "utf8")).toContain("assignedToViewer={order.assigned_technician_id === identity.userId}");
+  });
+});
+
+describe("In-house work listed for Finance (D-31, UAT 4 Nov 2026)", () => {
+  it("shows completed in-house Work Orders with their actual cost on the Finance page", () => {
+    const page = readFileSync("app/finance/page.tsx", "utf8");
+    expect(page).toContain('supabase.rpc("work_order_in_house_cost_register")');
+    expect(page).toContain("In-house work (for reference)");
+    expect(readFileSync("supabase/migrations/20261104120000_in_house_cost_register_for_finance.sql", "utf8")).toContain("current_user_role() in ('finance','administrator')");
+  });
+});

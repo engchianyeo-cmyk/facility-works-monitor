@@ -48,8 +48,8 @@ export default function ActualWorkTimes({ workOrderId, startedAt, endedAt, canEd
     <h2 id="actual-work-times-title" className="font-semibold text-sky-950">Actual work times</h2>
     <p className="mt-1 text-sm text-sky-900">When the work on site actually started and ended. Required before the Approver&apos;s review; the end time can be filled in later. Both can be changed until the review, for example if more work is needed (times cannot be in the future).</p>
     <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-      <div><dt className="font-semibold">Started</dt><dd>{startedAt ? new Date(startedAt).toLocaleString("en-SG") : "Not entered"}</dd></div>
-      <div><dt className="font-semibold">Ended</dt><dd>{endedAt ? new Date(endedAt).toLocaleString("en-SG") : "Not entered"}</dd></div>
+      <div><dt className="font-semibold">Started</dt><dd>{startedAt ? new Date(startedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" }) : "Not entered"}</dd></div>
+      <div><dt className="font-semibold">Ended</dt><dd>{endedAt ? new Date(endedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" }) : "Not entered"}</dd></div>
       <div><dt className="font-semibold">Duration</dt><dd>{duration ?? "—"}</dd></div>
     </dl>
     {canEdit && <form onSubmit={save} className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">

@@ -17,7 +17,7 @@ type Workspace = { costs:CostLine[]; procurement:Array<{id:string;purchase_refer
 
 const input="min-h-11 w-full rounded border border-slate-300 bg-white px-3 text-sm";
 const money=(value:number|null|undefined)=>value===null||value===undefined?"Pending":`S$${new Intl.NumberFormat("en-SG",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value))}`;
-const date=(value:string|null|undefined)=>value?new Intl.DateTimeFormat("en-SG",{dateStyle:"medium"}).format(new Date(value)):"Pending";
+const date=(value:string|null|undefined)=>value?new Intl.DateTimeFormat("en-SG",{ timeZone: "Asia/Singapore",dateStyle:"medium"}).format(new Date(value)):"Pending";
 const field=(form:FormData,name:string)=>String(form.get(name)??"").trim();
 
 export default function ReleaseOneWorkspace({id,role,status,userId,quotationNeeded=false}:{id:string;role:string;status:string;userId:string;quotationNeeded?:boolean}) {

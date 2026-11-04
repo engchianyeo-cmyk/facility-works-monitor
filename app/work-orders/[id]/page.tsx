@@ -72,7 +72,7 @@ function formatDateTime(value: string | null) {
   if (!value) return "Pending";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unavailable";
-  return new Intl.DateTimeFormat("en-SG", {
+  return new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -429,6 +429,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         completionReadiness={operationalStage.completion}
         operationalStage={operationalStage.label}
         completionMissing={completionMissing}
+        assignedToViewer={order.assigned_technician_id === identity.userId}
         approvalReadiness={approvalReadiness}
         verificationReadiness={verificationReadiness}
         recordedWork={order.completion_notes}

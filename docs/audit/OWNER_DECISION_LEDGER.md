@@ -541,6 +541,41 @@ been started, and the database refused the switch until the quotation was withdr
    them out. Rehearsed locally on a copy at 63 entries: applied (ledger 64), repeat refused, wrong target refused;
    increment sha256 `0924fe3f…bf4ab`.
 
+### D-30 The preparer removes evidence added by mistake while drafting — 4 November 2026 10:58
+
+Owner: an After photo added by mistake to a Draft (WO-TEST-011) could not be removed. The page offered Delete, but
+the database allowed removal only from Assigned onwards by the field owner, so the Draft's preparer was refused.
+
+1. While the Work Order is a Draft or Submitted, its preparer may remove a photo, video, voice note or document,
+   with a reason, matching who may add evidence then. The item is voided and kept in the audit history.
+2. Other people still cannot; from Assigned onwards the existing field-owner rule applies unchanged, including the
+   rule that the last After item cannot be removed once the work is submitted as complete.
+3. Database: migration `20261104100000_preparer_removes_draft_evidence.sql` (WP-EV-M15). Rehearsed locally on a
+   copy at 64 entries: applied (ledger 65), repeat refused; increment sha256 `2cba857b…070ba1`.
+4. Owner 11:17: the timeline showed the submission at 2:58 am instead of 10:58 am. Times were formatted in the
+   server's time zone (UTC). Every date and time on the Work Order, incident, asset, approval-limit and user
+   screens is now shown in Singapore time. Stored times are unchanged; only the display was wrong.
+5. Owner 11:27: removing evidence asked for confirmation and a reason through browser pop-ups, which some browsers
+   block, and showed the result at the bottom of the panel. It is now confirmed inside the item's card, with the
+   reason typed there and any refusal shown under the item.
+6. Owner 11:39: "Technician 1 is not able to record start work". The screenshot was taken signed in as Ying Zhang
+   (ec@glorybene.com, Technician 2), not the assigned Technician Yang Ying Zhang, so no start action was offered,
+   correctly. It also showed Technician 2 the "Action needed before Submit Physical Completion" checklist, which is
+   now shown only to the assigned Technician.
+
+### D-31 In-house work sent to Finance for reference — 4 November 2026 13:58 (refines D-07)
+
+Owner: "Even if the work order is completed by the in-house team, it should be sent to Finance for reference purpose
+as there is a quotation for material and labor used for the work order."
+
+1. Finance is already copied and notified when any Work Order, in-house included, is approved as Completed (D-11).
+2. The Finance page now also lists **In-house work (for reference)**: every completed in-house Work Order with its
+   facility, completion date and confirmed actual cost split into materials, labour, equipment and services
+   ("Confirmed as no cost" when no lines were recorded), marked "Closed — no payment". Each row opens the Work Order.
+3. Database: migration `20261104120000_in_house_cost_register_for_finance.sql` (WP-FN-M16), a read-only list for
+   Finance and the Administrator. Rehearsed with M15 on a copy at 64 entries: both applied (ledger 66); combined
+   increment sha256 `4f2d0a04…584185`.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
@@ -609,6 +644,14 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 22:04 | Commit `071220d` pushed (red final-cost and revised-quotation highlights, attach confirmation, Physical Completion button); its new unit test had a fixture error, fixed in `8633869` | Owner |
 | 23:12 | `release:verify` PASS (30/30 Playwright); commit `8633869` (Approver actions in red, endorsement checks and award basis shown to the Approver, saved final-cost summary, red next-action button) | Owner |
 | 31 Oct 00:01 | Commit `b3b421f` (Finance actions in red, payment amounts before GST, saved controls hidden, invoice listed once, D-27 All Facilities overview); `8633869` and `b3b421f` on `uat/claude-review` (confirmed 1 Nov 23:16, "Everything up-to-date"); no database change | Owner |
+
+### Preview rollout record — 3 November 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 22:40 | Commit `dd46b4b` pushed to `uat/claude-review` (D-29 in-house choice with M14 migration, Technician 1 Draft highlights, D-28 records); Vercel Preview build triggered. M14 not yet applied to the Preview database | Owner |
+| 22:50 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com`; backup of `public` + `supabase_migrations` (2,373,419 bytes, `.git/preview-backup-20261102-pre-m14.sql`, written 3 Nov 22:40 SGT) | Owner, guided |
+| 22:51 | Increment applied (sha256 `0924fe3f…bf4ab`, matching the local rehearsal): `20261102100000` in-house choice withdraws the draft quotation (D-29); preflight 63 ledger entries; ledger now 64; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

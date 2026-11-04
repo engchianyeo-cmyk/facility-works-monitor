@@ -8,6 +8,9 @@ export const revalidate = 0;
 type Row = { work_order_id: string; work_order_number: string; title: string; vendor_name: string | null; approved_amount: number; completed_at: string | null;
   invoice_reference: string | null; invoice_amount: number | null; invoice_uploaded_at: string | null; invoice_received_at: string | null; payment_due_at: string | null;
   paid_at: string | null; paid_amount: number | null; payment_status: string };
+/** D-31: completed in-house Work Orders, kept by Finance for reference (no payment). */
+type InHouseRow = { work_order_id: string; work_order_number: string; title: string; facility_name: string | null; status: string; reviewed_at: string | null;
+  closed_at: string | null; materials: number; labour: number; equipment: number; services: number; total: number; line_count: number };
 
 const STATUS: Record<string, { label: string; tone: string }> = {
   awaiting_invoice: { label: "Awaiting invoice", tone: "bg-slate-100 text-slate-800" },
@@ -25,7 +28,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   if (!["finance", "administrator"].includes(identity.role)) return <main className="p-8"><h1 className="text-2xl font-bold">Access denied</h1><p>The payment tracker is available to Finance and the Administrator.</p></main>;
   const { status } = await searchParams;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("work_order_finance_tracker");
+  const [{ data, error }, inHouseResult] = await Promise.all([supabase.rpc("work_order_finance_tracker"), supabase.rpc("work_order_in_house_cost_register")]);
+  const inHouse = (inHouseResult.error ? [] : (inHouseResult.data ?? []) as InHouseRow[]);
   const rows = (error ? [] : (data ?? []) as Row[]);
   const shown = status && STATUS[status] ? rows.filter((row) => row.payment_status === status) : rows;
   const counts = Object.fromEntries(Object.keys(STATUS).map((key) => [key, rows.filter((row) => row.payment_status === key).length]));
@@ -58,5 +62,33 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </table>
       </div>
     )}
+
+    <section aria-labelledby="in-house-heading" className="space-y-3">
+      <div>
+        <h2 id="in-house-heading" className="text-2xl font-black">In-house work (for reference)</h2>
+        <p className="mt-1 text-slate-600">Completed Work Orders carried out by in-house staff. There is no contractor invoice or payment; the actual cost of materials, labour and equipment confirmed by the Technician is shown for Finance&apos;s records.</p>
+      </div>
+      {inHouseResult.error ? <p role="alert" className="rounded border border-red-300 bg-red-50 p-4 text-red-800">The in-house register could not be loaded.</p>
+        : inHouse.length === 0 ? <p className="rounded border border-dashed p-6 text-slate-600">No completed in-house Work Orders yet.</p> : (
+        <div className="overflow-x-auto rounded-xl border bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left"><tr>{["Work Order", "Facility", "Completed", "Materials", "Labour", "Equipment", "Services", "Actual cost", "Status"].map((heading) => <th key={heading} className="px-4 py-3 font-bold">{heading}</th>)}</tr></thead>
+            <tbody className="divide-y">
+              {inHouse.map((row) => <tr key={row.work_order_id}>
+                <td className="px-4 py-3"><Link href={`/work-orders/${row.work_order_id}`} className="font-bold text-blue-700 hover:underline">{row.work_order_number}</Link><p className="text-slate-600">{row.title}</p></td>
+                <td className="px-4 py-3">{row.facility_name ?? "—"}</td>
+                <td className="px-4 py-3">{day(row.reviewed_at)}</td>
+                <td className="px-4 py-3">{money(Number(row.materials))}</td>
+                <td className="px-4 py-3">{money(Number(row.labour))}</td>
+                <td className="px-4 py-3">{money(Number(row.equipment))}</td>
+                <td className="px-4 py-3">{money(Number(row.services))}</td>
+                <td className="px-4 py-3 font-bold">{money(Number(row.total))}{row.line_count === 0 ? <span className="block text-xs font-normal text-slate-500">Confirmed as no cost</span> : null}</td>
+                <td className="px-4 py-3"><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">{row.status === "closed" ? "Closed — no payment" : "Completed"}</span></td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   </main>;
 }

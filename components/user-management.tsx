@@ -53,7 +53,7 @@ function formatDate(value: string | null) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "Unavailable"
-    : new Intl.DateTimeFormat("en-SG", {
+    : new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore",
         dateStyle: "medium",
         timeStyle: "short",
       }).format(date);

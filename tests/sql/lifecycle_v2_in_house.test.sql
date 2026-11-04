@@ -144,6 +144,17 @@ do $t$ declare r jsonb; wo uuid; em uuid; begin
     set local role authenticated;
     perform pg_temp.assert_true(public.set_work_order_in_house((r->'work_order'->>'id')::uuid,false)->'work_order'->>'in_house_work'='false','back to contractor');
     perform pg_temp.assert_true(public.prepare_work_order_proposal((r->'work_order'->>'id')::uuid,'{"vendor_id":"1c600000-0000-4000-8000-0000000000e1","proposed_amount":640,"scope_summary":"Contractor repair again"}')->>'ok'='true','a new quotation can be started after switching back');
+    -- D-30: the preparer removes evidence added by mistake while drafting; another Technician cannot.
+    reset role;
+    perform pg_temp.site((r->'work_order'->>'id')::uuid);
+    select id into qid from public.evidence_items where work_order_id=(r->'work_order'->>'id')::uuid and deleted_at is null limit 1;
+    perform pg_temp.act(pg_temp.u(2)); set local role authenticated;
+    perform pg_temp.assert_true(public.void_work_order_evidence(qid,'Not mine')->>'code'='ACCESS_DENIED','another Technician cannot remove Draft evidence');
+    perform pg_temp.act(pg_temp.u(1));
+    perform pg_temp.assert_true(public.void_work_order_evidence(qid,'Uploaded in error')->>'ok'='true','preparer removes Draft evidence');
+    reset role;
+    perform pg_temp.assert_true((select deleted_at is not null and deletion_reason='Uploaded in error' from public.evidence_items where id=qid),'evidence voided with the reason, kept for audit');
+    set local role authenticated;
   end;
   -- Emergency in-house: starts immediately; no quotation afterwards.
   perform pg_temp.act(pg_temp.u(1));
@@ -165,5 +176,13 @@ do $t$ declare r jsonb; begin
   perform pg_temp.assert_true((select status='closed' from public.work_orders where id=(select id from ids where name='wo')),'in-house Work Order Closed');
   perform pg_temp.assert_true((select reason_code='in_house' and status='approved' and approved_by=pg_temp.u(4) from public.work_order_financial_dispositions where work_order_id=(select id from ids where name='wo')),'audited in-house no-payment disposition');
   perform pg_temp.assert_true(not exists(select 1 from public.contractor_payment_assessments where work_order_id in (select id from ids)),'no payable for in-house work');
+end;$t$;
+-- D-31: Finance sees completed in-house Work Orders for reference; others do not.
+do $t$ begin
+  perform pg_temp.act(pg_temp.u(7)); set local role authenticated;
+  perform pg_temp.assert_true(exists(select 1 from public.work_order_in_house_cost_register() x where x.work_order_id=(select id from ids where name='wo') and x.status='closed'),'Finance lists the closed in-house Work Order');
+  perform pg_temp.act(pg_temp.u(1));
+  perform pg_temp.assert_true(not exists(select 1 from public.work_order_in_house_cost_register()),'a Technician gets no in-house cost register');
+  reset role;
 end;$t$;
 rollback;

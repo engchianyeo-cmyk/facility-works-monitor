@@ -23,6 +23,10 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // UAT 4 Nov 2026: removal is confirmed in the card itself (browser pop-ups can be blocked), with the result shown there.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [removeReason, setRemoveReason] = useState("Uploaded in error");
+  const [cardMessage, setCardMessage] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"success" | "error" | null>(null);
 
@@ -130,16 +134,13 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
 
   async function remove(item: Item) {
     if (deletingId) return;
-    const confirmed = window.confirm(`Remove ${item.original_filename} from the active evidence record? The audit history will be retained.`);
-    if (!confirmed) return;
-    const reason = window.prompt("State why this evidence is being removed:", "Uploaded in error")?.trim();
-    if (!reason) {
-      setMessage("Evidence was not removed. A deletion reason is required.");
+    const reason = removeReason.trim();
+    if (reason.length < 3) {
+      setCardMessage({ id: item.id, ok: false, text: "State why this item is being removed." });
       return;
     }
-
     setDeletingId(item.id);
-    setMessage("");
+    setCardMessage(null);
     try {
       const response = await fetch(`/api/evidence/${item.id}`, {
         method: "DELETE",
@@ -148,10 +149,12 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message ?? "Evidence could not be removed.");
-      setMessage(result.message ?? "Evidence removed from the active record.");
+      setConfirmingId(null);
+      setMessageKind("success");
+      setMessage(`${item.original_filename} removed. It stays in the audit history.`);
       await load();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Evidence could not be removed.");
+      setCardMessage({ id: item.id, ok: false, text: error instanceof Error ? error.message : "Evidence could not be removed." });
     } finally {
       setDeletingId(null);
     }
@@ -192,15 +195,26 @@ export default function EvidencePanel({ parentType, parentId, canMutate = true, 
                   {canDelete && <button
                     type="button"
                     disabled={deletingId !== null}
-                    onClick={() => void remove(item)}
+                    onClick={() => { setConfirmingId(item.id); setRemoveReason("Uploaded in error"); setCardMessage(null); }}
                     className="min-h-11 rounded-lg border border-red-300 px-3 text-sm font-black text-red-700 disabled:opacity-50"
                   >
-                    {deletingId === item.id ? "Removing…" : "Delete"}
+                    Delete
                   </button>}
                 </div>
               </div>
+              {confirmingId === item.id && <div className="mt-3 rounded-lg border-2 border-red-600 bg-red-50 p-3 text-sm">
+                <p className="font-bold text-red-900">Remove this item? It is taken off the Work Order but kept in the audit history.</p>
+                <label className="mt-2 block font-semibold">Reason for removing it
+                  <input value={removeReason} onChange={(event) => setRemoveReason(event.target.value)} maxLength={500} className="mt-1 block min-h-11 w-full rounded border border-slate-400 bg-white px-3 font-normal" />
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" disabled={deletingId !== null} onClick={() => void remove(item)} className="min-h-11 rounded-lg bg-red-600 px-4 font-black text-white disabled:opacity-50">{deletingId === item.id ? "Removing…" : "Remove"}</button>
+                  <button type="button" onClick={() => { setConfirmingId(null); setCardMessage(null); }} className="min-h-11 rounded-lg border border-slate-400 bg-white px-4 font-bold text-slate-800">Cancel</button>
+                </div>
+              </div>}
+              {cardMessage?.id === item.id && <p role="alert" className="mt-2 text-sm font-bold text-red-800">{cardMessage.text}</p>}
               {item.description && <p className="mt-2 text-sm">{item.description}</p>}
-              <p className="mt-2 text-xs text-slate-500">{item.uploader_name} · {new Intl.DateTimeFormat("en-SG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.uploaded_at))} · {Math.ceil(item.byte_size / 1024)} KB</p>
+              <p className="mt-2 text-xs text-slate-500">{item.uploader_name} · {new Intl.DateTimeFormat("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium", timeStyle: "short" }).format(new Date(item.uploaded_at))} · {Math.ceil(item.byte_size / 1024)} KB</p>
             </li>
           ))}
         </ul>
