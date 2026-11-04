@@ -314,6 +314,15 @@ select pg_temp.execute((select id from ids where name='wo2'),pg_temp.u(1),1200);
 select pg_temp.assert_true((pg_temp.final_cost((select id from ids where name='wo2'),pg_temp.u(1),1200)->>'final_cost')::jsonb->>'status'='variance_pending','final cost above approval is a variance');
 select pg_temp.final_doc((select id from ids where name='wo2'));
 select pg_temp.assert_true((pg_temp.endorse((select id from ids where name='wo2'))->>'ok')::boolean,'wo2 endorsed');
+-- D-33: authorising the final-cost variance does not cancel the endorsement (the endorsed cost is unchanged).
+do $t$ declare wo uuid:=(select id from ids where name='wo2'); r jsonb; begin
+  perform pg_temp.act(pg_temp.u(5)); set local role authenticated;
+  r:=public.approve_work_order_final_cost_variance(wo,'Additional seal kit required; variance authorised.');
+  perform pg_temp.assert_true((r->>'ok')::boolean,'FM authorises the variance: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
+  reset role;
+  perform pg_temp.assert_true((select status from public.work_order_final_cost_submissions where work_order_id=wo)='variance_approved','variance approved');
+  perform pg_temp.assert_true(not public.work_order_endorsement_missing(wo,'review'),'D-33 endorsement still counts after the variance is authorised');
+end;$t$;
 do $t$ declare wo uuid:=(select id from ids where name='wo2'); r jsonb; v uuid; begin
   set local role authenticated;
   perform pg_temp.act(pg_temp.u(6));

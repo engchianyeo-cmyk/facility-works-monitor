@@ -31,7 +31,8 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ success: true });
+    // UAT 5 Nov 2026: tells the page which account this browser is now signed in as (tabs share one sign-in).
+    return NextResponse.json({ success: true, user_id: identity.userId, display_name: identity.displayName, email: identity.email, role: identity.role });
   } catch {
     return NextResponse.json(
       { error: "Unable to record activity." },

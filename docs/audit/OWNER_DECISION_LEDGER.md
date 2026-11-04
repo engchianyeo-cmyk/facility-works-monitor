@@ -589,6 +589,26 @@ unavailable". Cause: the copy kept the passed due date, and a new Work Order may
    alone (sha256 `761433ac…126139`).
 3. Duplicate as draft is for the Approver, Supervisor, Facility Manager and Administrator; a Technician starts a new
    Work Order with + New Work Order.
+4. Owner 4–5 Nov: Save Final Cost Reconciliation on WO-TEST-008 "did not respond". The browser showed the save sent
+   and refused (403): another tab had changed the shared browser sign-in, so the page still showed Yang Ying Zhang
+   while actions were sent as another account. Every page now checks, on focus, interaction and every two minutes,
+   which account the browser is signed in as; if it changed, a red banner says so and offers "Reload this page".
+   The result of a Final Cost save is also shown under its button.
+
+### D-33 Technician 2's endorsement survives the Approver's variance authorisation — 5 November 2026 00:50 (refines D-20)
+
+Owner: on WO-TEST-008 Technician 2 endorsed (5 Nov 00:36, final charge S$380, no variation), then the page said
+"The final cost or variation order changed after the last endorsement, so it no longer counts", although the cost
+had not changed.
+
+1. The endorsement stops counting only when what was endorsed changes: the final charge, the variation answer and
+   justification, the confirmed actual cost, the attached quotation, or the final cost being reopened to draft.
+2. Cause: the fingerprint also used the exact final-cost status, which the Approver's "Authorize Final Cost
+   Variance" (or a re-save of the same figures) changes. The status now counts only as saved or draft.
+3. Endorsements already given for an unchanged final cost are carried over, so WO-TEST-008's endorsement counts
+   again if only the status moved; if the attached quotation changed, Technician 2 endorses again.
+4. Database: migration `20261105100000_endorsement_survives_variance_approval.sql` (WP-EN-M18). Rehearsed on a copy
+   at 67 entries (applied, ledger 68; carry-over re-keyed a test endorsement); increment sha256 `8f6c9d3d…4b027e780`.
 
 ### Preview rollout record — 21 October 2026
 
@@ -666,6 +686,18 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 22:40 | Commit `dd46b4b` pushed to `uat/claude-review` (D-29 in-house choice with M14 migration, Technician 1 Draft highlights, D-28 records); Vercel Preview build triggered. M14 not yet applied to the Preview database | Owner |
 | 22:50 | Target checked: `cli_login_postgres.pvajuywwwpjlikqjnvgv` at `aws-0-ap-southeast-1.pooler.supabase.com`; backup of `public` + `supabase_migrations` (2,373,419 bytes, `.git/preview-backup-20261102-pre-m14.sql`, written 3 Nov 22:40 SGT) | Owner, guided |
 | 22:51 | Increment applied (sha256 `0924fe3f…bf4ab`, matching the local rehearsal): `20261102100000` in-house choice withdraws the draft quotation (D-29); preflight 63 ledger entries; ledger now 64; COMMIT | Owner, guided |
+
+### Preview rollout record — 4 November 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 15:05 | `release:verify` PASS (30/30 Playwright, one passed on retry); commit `05e27e0` pushed (D-30, D-31, Singapore times, in-card evidence removal, completion checklist for the assigned Technician only) | Owner |
+| 15:05 | Target checked; backup of `public` + `supabase_migrations` (2,431,476 bytes, `.git/preview-backup-20261104-pre-m15.sql`); increment built (sha256 `4f2d0a04…584185`) | Owner, guided |
+| 15:07–23:32 | Increment applied: `20261104100000` preparer removes Draft evidence (D-30) and `20261104120000` in-house cost register for Finance (D-31); ledger now 66. The apply output was not captured; confirmed at 23:33 when the M15–M17 file was refused with "Preview ledger ends at 20261104120000" | Owner, guided |
+| 23:32 | M15–M17 apply refused at login (EAUTHQUERY), nothing changed | Owner, guided |
+| 23:33 | M15–M17 apply refused by the preflight (ledger already at 20261104120000), rolled back, nothing changed | Owner, guided |
+| 23:25 | Commit `185e847` pushed to `uat/claude-review` (D-32 Duplicate as draft fix with M17) | Owner |
+| 23:35 | Increment applied (sha256 `761433ac…126139`, matching the local rehearsal): `20261104140000` Duplicate as draft leaves a passed due date empty (D-32); preflight 66; ledger now 67; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

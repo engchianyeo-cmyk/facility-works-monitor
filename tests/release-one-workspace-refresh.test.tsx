@@ -160,3 +160,29 @@ test("D-29: an in-house Draft shows the choice with In-house staff selected", as
   expect(screen.getByRole("heading", { name: "In-House Services — Pricing Waived" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Use a Contractor Instead" })).toBeNull();
 });
+
+test("after Physical Completion the missing final cost is red for the assigned Technician, because Technician 2 is waiting", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => workspace("completed") }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="owner" />);
+  expect(await screen.findByText(/Action needed \(Technician 2 is waiting for this\)/)).toBeTruthy();
+  cleanup();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => workspace("completed") }));
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="checker" />);
+  await screen.findByRole("heading", { name: "Closure Financial Disposition" });
+  expect(screen.queryByText(/Technician 2 is waiting for this/)).toBeNull();
+});
+
+test("a refused Final Cost save explains why next to the Save button", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  const fetcher = vi.fn().mockImplementation(async (url: string, init?: { method?: string }) => init?.method === "POST"
+    ? { ok: false, json: async () => ({ ok: false, message: "Only the assigned same-facility Technician may reconcile final costs before closure." }) }
+    : { ok: true, json: async () => workspace("completed") });
+  vi.stubGlobal("fetch", fetcher);
+  render(<ReleaseOneWorkspace id="work-order" role="technician" status="completed" userId="owner" />);
+  const save = await screen.findByRole("button", { name: "Save Final Cost Reconciliation" });
+  const form = save.closest("form")!;
+  fireEvent.change(form.querySelector('input[name="final_contractor_amount"]')!, { target: { value: "380" } });
+  fireEvent.click(form.querySelector('input[name="site_verified"]')!);
+  fireEvent.submit(form);
+  expect(await screen.findByText(/Not saved: Only the assigned same-facility Technician/)).toBeTruthy();
+});

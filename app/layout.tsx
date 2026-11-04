@@ -5,6 +5,7 @@ import PresenceHeartbeat from "@/components/presence-heartbeat";
 import { getBuildInfo } from "@/lib/build-info";
 import TerminologyBootstrap from "@/components/terminology-bootstrap";
 import { loadTerminology } from "@/lib/terminology";
+import { getCurrentIdentity } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: {
@@ -27,11 +28,12 @@ export default async function RootLayout({
 }>) {
   const build = getBuildInfo();
   const terminology = await loadTerminology();
+  const identity = await getCurrentIdentity();
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <TerminologyBootstrap labels={terminology} />
-        <PresenceHeartbeat />
+        <PresenceHeartbeat expectedUserId={identity?.userId ?? null} expectedName={identity?.displayName ?? null} />
         <SiteHeader />
 
         <main>{children}</main>
