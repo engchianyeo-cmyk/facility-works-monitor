@@ -177,6 +177,18 @@ do $t$ declare r jsonb; begin
   perform pg_temp.assert_true((select reason_code='in_house' and status='approved' and approved_by=pg_temp.u(4) from public.work_order_financial_dispositions where work_order_id=(select id from ids where name='wo')),'audited in-house no-payment disposition');
   perform pg_temp.assert_true(not exists(select 1 from public.contractor_payment_assessments where work_order_id in (select id from ids)),'no payable for in-house work');
 end;$t$;
+-- D-32: Duplicate as draft works when the source's due date has passed; the copy leaves the due date empty.
+do $t$ declare r jsonb; src uuid; begin
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.create_work_order(jsonb_build_object('title','Monthly generator test','location','Generator room','facility_id',(select facility_id from f)));
+  src:=(r->'work_order'->>'id')::uuid;
+  reset role;
+  update public.work_orders set created_at=pg_catalog.now()-interval '40 days', due_date=(pg_catalog.now()-interval '20 days')::date where id=src;
+  perform pg_temp.act(pg_temp.u(3)); set local role authenticated;
+  r:=public.duplicate_work_order(src);
+  perform pg_temp.assert_true(r->>'ok'='true' and r->'work_order'->>'status'='draft' and r->'work_order'->>'due_date' is null,'duplicate of an overdue Work Order succeeds without the passed due date: '||coalesce(r->>'code',''));
+  reset role;
+end;$t$;
 -- D-31: Finance sees completed in-house Work Orders for reference; others do not.
 do $t$ begin
   perform pg_temp.act(pg_temp.u(7)); set local role authenticated;

@@ -576,6 +576,20 @@ as there is a quotation for material and labor used for the work order."
    Finance and the Administrator. Rehearsed with M15 on a copy at 64 entries: both applied (ledger 66); combined
    increment sha256 `4f2d0a04…584185`.
 
+### D-32 Duplicate as draft works for overdue Work Orders — 4 November 2026 23:08
+
+Owner: "Duplicate as draft" on WO-TEST-007 (due 21 Aug 2026) failed with "The workflow service is temporarily
+unavailable". Cause: the copy kept the passed due date, and a new Work Order may not start overdue
+(work_orders_due_date_check), so the database refused the copy.
+
+1. The copy now leaves a passed due date empty; the preparer sets a new one in the Draft (a future due date is
+   still copied). Everything else is copied as before; the copy is a Draft for the person who duplicated it.
+2. Database: migration `20261104140000_duplicate_drops_past_due_date.sql` (WP-WO-M17). Rehearsed on a copy at 64
+   entries with M15 and M16 (all three applied, ledger 67; sha256 `8b7585ad…fb8561`) and on a copy at 66 entries
+   alone (sha256 `761433ac…126139`).
+3. Duplicate as draft is for the Approver, Supervisor, Facility Manager and Administrator; a Technician starts a new
+   Work Order with + New Work Order.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
