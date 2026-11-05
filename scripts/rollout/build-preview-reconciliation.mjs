@@ -9,7 +9,7 @@ const manifest = readFileSync(path.join(root, 'supabase/bootstrap/fresh-install-
 const start = manifest.indexOf('supabase/migrations/20260928000000_release1_governance_reconciliation.sql');
 // Release-1 reconciliation through 20261013012309, then Work Order Lifecycle v2 (20261020*).
 if (start < 0 || !manifest.includes('supabase/migrations/20261013012309_field_evidence_media.sql')
-  || !manifest.at(-1).endsWith('20261105100000_endorsement_survives_variance_approval.sql')) {
+  || !manifest.at(-1).endsWith('20261105120000_contractor_approval_releases_team.sql')) {
   throw new Error('Candidate manifest changed; independently review the rollout baseline.');
 }
 const selected = manifest.slice(start);

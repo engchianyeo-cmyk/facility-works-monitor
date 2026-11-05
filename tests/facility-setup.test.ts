@@ -431,3 +431,13 @@ describe("In-house work listed for Finance (D-31, UAT 4 Nov 2026)", () => {
     expect(readFileSync("supabase/migrations/20261104120000_in_house_cost_register_for_finance.sql", "utf8")).toContain("current_user_role() in ('finance','administrator')");
   });
 });
+
+describe("No second click after a confirmed action (UAT 5 Nov 2026)", () => {
+  it("hides the action buttons and says it is saved until the page shows the new status", () => {
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    expect(actions).toContain("setRefreshingFrom(props.status);");
+    expect(actions).toContain("const blocked = busy !== null || refreshingFrom !== null;");
+    expect(actions).toContain("Updating the page… There is no need to click again.");
+    expect(actions).not.toContain("busy !== null}");
+  });
+});

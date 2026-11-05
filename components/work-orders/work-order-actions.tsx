@@ -94,6 +94,17 @@ export default function WorkOrderActions(props: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [submissionState, setSubmissionState] = useState<SubmissionState>("online");
   const submittingRef = useRef(false);
+  // UAT 5 Nov 2026: after the server confirms an action, the old buttons stayed on screen until the page reloaded,
+  // so the person clicked again. Hold the status the action was taken from and hide the buttons until it changes.
+  const [refreshingFrom, setRefreshingFrom] = useState<string | null>(null);
+  const blocked = busy !== null || refreshingFrom !== null;
+
+  useEffect(() => {
+    if (refreshingFrom === null) return;
+    if (props.status !== refreshingFrom) { setRefreshingFrom(null); return; }
+    const timer = window.setTimeout(() => setRefreshingFrom(null), 20000);
+    return () => window.clearTimeout(timer);
+  }, [props.status, refreshingFrom]);
 
   const actions = useMemo(
     () => authorizedExecutionActions(props.status, props.allowedActions),
@@ -154,6 +165,7 @@ export default function WorkOrderActions(props: Props) {
       setSubmissionState("online");
       setInteraction(null);
       setMessage(EXECUTION_SUCCESS[action] ?? "The server confirmed this action.");
+      setRefreshingFrom(props.status);
       router.refresh();
     } catch {
       setSubmissionState("failed");
@@ -365,10 +377,10 @@ export default function WorkOrderActions(props: Props) {
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               {decisionActions.some(({ action }) => action === "review") && (
-                <button type="button" disabled={busy !== null} onClick={() => openAction("review")} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">Approve as Completed</button>
+                <button type="button" disabled={blocked} onClick={() => openAction("review")} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">Approve as Completed</button>
               )}
               {decisionActions.some(({ action }) => action === "return_for_rework") && (
-                <button type="button" disabled={busy !== null} onClick={() => openAction("return_for_rework")} className="min-h-12 rounded-xl border-2 border-orange-400 bg-white px-5 font-black text-orange-900 disabled:opacity-50">Reject & Reopen</button>
+                <button type="button" disabled={blocked} onClick={() => openAction("return_for_rework")} className="min-h-12 rounded-xl border-2 border-orange-400 bg-white px-5 font-black text-orange-900 disabled:opacity-50">Reject & Reopen</button>
               )}
             </div>
           </section>
@@ -388,7 +400,7 @@ export default function WorkOrderActions(props: Props) {
         )}
 
         {props.canRecordWork && (
-          <button type="button" disabled={busy !== null} onClick={() => setInteraction("record_work")} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white disabled:opacity-50">
+          <button type="button" disabled={blocked} onClick={() => setInteraction("record_work")} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white disabled:opacity-50">
             Physical Completion
           </button>
         )}
@@ -403,7 +415,7 @@ export default function WorkOrderActions(props: Props) {
               <li>Active After evidence <strong>{props.completionReadiness.activeAfterEvidence ? "✓" : "✕"}</strong></li>
             </ul>
             {props.completionMissing.length > 0 && <p className="mt-3 text-sm">All completion controls must pass before formal completion.</p>}
-            <button type="button" disabled={busy !== null || !props.completionReadiness.ready} onClick={() => setInteraction("exception_complete")} className="mt-4 min-h-12 w-full rounded-xl bg-violet-700 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={blocked || !props.completionReadiness.ready} onClick={() => setInteraction("exception_complete")} className="mt-4 min-h-12 w-full rounded-xl bg-violet-700 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
               Administrator Exception Completion
             </button>
           </section>
@@ -413,25 +425,30 @@ export default function WorkOrderActions(props: Props) {
           <form onSubmit={submitExceptionCompletion} className="space-y-4 rounded-xl border border-violet-300 bg-violet-50 p-4">
             <div><h3 className="font-black">Administrator Exception Completion</h3><p className="mt-1 text-sm">This is an exceptional audited route. The responsible field person normally submits physical completion.</p></div>
             <label className="block text-sm font-bold">Exception reason <span aria-hidden="true">*</span><textarea required rows={3} maxLength={2000} value={exceptionCompletionReason} onChange={(event) => setExceptionCompletionReason(event.target.value)} className="mt-1 w-full rounded-lg border border-violet-300 bg-white p-3" /></label>
-            <div className="grid gap-3 sm:grid-cols-2"><button disabled={busy !== null} className="min-h-12 rounded-xl bg-violet-700 px-5 font-black text-white">Submit Exception Completion</button><button type="button" onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border bg-white px-5 font-bold">Back</button></div>
+            <div className="grid gap-3 sm:grid-cols-2"><button disabled={blocked} className="min-h-12 rounded-xl bg-violet-700 px-5 font-black text-white">Submit Exception Completion</button><button type="button" onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border bg-white px-5 font-bold">Back</button></div>
           </form>
         )}
 
-        {primary ? (
+        {refreshingFrom !== null ? (
+          <div role="status" className="rounded-xl border-2 border-emerald-400 bg-emerald-50 p-4 text-emerald-900">
+            <p className="font-black">Saved ✓ {message ?? "The server confirmed this action."}</p>
+            <p className="mt-1 text-sm">Updating the page… There is no need to click again.</p>
+          </div>
+        ) : primary ? (
           <div>
             <p className="mb-2 text-xs font-black uppercase tracking-wide text-red-700">Next authorized action — yours to click</p>
             {/* UAT 30 Oct 2026: the one action waiting for this person is red, matching the other "action needed" highlights. */}
-            <button type="button" disabled={busy !== null} onClick={() => openAction(primary.action)} className="min-h-12 w-full rounded-xl bg-red-600 px-5 py-3 text-base font-black text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={blocked} onClick={() => openAction(primary.action)} className="min-h-12 w-full rounded-xl bg-red-600 px-5 py-3 text-base font-black text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50">
               {busy === primary.action ? "Submitting…" : primary.label}
             </button>
             {returnAction && (
-              <button type="button" disabled={busy !== null} onClick={() => openAction("return")} className="mt-3 min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
+              <button type="button" disabled={blocked} onClick={() => openAction("return")} className="mt-3 min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
                 {returnAction.label}
               </button>
             )}
           </div>
         ) : returnAction ? (
-          <button type="button" disabled={busy !== null} onClick={() => openAction("return")} className="min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
+          <button type="button" disabled={blocked} onClick={() => openAction("return")} className="min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
             {returnAction.label}
           </button>
         ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
@@ -452,8 +469,8 @@ export default function WorkOrderActions(props: Props) {
             </label>
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><span className="font-bold">Evidence:</span> Add active After photo or PDF evidence separately before authorised completion.</div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-red-600 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:opacity-50">{busy === "record_work" ? "Saving work record…" : "Save Work Record"}</button>
-              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">Keep working</button>
+              <button disabled={blocked} className="min-h-12 rounded-xl bg-red-600 px-5 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:opacity-50">{busy === "record_work" ? "Saving work record…" : "Save Work Record"}</button>
+              <button type="button" disabled={blocked} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">Keep working</button>
             </div>
           </form>
         )}
@@ -468,8 +485,8 @@ export default function WorkOrderActions(props: Props) {
               <textarea rows={3} maxLength={2000} value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="mt-1 w-full rounded-lg border border-emerald-300 bg-white p-3" placeholder="For Administrator self-verification, state the reason for exercising Administrator authority." />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">{busy === "review" ? "Recording approval…" : "Approve as Completed"}</button>
-              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
+              <button disabled={blocked} className="min-h-12 rounded-xl bg-emerald-700 px-5 font-black text-white disabled:opacity-50">{busy === "review" ? "Recording approval…" : "Approve as Completed"}</button>
+              <button type="button" disabled={blocked} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>
         )}
@@ -484,8 +501,8 @@ export default function WorkOrderActions(props: Props) {
               <textarea required rows={4} maxLength={2000} value={reworkReason} onChange={(event) => setReworkReason(event.target.value)} className="mt-1 w-full rounded-lg border border-orange-300 bg-white p-3" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-orange-700 px-5 font-black text-white disabled:opacity-50">{busy === "return_for_rework" ? "Reopening…" : "Confirm Reject & Reopen"}</button>
-              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
+              <button disabled={blocked} className="min-h-12 rounded-xl bg-orange-700 px-5 font-black text-white disabled:opacity-50">{busy === "return_for_rework" ? "Reopening…" : "Confirm Reject & Reopen"}</button>
+              <button type="button" disabled={blocked} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>
         )}
@@ -497,8 +514,8 @@ export default function WorkOrderActions(props: Props) {
               <textarea rows={3} maxLength={1000} required={props.approvalReasonRequired} minLength={props.approvalReasonRequired ? 3 : undefined} value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-red-600 px-5 font-black text-white disabled:opacity-50">{busy === "approve" ? "Submitting approval…" : "Confirm approval"}</button>
-              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
+              <button disabled={blocked} className="min-h-12 rounded-xl bg-red-600 px-5 font-black text-white disabled:opacity-50">{busy === "approve" ? "Submitting approval…" : "Confirm approval"}</button>
+              <button type="button" disabled={blocked} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>
         )}
@@ -510,8 +527,8 @@ export default function WorkOrderActions(props: Props) {
               <textarea required rows={3} maxLength={2000} value={returnReason} onChange={(event) => setReturnReason(event.target.value)} className="mt-1 w-full rounded-lg border border-orange-300 bg-white p-3" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-orange-700 px-5 font-black text-white disabled:opacity-50">{busy === "return" ? "Returning…" : "Return to Draft"}</button>
-              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
+              <button disabled={blocked} className="min-h-12 rounded-xl bg-orange-700 px-5 font-black text-white disabled:opacity-50">{busy === "return" ? "Returning…" : "Return to Draft"}</button>
+              <button type="button" disabled={blocked} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Back</button>
             </div>
           </form>
         )}
@@ -523,8 +540,8 @@ export default function WorkOrderActions(props: Props) {
               <textarea required rows={4} maxLength={2000} value={cancellationReason} onChange={(event) => setCancellationReason(event.target.value)} className="mt-1 w-full rounded-lg border border-red-300 bg-white p-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200" />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button disabled={busy !== null} className="min-h-12 rounded-xl bg-red-700 px-5 font-black text-white disabled:opacity-50">{busy === "cancel" ? "Submitting cancellation…" : "Confirm cancellation"}</button>
-              <button type="button" disabled={busy !== null} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Keep Work Order</button>
+              <button disabled={blocked} className="min-h-12 rounded-xl bg-red-700 px-5 font-black text-white disabled:opacity-50">{busy === "cancel" ? "Submitting cancellation…" : "Confirm cancellation"}</button>
+              <button type="button" disabled={blocked} onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 font-bold">Keep Work Order</button>
             </div>
           </form>
         )}
@@ -533,15 +550,15 @@ export default function WorkOrderActions(props: Props) {
           <div className="border-t border-slate-200 pt-4">
             <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">Secondary actions</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              {props.canEdit && <button type="button" disabled={busy !== null} className={`min-h-11 rounded-lg px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300 ${props.editNeeded ? "bg-red-600 text-white" : "border border-slate-300"}`} onClick={() => router.push(`/work-orders/${props.id}/edit`)}>Edit Work Order</button>}
-              {props.allowedActions.includes("cancel") && <button type="button" disabled={busy !== null} onClick={() => openAction("cancel")} className="min-h-11 rounded-lg border border-red-300 px-4 text-sm font-bold text-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200">Cancel Work Order</button>}
-              {props.canDuplicate && <button type="button" disabled={busy !== null} onClick={() => void duplicate()} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">{busy === "duplicate" ? "Creating draft…" : "Duplicate as draft"}</button>}
+              {props.canEdit && <button type="button" disabled={blocked} className={`min-h-11 rounded-lg px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300 ${props.editNeeded ? "bg-red-600 text-white" : "border border-slate-300"}`} onClick={() => router.push(`/work-orders/${props.id}/edit`)}>Edit Work Order</button>}
+              {props.allowedActions.includes("cancel") && <button type="button" disabled={blocked} onClick={() => openAction("cancel")} className="min-h-11 rounded-lg border border-red-300 px-4 text-sm font-bold text-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200">Cancel Work Order</button>}
+              {props.canDuplicate && <button type="button" disabled={blocked} onClick={() => void duplicate()} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">{busy === "duplicate" ? "Creating draft…" : "Duplicate as draft"}</button>}
             </div>
           </div>
         )}
 
         {error && <div id="execution-error" role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">{error}</div>}
-        {message && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{message}</div>}
+        {message && refreshingFrom === null && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{message}</div>}
       </div>
     </section>
   );

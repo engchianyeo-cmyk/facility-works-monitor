@@ -178,12 +178,19 @@ do $resubmit$ declare qid uuid; begin
   perform pg_temp.act(pg_temp.u(4)); set local role authenticated;
   perform pg_temp.assert_true((public.submit_work_order_proposal((select id from ids where name='wo2'),qid,'Revised with isolation plan')->>'ok')::boolean,'returned quotation resubmitted');
   perform pg_temp.assert_true(public.transition_work_order((select id from ids where name='wo2'),'submit')->'work_order'->>'status'='submitted','Work Order resubmitted');
+  -- UAT 5 Nov 2026 (WO-TEST-005): a leftover in-house team assignment must not block the contractor approval.
+  reset role;
+  insert into public.maintenance_teams(id,name) values('1c300000-0000-4000-8000-0000000000a7','Leftover in-house team');
+  update public.work_orders set assigned_team_id='1c300000-0000-4000-8000-0000000000a7' where id=(select id from ids where name='wo2');
+  set local role authenticated;
   perform pg_temp.act(pg_temp.u(5));
   perform pg_temp.assert_true(public.transition_work_order((select id from ids where name='wo2'),'approve')->>'code'='APPROVAL_AUTHORITY_EXCEEDED','Facility Manager over lowered limit');
   perform pg_temp.act(pg_temp.u(3));
   perform pg_temp.assert_true((public.transition_work_order((select id from ids where name='wo2'),'approve')->>'ok')::boolean,'Approver approves within limit');
   perform pg_temp.assert_true((select accepted_at is null from public.work_orders where id=(select id from ids where name='wo2')),'assigned Technician still accepts superior-created work');
   reset role;
+  perform pg_temp.assert_true((select assigned_team_id is null and assigned_vendor_id is not null from public.work_orders where id=(select id from ids where name='wo2')),'contractor approval releases the leftover in-house team');
+  perform pg_temp.assert_true((select note::jsonb->>'released_team_id' from public.activity_logs where work_order_id=(select id from ids where name='wo2') and action='work_order_proposal_independently_approved' order by created_at desc limit 1)='1c300000-0000-4000-8000-0000000000a7','released team kept in the approval record');
 end;$resubmit$;
 select pg_temp.assert_true((select count(*) from public.activity_logs where work_order_id in (select id from ids) and action in ('work_order_submit','work_order_approve','work_order_returned_to_draft','work_order_emergency_started'))>=5,'lifecycle actions audited');
 select pg_temp.assert_true(not has_function_privilege('authenticated','public.transition_work_order_20261020_core(uuid,text,jsonb)','EXECUTE'),'core transition not exposed');
