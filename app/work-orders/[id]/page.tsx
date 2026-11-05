@@ -446,6 +446,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         editNeeded={needsEdit}
         canDuplicate={isApprovalAuthority(identity.role) || canRaiseAgain}
         raiseAgain={canRaiseAgain}
+        inHouseWork={Boolean(order.in_house_work)}
+        waitingFor={nextResponsibility && !nextResponsibility.viewerIsResponsible ? `${nextResponsibility.who} (${nextResponsibility.role}) to ${nextResponsibility.action}` : null}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
         formalCompletionAuthority={identity.role === "administrator" && order.assigned_technician_id !== identity.userId}
         completionReadiness={operationalStage.completion}

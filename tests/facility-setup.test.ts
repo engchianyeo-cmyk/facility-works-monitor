@@ -462,3 +462,13 @@ describe("Raise a cancelled Work Order again as a new Draft (D-35, UAT 5 Nov 202
     expect(readFileSync("supabase/migrations/20261105140000_technician_raises_cancelled_again.sql", "utf8")).toContain("raised_again_after_cancellation");
   });
 });
+
+describe("Work Order actions say whose turn it is (UAT 5 Nov 2026)", () => {
+  it("names the person and step being waited for, and the in-house approved status", () => {
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    expect(actions).toContain("Nothing for you to do here now. Waiting for ${props.waitingFor}.");
+    expect(actions).toContain('"Approved — In-house Team to Proceed"');
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page).toContain("waitingFor={nextResponsibility && !nextResponsibility.viewerIsResponsible");
+  });
+});

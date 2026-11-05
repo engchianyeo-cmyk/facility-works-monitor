@@ -741,6 +741,12 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 07:30 | Increment built (sha256 `8f6c9d3d…4b027e780`, matching the local rehearsal) | Owner, guided |
 | 10:33 | Backup of `public` + `supabase_migrations` (2,486,455 bytes, `.git/preview-backup-20261105-pre-m18.sql`); increment applied right after: `20261105100000` endorsement survives variance authorisation (D-33). Apply output not captured | Owner, guided |
 | 12:42 | Read-only check: WO-TEST-008 completed, final cost variance_approved S$380.00, 1 review endorsement, endorsement_missing false, so the carried-over endorsement counts (M18 in effect) | Owner, guided |
+| 16:39 | Read-only check (rolled back): approving WO-TEST-005 failed on `work_orders_primary_assignment_check`, because the Work Order still carried an in-house team from imported test data | Owner, guided |
+| ~17:00 | Commit `5817bc1` pushed (M19, action buttons hidden after a confirmed action) | Owner |
+| before 18:27 | Increment applied: `20261105120000` contractor approval releases a leftover in-house team (M19); ledger now 69. No backup was taken first and the apply output was not captured; confirmed by the WO-TEST-005 approval succeeding and by the M20 preflight (69 entries, latest `20261105120000`) | Owner, guided |
+| 20:35 | `release:verify` PASS (29 passed, 1 flaky browser test passed on retry); commit `ba6023c` pushed (D-35 with M20, Final Cost hours hint) | Owner |
+| 20:36 | Backup failed: Claude gave a `pg_dump -Fc` command without the schema limits, which tried to read `auth` and was refused; it left an empty `.git/preview-backup-20261105-before-m20.dump`. Nothing was changed | Owner, guided |
+| 20:37 | Increment applied (sha256 `95181635…`, matching the local rehearsal): `20261105140000` Technician raises a cancelled Work Order again (D-35, M20); preflight 69; ledger now 70; COMMIT. No backup before it (see 20:36). M19 and M20 only replace functions; the earlier definitions are in migrations `20260924044237`/`20261020070000` and `20261104140000` if a rollback is needed | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

@@ -35,6 +35,8 @@ type Props = {
   editNeeded?: boolean;
   canDuplicate: boolean;
   raiseAgain?: boolean;
+  inHouseWork?: boolean;
+  waitingFor?: string | null;
   canRecordWork: boolean;
   formalCompletionAuthority: boolean;
   completionReadiness: CompletionReadiness;
@@ -312,7 +314,7 @@ export default function WorkOrderActions(props: Props) {
         <p className="mt-1 text-sm text-slate-200">{props.location}</p>
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div><dt className="text-xs font-bold text-slate-400">Priority</dt><dd className="mt-1 font-black">{priorityLabel(props.priority)}</dd></div>
-          <div><dt className="text-xs font-bold text-slate-400">Status</dt><dd className="mt-1 font-black">{workOrderStatusLabel(props.status)}</dd></div>
+          <div><dt className="text-xs font-bold text-slate-400">Status</dt><dd className="mt-1 font-black">{props.status === "assigned" && props.inHouseWork ? "Approved — In-house Team to Proceed" : workOrderStatusLabel(props.status)}</dd></div>
           <div className="col-span-2"><dt className="text-xs font-bold text-slate-400">Due</dt><dd className={`mt-1 font-black ${props.overdue ? "text-amber-300" : ""}`}>{dueLabel(props.dueDate, props.overdue)}</dd></div>
         </dl>
       </div>
@@ -453,7 +455,7 @@ export default function WorkOrderActions(props: Props) {
             {returnAction.label}
           </button>
         ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once the assigned Technician submits it, the approval button appears here in red." : "No workflow action is currently available for your role and this Work Order state."}</p>
+          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once the assigned Technician submits it, the approval button appears here in red." : props.waitingFor ? `Nothing for you to do here now. Waiting for ${props.waitingFor}.` : "No workflow action is currently available for your role and this Work Order state."}</p>
         )}
 
         {interaction === "record_work" && (
