@@ -441,3 +441,24 @@ describe("No second click after a confirmed action (UAT 5 Nov 2026)", () => {
     expect(actions).not.toContain("busy !== null}");
   });
 });
+
+describe("Labour hours on the Final Cost come from Physical Completion (UAT 5 Nov 2026)", () => {
+  it("shows the field as read-only and links to where the hours are entered", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    expect(workspace).toContain('"Not yet recorded"');
+    expect(workspace).toContain("Not needed to save this section. Save the Final Cost first; you then enter the hours with the work statement at");
+    expect(workspace).toContain('href="#execution-title"');
+  });
+});
+
+describe("Raise a cancelled Work Order again as a new Draft (D-35, UAT 5 Nov 2026)", () => {
+  it("offers its Technician 'Raise again as new Draft' and explains why it cannot be resumed", () => {
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page).toContain('const canRaiseAgain = identity.role === "technician" && status === "cancelled"');
+    expect(page).toContain("canDuplicate={isApprovalAuthority(identity.role) || canRaiseAgain}");
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    expect(actions).toContain('props.raiseAgain ? "Raise again as new Draft" : "Duplicate as draft"');
+    expect(actions).toContain("This Work Order is cancelled and cannot be resumed.");
+    expect(readFileSync("supabase/migrations/20261105140000_technician_raises_cancelled_again.sql", "utf8")).toContain("raised_again_after_cancellation");
+  });
+});

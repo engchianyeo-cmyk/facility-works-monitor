@@ -128,6 +128,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   if (!order) notFound();
 
   const status = order.status as WorkOrderStatus;
+  // D-35 (5 Nov 2026): a cancelled Work Order cannot be resumed; its Technician raises it again as a new Draft.
+  const canRaiseAgain = identity.role === "technician" && status === "cancelled" && (order.assigned_technician_id === identity.userId || order.requested_by === identity.userId);
   const context = {
     role: identity.role,
     actorId: identity.userId,
@@ -442,7 +444,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         approvalReasonRequired={approvalReasonRequired}
         canEdit={canEdit(context)}
         editNeeded={needsEdit}
-        canDuplicate={isApprovalAuthority(identity.role)}
+        canDuplicate={isApprovalAuthority(identity.role) || canRaiseAgain}
+        raiseAgain={canRaiseAgain}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
         formalCompletionAuthority={identity.role === "administrator" && order.assigned_technician_id !== identity.userId}
         completionReadiness={operationalStage.completion}

@@ -625,6 +625,25 @@ page/section quickly by clicking on the link".
    the Approver (the facility's designated Approver when set); closing: Technician 1 uploads the invoice, then
    Finance confirms receipt and records the payment; in-house work closes automatically.
 
+### D-35 A cancelled Work Order is raised again as a new Draft by its Technician — 5 November 2026 20:09
+
+Owner (20:05): "Once the Approver has cancelled the work order it cannot be resumed. Why is this so?" WO-TEST-005 had
+been approved as contractor work but was meant to be in-house; on Claude's advice the Approver cancelled it to
+re-raise it, but Technicians could not duplicate. Owner (20:09): "go ahead with D-35".
+
+1. A cancelled Work Order stays cancelled; it is never resumed, because its approval and spending authority ended
+   with the cancellation.
+2. Its Technician (the assigned Technician or the preparer, in a facility they belong to) sees **Raise again as new
+   Draft**, with a note explaining why it cannot be resumed. The new Draft copies the details, is assigned to that
+   Technician, keeps the link to the cancelled one, and goes through approval again (in-house or contractor chosen
+   on the Draft).
+3. Approval roles keep "Duplicate as draft" for any Work Order, unchanged.
+4. Migration `20261105140000_technician_raises_cancelled_again.sql` (M20).
+
+Bug fix the same day (no owner decision): approving a contractor quotation failed on WO-TEST-005 because the Work
+Order still carried an in-house team from imported test data; approving a contractor now releases that team
+(migration `20261105120000_contractor_approval_releases_team.sql`, M19).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

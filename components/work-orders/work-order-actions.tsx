@@ -34,6 +34,7 @@ type Props = {
   /** UAT 2 Nov 2026: red when the Draft needs an edit (passed due date, missing reason). */
   editNeeded?: boolean;
   canDuplicate: boolean;
+  raiseAgain?: boolean;
   canRecordWork: boolean;
   formalCompletionAuthority: boolean;
   completionReadiness: CompletionReadiness;
@@ -549,10 +550,11 @@ export default function WorkOrderActions(props: Props) {
         {(props.canEdit || props.allowedActions.includes("cancel") || props.canDuplicate) && (
           <div className="border-t border-slate-200 pt-4">
             <p className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">Secondary actions</p>
+            {props.raiseAgain && <p className="mb-3 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800">This Work Order is cancelled and cannot be resumed. To carry out the work, raise it again as a new Draft. It keeps a link to this one and goes through approval again.</p>}
             <div className="grid gap-3 sm:grid-cols-2">
               {props.canEdit && <button type="button" disabled={blocked} className={`min-h-11 rounded-lg px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300 ${props.editNeeded ? "bg-red-600 text-white" : "border border-slate-300"}`} onClick={() => router.push(`/work-orders/${props.id}/edit`)}>Edit Work Order</button>}
               {props.allowedActions.includes("cancel") && <button type="button" disabled={blocked} onClick={() => openAction("cancel")} className="min-h-11 rounded-lg border border-red-300 px-4 text-sm font-bold text-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-200">Cancel Work Order</button>}
-              {props.canDuplicate && <button type="button" disabled={blocked} onClick={() => void duplicate()} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">{busy === "duplicate" ? "Creating draft…" : "Duplicate as draft"}</button>}
+              {props.canDuplicate && <button type="button" disabled={blocked} onClick={() => void duplicate()} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">{busy === "duplicate" ? "Creating draft…" : props.raiseAgain ? "Raise again as new Draft" : "Duplicate as draft"}</button>}
             </div>
           </div>
         )}

@@ -189,6 +189,30 @@ do $t$ declare r jsonb; src uuid; begin
   perform pg_temp.assert_true(r->>'ok'='true' and r->'work_order'->>'status'='draft' and r->'work_order'->>'due_date' is null,'duplicate of an overdue Work Order succeeds without the passed due date: '||coalesce(r->>'code',''));
   reset role;
 end;$t$;
+-- D-35: the assigned Technician raises a cancelled Work Order again as a new Draft they can prepare and submit.
+do $t$ declare r jsonb; src uuid; live uuid; nw uuid; begin
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.create_work_order(jsonb_build_object('title','Wash basin leak','location','Level 1 toilet','facility_id',(select facility_id from f)));
+  src:=(r->'work_order'->>'id')::uuid;
+  r:=public.create_work_order(jsonb_build_object('title','Live job','location','Roof','facility_id',(select facility_id from f)));
+  live:=(r->'work_order'->>'id')::uuid;
+  reset role;
+  update public.work_orders set assigned_technician_id=pg_temp.u(1) where id in (src,live);
+  update public.work_orders set status='cancelled',cancelled_at=pg_catalog.now(),cancellation_reason='Should be in-house; raising again' where id=src;
+  perform pg_temp.act(pg_temp.u(2)); set local role authenticated;
+  perform pg_temp.assert_true(public.duplicate_work_order(src)->>'code'='ACCESS_DENIED','another Technician cannot raise it again');
+  perform pg_temp.act(pg_temp.u(1));
+  perform pg_temp.assert_true(public.duplicate_work_order(live)->>'code'='ACCESS_DENIED','a Technician cannot duplicate a Work Order that is not cancelled');
+  r:=public.duplicate_work_order(src);
+  perform pg_temp.assert_true(r->>'ok'='true' and r->'work_order'->>'status'='draft','the assigned Technician raises the cancelled Work Order again: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
+  nw:=(r->'work_order'->>'id')::uuid;
+  perform pg_temp.assert_true(public.work_order_preparer_permitted(nw),'the Technician can prepare and submit the new Draft');
+  reset role;
+  perform pg_temp.assert_true((select assigned_technician_id=pg_temp.u(1) and requested_by=pg_temp.u(1) and duplicated_from_id=src
+    and facility_id=(select facility_id from f) from public.work_orders where id=nw),'new Draft is the Technician''s, in the same facility, linked to the cancelled one');
+  perform pg_temp.assert_true((select status from public.work_orders where id=src)='cancelled','the cancelled Work Order stays cancelled');
+  perform pg_temp.assert_true((select note::jsonb->>'raised_again_after_cancellation' from public.activity_logs where work_order_id=nw and action='work_order_duplicated')='true','raising again is recorded');
+end;$t$;
 -- D-31: Finance sees completed in-house Work Orders for reference; others do not.
 do $t$ begin
   perform pg_temp.act(pg_temp.u(7)); set local role authenticated;
