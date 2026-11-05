@@ -101,6 +101,8 @@ export default function WorkOrderActions(props: Props) {
   // so the person clicked again. Hold the status the action was taken from and hide the buttons until it changes.
   const [refreshingFrom, setRefreshingFrom] = useState<string | null>(null);
   const blocked = busy !== null || refreshingFrom !== null;
+  // UAT 5 Nov 2026: the work statement and labour hours are entered behind the Physical Completion button; red until saved.
+  const workRecordNeeded = props.canRecordWork && !(props.completionReadiness.workRecordReceived && props.completionReadiness.labourHoursRecorded);
 
   useEffect(() => {
     if (refreshingFrom === null) return;
@@ -403,9 +405,12 @@ export default function WorkOrderActions(props: Props) {
         )}
 
         {props.canRecordWork && (
-          <button type="button" disabled={blocked} onClick={() => setInteraction("record_work")} className="min-h-12 w-full rounded-xl bg-blue-700 px-5 py-3 text-base font-black text-white disabled:opacity-50">
+          <button type="button" disabled={blocked} onClick={() => setInteraction("record_work")} className={`min-h-12 w-full rounded-xl px-5 py-3 text-base font-black text-white disabled:opacity-50 ${workRecordNeeded ? "bg-red-600 hover:bg-red-700" : "bg-blue-700"}`}>
             Physical Completion
           </button>
+        )}
+        {workRecordNeeded && interaction !== "record_work" && (
+          <p className="-mt-2 text-sm font-bold text-red-700">Click Physical Completion to enter the work-performed statement and the cumulative labour hours, then Save Work Record.</p>
         )}
 
         {props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
@@ -454,7 +459,7 @@ export default function WorkOrderActions(props: Props) {
           <button type="button" disabled={blocked} onClick={() => openAction("return")} className="min-h-12 w-full rounded-xl border-2 border-orange-400 bg-white px-5 py-3 text-base font-black text-orange-900 disabled:opacity-50">
             {returnAction.label}
           </button>
-        ) : decisionActions.length === 0 && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
+        ) : decisionActions.length === 0 && !props.canRecordWork && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once the assigned Technician submits it, the approval button appears here in red." : props.waitingFor ? `Nothing for you to do here now. Waiting for ${props.waitingFor}.` : "No workflow action is currently available for your role and this Work Order state."}</p>
         )}
 

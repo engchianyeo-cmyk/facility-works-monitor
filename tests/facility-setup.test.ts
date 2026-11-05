@@ -472,3 +472,12 @@ describe("Work Order actions say whose turn it is (UAT 5 Nov 2026)", () => {
     expect(page).toContain("waitingFor={nextResponsibility && !nextResponsibility.viewerIsResponsible");
   });
 });
+
+describe("Physical Completion button is red until the work record is saved (UAT 5 Nov 2026)", () => {
+  it("points to where the statement and labour hours are entered and drops the contradictory message", () => {
+    const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
+    expect(actions).toContain("const workRecordNeeded = props.canRecordWork && !(props.completionReadiness.workRecordReceived && props.completionReadiness.labourHoursRecorded);");
+    expect(actions).toContain("Click Physical Completion to enter the work-performed statement and the cumulative labour hours, then Save Work Record.");
+    expect(actions).toContain("decisionActions.length === 0 && !props.canRecordWork &&");
+  });
+});
