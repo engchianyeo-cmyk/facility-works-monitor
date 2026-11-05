@@ -103,6 +103,8 @@ export default function WorkOrderActions(props: Props) {
   const blocked = busy !== null || refreshingFrom !== null;
   // UAT 5 Nov 2026: the work statement and labour hours are entered behind the Physical Completion button; red until saved.
   const workRecordNeeded = props.canRecordWork && !(props.completionReadiness.workRecordReceived && props.completionReadiness.labourHoursRecorded);
+  // UAT 5 Nov 2026: while the statement and hours are missing, the form is shown open, with no click needed.
+  const workRecordFormOpen = interaction === "record_work" || (workRecordNeeded && interaction === null);
 
   useEffect(() => {
     if (refreshingFrom === null) return;
@@ -409,8 +411,8 @@ export default function WorkOrderActions(props: Props) {
             Physical Completion
           </button>
         )}
-        {workRecordNeeded && interaction !== "record_work" && (
-          <p className="-mt-2 text-sm font-bold text-red-700">Click Physical Completion to enter the work-performed statement and the cumulative labour hours, then Save Work Record.</p>
+        {workRecordNeeded && workRecordFormOpen && (
+          <p className="-mt-2 text-sm font-bold text-red-700">Enter the work-performed statement and the cumulative labour hours in the form below, then click Save Work Record.</p>
         )}
 
         {props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status) && (
@@ -463,7 +465,7 @@ export default function WorkOrderActions(props: Props) {
           <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once the assigned Technician submits it, the approval button appears here in red." : props.waitingFor ? `Nothing for you to do here now. Waiting for ${props.waitingFor}.` : "No workflow action is currently available for your role and this Work Order state."}</p>
         )}
 
-        {interaction === "record_work" && (
+        {workRecordFormOpen && (
           <form onSubmit={submitWorkRecord} aria-describedby="completion-help execution-error" className="space-y-4 rounded-xl border border-blue-200 bg-slate-50 p-4">
             <div>
               <h3 className="font-black">Physical Completion — record the work done</h3>

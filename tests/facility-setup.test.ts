@@ -477,7 +477,17 @@ describe("Physical Completion button is red until the work record is saved (UAT 
   it("points to where the statement and labour hours are entered and drops the contradictory message", () => {
     const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
     expect(actions).toContain("const workRecordNeeded = props.canRecordWork && !(props.completionReadiness.workRecordReceived && props.completionReadiness.labourHoursRecorded);");
-    expect(actions).toContain("Click Physical Completion to enter the work-performed statement and the cumulative labour hours, then Save Work Record.");
+    expect(actions).toContain("Enter the work-performed statement and the cumulative labour hours in the form below, then click Save Work Record.");
+    expect(actions).toContain('const workRecordFormOpen = interaction === "record_work" || (workRecordNeeded && interaction === null);');
+    expect(actions).toContain("{workRecordFormOpen && (");
     expect(actions).toContain("decisionActions.length === 0 && !props.canRecordWork &&");
+  });
+});
+
+describe("Final Cost shows the labour hours as soon as the work record is saved (UAT 6 Nov 2026)", () => {
+  it("reloads the commercial workspace when the work record changes, not only the status", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    expect(workspace).toContain("[load,status,workRecordVersion]");
+    expect(readFileSync("app/work-orders/[id]/page.tsx", "utf8")).toContain('workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`}');
   });
 });

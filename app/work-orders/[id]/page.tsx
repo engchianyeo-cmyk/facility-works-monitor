@@ -554,9 +554,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         <WorkCompletionSteps steps={completionSteps} />
         {evidenceEl}
         {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
-        <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} />
+        <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />
         {actionsEl}
-      </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} />}
+      </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />}
 
       {!workStage && showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
 
