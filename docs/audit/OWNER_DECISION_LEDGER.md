@@ -610,6 +610,21 @@ had not changed.
 4. Database: migration `20261105100000_endorsement_survives_variance_approval.sql` (WP-EN-M18). Rehearsed on a copy
    at 67 entries (applied, ledger 68; carry-over re-keyed a test endorsement); increment sha256 `8f6c9d3d…4b027e780`.
 
+### D-34 The Workflow timeline shows who is next and links there — 5 November 2026 13:30
+
+Owner: three people (Technician 1, Technician 2, the Approver, plus Finance) share each Work Order; from the timeline
+it was not clear "who is next responsible to perform the role", and it should "bring him/her to the right
+page/section quickly by clicking on the link".
+
+1. Above the timeline, a **Next step** box names the next step, the person and role responsible (for example "the
+   Approver (Approver) to review the work and approve it as Completed"), with a link to that section of the page.
+   For the person whose turn it is, it is red: "Next step — yours … Go to Work Order actions →".
+2. Every timeline card shows the role and person responsible; the next step's card has a red "Next" label and link.
+3. Responsibilities: Draft and submission, start, work times and Physical Completion: Technician 1 (assigned);
+   endorsements: Technician 2 (any other Technician of the facility, or the one who endorsed); approval and review:
+   the Approver (the facility's designated Approver when set); closing: Technician 1 uploads the invoice, then
+   Finance confirms receipt and records the payment; in-house work closes automatically.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
@@ -698,6 +713,15 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 23:33 | M15–M17 apply refused by the preflight (ledger already at 20261104120000), rolled back, nothing changed | Owner, guided |
 | 23:25 | Commit `185e847` pushed to `uat/claude-review` (D-32 Duplicate as draft fix with M17) | Owner |
 | 23:35 | Increment applied (sha256 `761433ac…126139`, matching the local rehearsal): `20261104140000` Duplicate as draft leaves a passed due date empty (D-32); preflight 66; ledger now 67; COMMIT | Owner, guided |
+
+### Preview rollout record — 5 November 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 01:03 | Commit `bdf19c4` pushed (D-33 with M18, sign-in change warning, Final Cost result under Save, red final cost while Technician 2 waits) | Owner |
+| 07:30 | Increment built (sha256 `8f6c9d3d…4b027e780`, matching the local rehearsal) | Owner, guided |
+| 10:33 | Backup of `public` + `supabase_migrations` (2,486,455 bytes, `.git/preview-backup-20261105-pre-m18.sql`); increment applied right after: `20261105100000` endorsement survives variance authorisation (D-33). Apply output not captured | Owner, guided |
+| 12:42 | Read-only check: WO-TEST-008 completed, final cost variance_approved S$380.00, 1 review endorsement, endorsement_missing false, so the carried-over endorsement counts (M18 in effect) | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

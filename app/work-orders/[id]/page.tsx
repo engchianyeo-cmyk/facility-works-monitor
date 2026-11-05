@@ -10,6 +10,7 @@ import ActualWorkTimes from "@/components/work-orders/actual-work-times";
 import TechnicianEndorsement, { type Endorsement, type QuotationSummary } from "@/components/work-orders/technician-endorsement";
 import WorkCompletionSteps, { type CompletionStep } from "@/components/work-orders/work-completion-steps";
 import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel } from "@/lib/facility-settings";
+import { nextStepKey, responsibilityFor, type ResponsibilityContext, type TimelineStepKey } from "@/lib/work-orders/timeline-responsibility";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import DraftNextSteps from "@/components/work-orders/draft-next-steps";
@@ -256,7 +257,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     supabase.rpc("work_order_people_directory"),
     canSetTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
     supabase.from("work_order_endorsements").select("id,stage,endorsed_by,statement,endorsed_at,checklist").eq("work_order_id", id).order("endorsed_at", { ascending: true }),
-    order.facility_id ? supabase.from("facility_settings").select("endorsement_stage").eq("facility_id", order.facility_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    order.facility_id ? supabase.from("facility_settings").select("endorsement_stage,designated_approver_id").eq("facility_id", order.facility_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     order.facility_id ? supabase.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", order.facility_id).eq("active", true).order("code") : Promise.resolve({ data: [], error: null }),
   ]);
   const facilityDrawings = (facilityDrawingsResult.error ? [] : facilityDrawingsResult.data ?? []) as FacilityDrawingRow[];
@@ -282,6 +283,24 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   };
   const endorsementStageValue = (facilitySettingResult.data as { endorsement_stage?: string } | null)?.endorsement_stage ?? DEFAULT_ENDORSEMENT_STAGE;
   const endorsementStage = endorsementStageLabel(endorsementStageValue);
+  // D-34: who is responsible for each timeline step, and which step is next.
+  const paymentRow = status === "reviewed" ? await supabase.from("contractor_payment_assessments").select("invoice_uploaded_at").eq("work_order_id", id).maybeSingle() : { data: null, error: null };
+  const designatedApproverId = (facilitySettingResult.data as { designated_approver_id?: string | null } | null)?.designated_approver_id ?? null;
+  const responsibilityContext: ResponsibilityContext = {
+    technician1Name: order.assigned_technician_id ? nameById.get(order.assigned_technician_id) ?? resolvedAssignee ?? null : null,
+    technician1Id: order.assigned_technician_id ?? null,
+    approverName: designatedApproverId ? nameById.get(designatedApproverId) ?? null : null,
+    endorserName: {
+      submission: endorsements.filter((item) => item.stage === "submission").at(-1)?.endorser ?? null,
+      review: endorsements.filter((item) => item.stage === "review").at(-1)?.endorser ?? null,
+    },
+    inHouse: Boolean((order as { in_house_work?: boolean }).in_house_work),
+    invoiceUploaded: Boolean((paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at),
+    viewer: { id: identity.userId, role: identity.role },
+  };
+  const timeline = timelineSteps(order, latestEndorsement, endorsementStageValue);
+  const nextKey = nextStepKey(timeline, status);
+  const nextResponsibility = nextKey ? responsibilityFor(nextKey as TimelineStepKey, responsibilityContext) : null;
   const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status);
   const actualTimes = { started: (order as { actual_work_started_at?: string | null }).actual_work_started_at ?? null, ended: (order as { actual_work_ended_at?: string | null }).actual_work_ended_at ?? null };
   const actualTimesEditable = order.assigned_technician_id === identity.userId && ["assigned", "in_progress", "completed"].includes(status);
@@ -481,13 +500,29 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-4 font-semibold">Workflow timeline</h2>
+        {nextResponsibility && <div role="status" className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg p-4 ${nextResponsibility.viewerIsResponsible ? "border-4 border-red-600 bg-red-50" : "border-2 border-amber-400 bg-amber-50"}`}>
+          <div className="min-w-0 flex-1">
+            <p className={`text-xs font-black uppercase tracking-wide ${nextResponsibility.viewerIsResponsible ? "text-red-700" : "text-amber-800"}`}>{nextResponsibility.viewerIsResponsible ? "Next step — yours" : "Next step — waiting for"}</p>
+            <p className="mt-1 font-bold text-slate-950">{nextResponsibility.viewerIsResponsible ? `You (${nextResponsibility.role}): ${nextResponsibility.action}.` : `${nextResponsibility.who} (${nextResponsibility.role}) to ${nextResponsibility.action}.`}</p>
+          </div>
+          {nextResponsibility.viewerIsResponsible
+            ? <a href={nextResponsibility.href} className="min-h-11 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-black text-white">Go to {nextResponsibility.section} →</a>
+            : <a href={nextResponsibility.href} className="min-h-11 rounded-lg border border-amber-600 bg-white px-4 py-2.5 text-sm font-bold text-amber-900">See {nextResponsibility.section} →</a>}
+        </div>}
         <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {timelineSteps(order, latestEndorsement, endorsementStageValue).map((step) => (
-            <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-              <p className="font-semibold">{step.label}</p>
-              <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
-            </li>
-          ))}
+          {timeline.map((step) => {
+            const who = step.key === "cancelled" ? null : responsibilityFor(step.key as TimelineStepKey, responsibilityContext);
+            const isNext = step.key === nextKey;
+            return (
+              <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : isNext ? "border-2 border-red-600 bg-white" : "border-slate-200 bg-slate-50"}`}>
+                {isNext && <p className="mb-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-white">Next</p>}
+                <p className="font-semibold">{step.label}</p>
+                <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
+                {who && who.role !== "System" && <p className="mt-1 text-xs text-slate-700"><span className="font-semibold">{who.role}:</span> {who.who}</p>}
+                {isNext && who && <a href={who.href} className="mt-2 inline-block text-xs font-bold text-red-700 underline">{who.viewerIsResponsible ? "Do this now" : "Go to the section"} →</a>}
+              </li>
+            );
+          })}
         </ol>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
           <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (actual start → end, entered by the Technician)</dt><dd className="mt-1 text-slate-700">{formatDuration(actualTimes.started, actualTimes.ended) ?? "Not yet entered"}</dd></div>
