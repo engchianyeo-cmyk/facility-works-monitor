@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WORK_ORDER_SOURCES } from "@/lib/work-orders/types";
 import { operationalLabel } from "@/lib/product-terminology";
@@ -74,7 +75,7 @@ export default function WorkOrderForm({
       {!isEdit && (
         <label className="flex items-start gap-3 rounded-lg border-2 border-red-200 bg-red-50 p-4 text-sm">
           <input type="checkbox" name="emergency_work" className="mt-1 h-5 w-5" />
-          <span><span className="font-bold text-red-900">Emergency — contractor to start immediately</span><br /><span className="text-red-800">No quotation is needed before work starts. Approvers are notified on submission. The contractor&apos;s quotation follows after the work and is approved at review.</span></span>
+          <span><span className="font-bold text-red-900">Emergency — work starts immediately (in-house staff or contractor)</span><br /><span className="text-red-800">No approval, location mark, before photo or quotation is needed before work starts; approvers are notified on submission and review it afterwards. For contractor work, the quotation follows after the work. Already fixed it? Use <Link href="/work-orders/emergency" className="font-bold underline">Record emergency work already done</Link>.</span></span>
         </label>
       )}
       {!isEdit && (

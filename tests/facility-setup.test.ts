@@ -491,3 +491,16 @@ describe("Final Cost shows the labour hours as soon as the work record is saved 
     expect(readFileSync("app/work-orders/[id]/page.tsx", "utf8")).toContain('workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`}');
   });
 });
+
+describe("Emergency work already done is recorded on one screen (D-36, UAT 6 Nov 2026)", () => {
+  it("offers Technicians the screen and calls the all-or-nothing recording", () => {
+    const form = readFileSync("components/work-orders/emergency-record-form.tsx", "utf8");
+    expect(form).toContain('fetch("/api/work-orders/emergency-record"');
+    expect(form).toContain('JSON.stringify({ action: "submit_physical_completion" })');
+    expect(form).toContain("Add at least one photo of the condition after the repair.");
+    expect(readFileSync("app/api/work-orders/emergency-record/route.ts", "utf8")).toContain('rpc("record_emergency_work_done"');
+    expect(readFileSync("app/work-orders/emergency/page.tsx", "utf8")).toContain('if (identity.role !== "technician") redirect("/work-orders");');
+    expect(readFileSync("components/site-header.tsx", "utf8")).toContain('href="/work-orders/emergency"');
+    expect(readFileSync("components/work-orders/work-order-form.tsx", "utf8")).toContain("Emergency — work starts immediately (in-house staff or contractor)");
+  });
+});

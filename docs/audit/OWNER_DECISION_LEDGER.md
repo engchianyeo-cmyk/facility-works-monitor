@@ -644,6 +644,27 @@ Bug fix the same day (no owner decision): approving a contractor quotation faile
 Order still carried an in-house team from imported test data; approving a contractor now releases that team
 (migration `20261105120000_contractor_approval_releases_team.sql`, M19).
 
+### D-36 Field work never waits for the app; emergency work already done is recorded on one screen — 6 November 2026 11:06
+
+Owner (6 Nov 00:32): "this should be categorised as a plumbing emergency and therefore emergency work will be carried
+out without a work order. Work order will be submitted after fixing the problem. If this task is dependent on this work
+order, the facility will fail miserably". Owner (00:38): "As this is an emergency, should the workflow be different from
+a normal one?" Owner (11:06): "Go ahead with D-36".
+
+1. Field work never waits for the app. If the app is unavailable or misbehaving, the Technician fixes the problem, takes
+   photos, notes the times, and records it afterwards.
+2. Emergency work may be done by in-house staff or a contractor. The New Work Order form says so ("Emergency — work
+   starts immediately (in-house staff or contractor)"); before work starts, no approval, location mark, before photo
+   or quotation is needed, and approvers review it afterwards.
+3. A Technician records emergency work already done on one screen, **Record emergency work already done** (red header
+   button "Emergency work done"): what happened, where, in-house or contractor, start and end times (in the past),
+   work performed, labour hours, and photos. One step creates the emergency Work Order assigned to them, submits it,
+   records the times, statement and hours, and confirms there are no separate costs; if any part is refused, nothing
+   is saved. The photos are then attached and physical completion is submitted from the same screen. The Approver's
+   review is unchanged (location and before evidence are checked there; for contractor work, the quotation follows).
+4. The new-facility UAT guide states rule 1.
+5. Migration `20261106100000_record_emergency_work_done.sql` (M21).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

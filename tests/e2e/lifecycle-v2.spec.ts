@@ -228,7 +228,7 @@ test.describe("Work Order Lifecycle v2", () => {
     await page.getByRole("button", { name: "Approve Work and Quotation" }).click();
     await page.getByLabel("Approval note (reason required for Administrator self-approval)").fill("In-house repaint approved.");
     await page.getByRole("button", { name: "Confirm approval" }).click();
-    await expect(page.getByText("Approved — Contractor to Proceed").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Approved — In-house Team to Proceed").filter({ visible: true }).first()).toBeVisible({ timeout: 20_000 });
     await logout(page);
 
     await login(page, technicianEmail, technicianPassword, workOrderPath);

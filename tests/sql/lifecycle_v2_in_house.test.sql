@@ -189,6 +189,28 @@ do $t$ declare r jsonb; src uuid; begin
   perform pg_temp.assert_true(r->>'ok'='true' and r->'work_order'->>'status'='draft' and r->'work_order'->>'due_date' is null,'duplicate of an overdue Work Order succeeds without the passed due date: '||coalesce(r->>'code',''));
   reset role;
 end;$t$;
+-- D-36: emergency work already carried out is recorded on one screen, all or nothing.
+do $t$ declare r jsonb; nw uuid; base jsonb; begin
+  base:=jsonb_build_object('title','Burst pipe under basin','location','Level 1 male toilet','facility_id',(select facility_id from f),
+    'description','Water flooding the toilet floor; isolated and repaired at once.','in_house_work',true,
+    'started_at',(now()-interval '3 hours')::text,'ended_at',(now()-interval '2 hours')::text,
+    'completion_notes','Isolated the supply, replaced the burst flexible hose, tested, no leak.','actual_labour_hours',1.5,'no_separate_costs',true);
+  perform pg_temp.act(pg_temp.u(3)); set local role authenticated;
+  perform pg_temp.assert_true(public.record_emergency_work_done(base)->>'code'='ACCESS_DENIED','an Approver does not record emergency work done');
+  perform pg_temp.act(pg_temp.u(1));
+  r:=public.record_emergency_work_done(base || jsonb_build_object('title','Refused emergency','ended_at',(now()-interval '4 hours')::text));
+  perform pg_temp.assert_true(r->>'ok' is distinct from 'true','an end time before the start time is refused');
+  r:=public.record_emergency_work_done(base);
+  perform pg_temp.assert_true(r->>'ok'='true','the Technician records emergency work already done: '||coalesce(r->>'code','')||' '||coalesce(r->>'message',''));
+  nw:=(r->'work_order'->>'id')::uuid;
+  reset role;
+  perform pg_temp.assert_true(not exists(select 1 from public.work_orders where title='Refused emergency'),'a refused attempt leaves no Work Order behind');
+  perform pg_temp.assert_true((select status='in_progress' and emergency_work and in_house_work and assigned_technician_id=pg_temp.u(1)
+    and actual_work_started_at is not null and actual_work_ended_at is not null and actual_labour_hours=1.5
+    and completion_notes like 'Isolated the supply%' and actual_costs_confirmed_by=pg_temp.u(1) from public.work_orders where id=nw),
+    'the Work Order is emergency, in-house, in progress, with times, statement, hours and costs confirmed');
+  perform pg_temp.assert_true(exists(select 1 from public.activity_logs where work_order_id=nw and action='work_order_emergency_recorded_after_work'),'recording after the work is logged');
+end;$t$;
 -- D-35: the assigned Technician raises a cancelled Work Order again as a new Draft they can prepare and submit.
 do $t$ declare r jsonb; src uuid; live uuid; nw uuid; begin
   perform pg_temp.act(pg_temp.u(1)); set local role authenticated;

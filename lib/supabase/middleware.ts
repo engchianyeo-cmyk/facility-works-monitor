@@ -48,6 +48,7 @@ export async function updateSession(request: NextRequest) {
       pathname === "/works/new" ||
       /^\/works\/[^/]+\/edit$/.test(pathname) ||
       pathname === "/work-orders/new" ||
+      pathname === "/work-orders/emergency" ||
       /^\/work-orders\/[^/]+\/edit$/.test(pathname);
 
     if (isProtectedWritePage && !user) {
