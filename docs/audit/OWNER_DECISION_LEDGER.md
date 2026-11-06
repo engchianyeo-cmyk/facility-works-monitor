@@ -822,6 +822,11 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 6 Nov 18:1x | `release:verify` PASS (30 passed); commit `be221c1` pushed (D-36 with M21) | Owner |
 | 6 Nov 18:1x | Backup failed again: Claude's corrected command still lacked `--role=postgres`, so `public.profiles` was refused. Nothing was changed | Owner, guided |
 | 6 Nov 18:1x | Increment applied: `20261106100000` record emergency work already done (D-36, M21); preflight 70; ledger now 71; COMMIT. No backup before it (see above). M21 only adds a new function, so removing it (`drop function public.record_emergency_work_done(jsonb)`) undoes it | Owner, guided |
+| 6 Nov 23:40 | `release:verify` failed 1 unit test: the guided-work-stage order test still looked for `<ReleaseOneWorkspace` after D-37 grouped the commercial section as `workspaceEl`; Claude updated the test | Owner |
+| 7 Nov 00:25 | `release:verify` browser run timed out at different steps on each attempt (slow machine, 8.3 min); no code change | Owner |
+| 7 Nov 00:45 | `release:verify` PASS (30 browser tests, 5.6 min); commit `fc2eb92` pushed (D-37 with M22) | Owner |
+| 7 Nov 00:5x | Backup taken with `pg_dump --role=postgres -n public -n supabase_migrations`: `.git/preview-backup-20261107-pre-m22.sql` (2,593,409 bytes) | Owner, guided |
+| 7 Nov 00:5x | Increment applied (sha256 `16a89a3e…`): `20261106120000` contractor admission (D-37, M22); preflight 71; ledger now 72; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 
