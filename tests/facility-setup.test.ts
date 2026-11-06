@@ -246,8 +246,9 @@ describe("Guided work stage (UAT 29 Oct 2026)", () => {
   it("lists the Technician's steps in page order and arranges the sections to match", () => {
     const page = read("app/work-orders/[id]/page.tsx");
     expect(page).toContain("<WorkCompletionSteps steps={completionSteps} />");
-    const order = ["<WorkCompletionSteps", "{evidenceEl}", "<ActualWorkTimes workOrderId={id}", "<ReleaseOneWorkspace", "{actionsEl}"].map((text) => page.indexOf(text, page.indexOf("{workStage ? <>")));
+    const order = ["<WorkCompletionSteps", "{evidenceEl}", "<ActualWorkTimes workOrderId={id}", "{workspaceEl}", "{actionsEl}"].map((text) => page.indexOf(text, page.indexOf("{workStage ? <>")));
     expect(order.every((position, index) => position > 0 && (index === 0 || position > order[index - 1]))).toBe(true);
+    expect(page.slice(page.indexOf("const workspaceEl = <>"), page.indexOf("const actionsEl = ("))).toContain("<ReleaseOneWorkspace id={id}");
     const workspace = read("components/work-orders/release-one-workspace.tsx");
     expect(workspace.indexOf("{costEditor}\n      <section className={`mt-6 px-4 py-5")).toBeGreaterThan(0);
     expect(workspace).toContain("below, record the work done, then click Submit Physical Completion.");
@@ -502,5 +503,22 @@ describe("Emergency work already done is recorded on one screen (D-36, UAT 6 Nov
     expect(readFileSync("app/work-orders/emergency/page.tsx", "utf8")).toContain('if (identity.role !== "technician") redirect("/work-orders");');
     expect(readFileSync("components/site-header.tsx", "utf8")).toContain('href="/work-orders/emergency"');
     expect(readFileSync("components/work-orders/work-order-form.tsx", "utf8")).toContain("Emergency — work starts immediately (in-house staff or contractor)");
+  });
+});
+
+describe("Contractor admission screens (D-37, UAT 6 Nov 2026)", () => {
+  it("wires each step to its database function and shows trial contractors", () => {
+    const route = readFileSync("app/api/contractor-admission/route.ts", "utf8");
+    for (const rpc of ["designate_procurement_manager", "raise_contractor_request", "recommend_contractor", "prequalify_contractor", "record_contractor_owner_approval", "score_contractor_trial_job", "admit_contractor", "reject_contractor"]) {
+      expect(route).toContain(`rpc("${rpc}"`);
+    }
+    const board = readFileSync("components/administration/contractor-admission-board.tsx", "utf8");
+    expect(board).toContain("Action needed — recommend a contractor");
+    expect(board).toContain("Action needed — your step");
+    expect(readFileSync("components/work-orders/release-one-workspace.tsx", "utf8")).toContain('item.admission_status==="trial"?" (trial contractor)":""');
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page).toContain("<ContractorNeeded workOrderId={id} requests={contractorRequests} />");
+    expect(page).toContain("<TrialEvaluation workOrderId={id}");
+    expect(readFileSync("components/work-orders/trial-evaluation.tsx", "utf8")).toContain("Action needed — score this trial job");
   });
 });

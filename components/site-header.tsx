@@ -51,6 +51,7 @@ export default async function SiteHeader() {
           {identity && identity.role !== "technician" && <Link href="/maintenance" className="rounded-lg px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">Maintenance</Link>}
           {identity && <Link href="/incidents" className="rounded-lg px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Emergency</Link>}
           {management && <Link href="/administration/emergency-roster" className="rounded-lg px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">On-call Roster</Link>}
+          {(contractorAdmin || identity?.role === "finance") && <Link href="/administration/contractor-admission" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Contractor Admission</Link>}
           {identity && ["facility_manager", "administrator"].includes(identity.role) && <Link href="/administration/procurement-policy" className="rounded-lg px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50">Procurement Policy</Link>}
           {identity && ["finance", "administrator"].includes(identity.role) && <Link href="/finance" className="rounded-lg px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Finance</Link>}
           {contractorAdmin && <Link href="/administration/contractors" className="rounded-lg px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50">Contractors & Rates</Link>}

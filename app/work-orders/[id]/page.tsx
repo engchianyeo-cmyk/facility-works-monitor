@@ -1,7 +1,10 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import WorkOrderDrawings from "@/components/work-order-drawings";
 import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace";
+import ContractorNeeded from "@/components/work-orders/contractor-needed";
+import TrialEvaluation from "@/components/work-orders/trial-evaluation";
 import EvidencePanel from "@/components/evidence/evidence-panel";
 import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
 import TechnicianPicker from "@/components/work-orders/technician-picker";
@@ -429,6 +432,39 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const needsLocation = draftMissing.includes("Location marked on the layout plan");
   const needsQuotation = draftMissing.some((item) => item === "Recommended contractor quotation" || item.startsWith("Quotations:"));
   const needsEdit = draftMissing.some((item) => item === "Due date has passed — update the due date" || item === "Reason the work is needed");
+  // D-37 (6 Nov 2026): Technician 1 can ask for a contractor; a trial contractor's completed job is scored here.
+  const showContractorNeeded = order.assigned_technician_id === identity.userId && !order.in_house_work && ["draft", "submitted"].includes(status);
+  const contractorRequestResult = showContractorNeeded
+    ? await supabase.from("contractor_requests").select("id,service,reason,status,raised_at").eq("work_order_id", id).order("raised_at", { ascending: false })
+    : null;
+  const contractorRequests = ((contractorRequestResult && !contractorRequestResult.error ? contractorRequestResult.data : []) ?? [])
+    .map((row) => { const r = row as { id: string; service: string; reason: string; status: string; raised_at: string }; return { id: r.id, service: r.service, reason: r.reason, status: r.status, raisedAt: r.raised_at }; });
+  let trialEl: ReactNode = null;
+  if (["reviewed", "closed"].includes(status) && order.assigned_vendor_id && order.facility_id) {
+    const { data: trialAdmission } = await supabase.from("contractor_admissions").select("id")
+      .eq("facility_id", order.facility_id).eq("vendor_id", order.assigned_vendor_id).eq("status", "on_trial").maybeSingle();
+    if (trialAdmission) {
+      const [{ data: trialScores }, { data: trialVendor }, { data: trialSettings }] = await Promise.all([
+        supabase.from("contractor_trial_evaluations").select("scored_by,scorer_capacity,quality,on_time,safety,documents,price,comments").eq("work_order_id", id),
+        supabase.from("vendors").select("name").eq("id", order.assigned_vendor_id).maybeSingle(),
+        supabase.rpc("contractor_admission_settings", { p_facility_id: order.facility_id }),
+      ]);
+      const scored = (trialScores ?? []) as Array<{ scored_by: string; scorer_capacity: string; quality: number; on_time: number; safety: number; documents: number; price: number; comments: string | null }>;
+      const evaluators = ((trialSettings as { evaluators?: string[] } | null)?.evaluators ?? ["facility_manager", "approver", "technician_1", "technician_2"]);
+      const capacity = order.assigned_technician_id === identity.userId ? "technician_1"
+        : identity.role === "technician" && ((endorsementResult.data ?? []) as Array<{ endorsed_by: string }>).some((item) => item.endorsed_by === identity.userId) ? "technician_2"
+        : identity.role === "facility_manager" ? "facility_manager"
+        : ["approver", "supervisor"].includes(identity.role) ? "approver" : null;
+      const canScore = Boolean(capacity && evaluators.includes(capacity)) && !scored.some((item) => item.scored_by === identity.userId);
+      trialEl = <TrialEvaluation workOrderId={id} contractor={(trialVendor as { name?: string } | null)?.name ?? "The contractor"} canScore={canScore}
+        scores={scored.map((item) => ({ capacity: item.scorer_capacity, quality: item.quality, onTime: item.on_time, safety: item.safety, documents: item.documents, price: item.price, comments: item.comments }))} />;
+    }
+  }
+  const workspaceEl = <>
+    <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />
+    {showContractorNeeded && <ContractorNeeded workOrderId={id} requests={contractorRequests} />}
+    {trialEl}
+  </>;
   const actionsEl = (
       <WorkOrderActions
         id={id}
@@ -554,9 +590,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         <WorkCompletionSteps steps={completionSteps} />
         {evidenceEl}
         {showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
-        <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />
+        {workspaceEl}
         {actionsEl}
-      </> : <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />}
+      </> : workspaceEl}
 
       {!workStage && showActualTimes && <ActualWorkTimes workOrderId={id} startedAt={actualTimes.started} endedAt={actualTimes.ended} canEdit={actualTimesEditable} />}
 

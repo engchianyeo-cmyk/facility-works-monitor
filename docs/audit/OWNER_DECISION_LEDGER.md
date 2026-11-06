@@ -665,6 +665,56 @@ a normal one?" Owner (11:06): "Go ahead with D-36".
 4. The new-facility UAT guide states rule 1.
 5. Migration `20261106100000_record_emergency_work_done.sql` (M21).
 
+### D-37 Contractor register, facility shortlists and adding a new contractor — 6 November 2026 20:35–21:00
+
+Context: WO-TEST-007 needed a solar specialist (Sunvane) who was not approved for Facility One, so Prepare Proposal
+offered only a general building contractor. Owner (20:24): "Should there be a shortlisted contractor list for all
+services in the facility? What if a new contractor is required to be added like in this case?"
+
+Decided (owner, 20:35):
+
+1. New contractors are pre-qualified by a **Procurement Manager**, either of the facility itself or of the holding
+   company (Facility Supreme Pte Ltd) that manages the facilities.
+2. Adding a new contractor is a decision for the **facility owner**. A recommendation may be proposed by the Facility
+   Manager, an Administrator or a Procurement Manager, because they have run many facilities and know contractors
+   proficient in specific work.
+3. At onboarding, the facility owner company fills in the full list of specialty services the facility has.
+4. (20:36) A recommendation may be added by the Facility Manager, an Administrator or a Procurement Manager, but the
+   contractor's performance must be formally evaluated before admission into the facility's list.
+5. (20:44) A new contractor may do trial jobs; **2 completed trial jobs** are needed to qualify for the list.
+6. (21:00) A trial job may be scored by the Facility Manager, the Approver, Technician 1 or Technician 2.
+7. (21:00) Pass mark: an average of 3.5 out of 5 across quality, on time, safety, documents and price, with no score
+   of 1 on safety.
+8. (21:00) The facility owner's approval is recorded in the app by the Facility Manager or the Procurement Manager.
+9. (21:00) These settings (specialty services, preferred contractors, who scores, pass mark, who records the owner's
+   approval) are furnished in the onboarding form for each facility.
+
+Proposed by Claude, awaiting the owner:
+
+10. One company-wide contractor register (entered once, reused by all facilities), with services and document expiry
+   dates; a shortlist per facility by service; Prepare Proposal shows the Work Order's service first.
+11. When no suitable contractor is on the shortlist, Technician 1 raises "Contractor needed" for the service, which
+   notifies the Facility Manager and Procurement Manager; the Draft cannot be submitted with an unapproved contractor.
+12. Emergencies never wait (D-36): an unlisted contractor may be used; they go through steps 1 and 2 before the
+   quotation is approved at review.
+
+Open: none of the owner's points. Owner (21:02): "start D-37 now".
+
+Built (6 Nov 2026), migration `20261106120000_contractor_admission.sql` (M22):
+- An Administrator designates Procurement Managers (one facility, or company-wide) on the Contractor Admission page.
+- Technician 1 raises **Contractor needed** on a Draft or submitted contractor Work Order.
+- Recommend (Facility Manager, Administrator, Procurement Manager; from the register or a new company by UEN) →
+  Pre-qualify (Procurement Manager) → Record the owner's approval (Facility Manager or Procurement Manager; the
+  contractor appears in Prepare Proposal as "trial contractor") → trial jobs scored on the Work Order once approved as
+  Completed → Admit (Procurement Manager, only when passed) or Reject (Facility Manager or Procurement Manager).
+- Standard settings per facility (2 trial jobs, pass mark 3.5, scorers Facility Manager / Approver / Technician 1 /
+  Technician 2) are stored in facility settings, to be edited from the onboarding / Facility Definitions page (D-28).
+- Not yet built: notifications by email (the red highlights show whose turn it is); filtering Prepare Proposal by service.
+
+
+Interim (6 Nov): the six UAT contractors from the test documents are added to Preview by script
+`scripts/rollout/preview-uat-contractors-20261106.sql`, as fictional, pre-approved test data.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

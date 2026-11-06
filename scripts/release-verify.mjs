@@ -217,6 +217,7 @@ async function main() {
   sql("tests/sql/lifecycle_v2_facility_settings.test.sql");
   sql("tests/sql/lifecycle_v2_supporting_document.test.sql");
   sql("tests/sql/facility_setup.test.sql");
+  sql("tests/sql/contractor_admission.test.sql");
   const env = {
     ...process.env,
     ...identities,

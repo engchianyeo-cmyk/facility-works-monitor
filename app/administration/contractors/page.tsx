@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import ContractorManagement from "@/components/administration/contractor-management";
 import { getCurrentIdentity } from "@/lib/auth";
@@ -22,7 +23,7 @@ export default async function ContractorsPage() {
   const unavailable = vendorResult.error || categoryResult.error || rateResult.error;
 
   return <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
-    <header><p className="text-sm font-black uppercase tracking-widest text-blue-700">Administration</p><h1 className="text-3xl font-black">Contractors & Agreed Rates</h1><p className="mt-2 max-w-3xl text-slate-600">Maintain nominated service companies, manpower providers and pre-agreed unit rates used for normal and emergency Work Orders.</p></header>
+    <header><p className="text-sm font-black uppercase tracking-widest text-blue-700">Administration</p><h1 className="text-3xl font-black">Contractors & Agreed Rates</h1><p className="mt-2 max-w-3xl text-slate-600">Maintain nominated service companies, manpower providers and pre-agreed unit rates used for normal and emergency Work Orders. New contractors join a facility through <Link href="/administration/contractor-admission" className="font-semibold text-blue-700 underline">Contractor Admission</Link>.</p></header>
     {unavailable ? <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950"><p className="font-black">Contractor controls are not available in this environment yet.</p><p className="mt-1 text-sm">Migration 0024 must be applied to the active Preview database before this administration page can be used.</p></div> : <ContractorManagement vendors={vendorResult.data ?? []} categories={categoryResult.data ?? []} rates={rateResult.data ?? []} />}
   </main>;
 }
