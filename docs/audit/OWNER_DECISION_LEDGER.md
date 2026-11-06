@@ -768,6 +768,10 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 20:35 | `release:verify` PASS (29 passed, 1 flaky browser test passed on retry); commit `ba6023c` pushed (D-35 with M20, Final Cost hours hint) | Owner |
 | 20:36 | Backup failed: Claude gave a `pg_dump -Fc` command without the schema limits, which tried to read `auth` and was refused; it left an empty `.git/preview-backup-20261105-before-m20.dump`. Nothing was changed | Owner, guided |
 | 20:37 | Increment applied (sha256 `95181635…`, matching the local rehearsal): `20261105140000` Technician raises a cancelled Work Order again (D-35, M20); preflight 69; ledger now 70; COMMIT. No backup before it (see 20:36). M19 and M20 only replace functions; the earlier definitions are in migrations `20260924044237`/`20261020070000` and `20261104140000` if a rollback is needed | Owner, guided |
+| 6 Nov 17:48 | `release:verify` failed 1 browser test: the in-house approval test still expected "Approved — Contractor to Proceed" after the 5 Nov label change; Claude updated the test | Owner |
+| 6 Nov 18:1x | `release:verify` PASS (30 passed); commit `be221c1` pushed (D-36 with M21) | Owner |
+| 6 Nov 18:1x | Backup failed again: Claude's corrected command still lacked `--role=postgres`, so `public.profiles` was refused. Nothing was changed | Owner, guided |
+| 6 Nov 18:1x | Increment applied: `20261106100000` record emergency work already done (D-36, M21); preflight 70; ledger now 71; COMMIT. No backup before it (see above). M21 only adds a new function, so removing it (`drop function public.record_emergency_work_done(jsonb)`) undoes it | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 
