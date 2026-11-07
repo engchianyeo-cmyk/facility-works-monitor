@@ -351,7 +351,7 @@ describe("Approver decisions are red (UAT 30 Oct 2026)", () => {
 describe("Finance actions are red (UAT 30 Oct 2026)", () => {
   it("shows Confirm Invoice Received and Record Payment and Close as red action buttons", () => {
     const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
-    expect(workspace).toContain('className="min-h-11 rounded bg-red-600 px-4 font-bold text-white">Confirm Invoice Received</button>');
+    expect(workspace).toContain('className="min-h-11 rounded bg-red-600 px-4 font-bold text-white disabled:opacity-50">Confirm Invoice Received</button>');
     expect(workspace).toContain('className="min-h-11 rounded bg-red-600 px-4 font-bold text-white sm:col-span-2">Record Payment and Close</button>');
   });
 });
@@ -570,5 +570,25 @@ describe("Work Orders list shows no 'null' and the real Technician (UAT 7 Nov 20
     const list = readFileSync("app/work-orders/page.tsx", "utf8");
     expect(list).toContain("[order.facility_area.level, `${order.facility_area.area_code} ${order.facility_area.name}`].filter(Boolean).join(\" · \")");
     expect(list).toContain("technician:profiles!work_orders_assigned_technician_id_fkey(display_name)");
+  });
+});
+
+describe("Payment records Finance can trust (D-41, UAT 7 Nov 2026)", () => {
+  it("sends the payment time with its time zone and stops autofill of references", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    expect(workspace).toContain('paid_at:new Date(String(form.get("paid_at"))).toISOString()');
+    expect(workspace).not.toContain('paid_at:field(form,"paid_at")');
+    expect(workspace).toContain('name="payment_reference" required autoComplete="off"');
+    expect(workspace.match(/name="invoice_reference" autoComplete="off"/g)?.length).toBe(workspace.match(/name="invoice_reference"/g)?.length);
+    expect(workspace).toContain('type="datetime-local" max={localNow()}');
+  });
+  it("makes Finance open the invoice and tick the check before confirming receipt", () => {
+    const workspace = readFileSync("components/work-orders/release-one-workspace.tsx", "utf8");
+    expect(workspace).toContain("Open the invoice (");
+    expect(workspace).toContain("I have checked the invoice against the approved amount.");
+    expect(workspace).toContain("disabled={busy||!invoiceOpened}");
+    const access = readFileSync("app/api/work-orders/[id]/commercial-documents/[documentId]/access/route.ts", "utf8");
+    expect(access).toContain('identity.role === "finance" && commercial.data) await supabase.rpc("record_invoice_opened"');
+    expect(readFileSync("app/api/work-orders/[id]/release-1/route.ts", "utf8")).toContain("invoice_opened_at");
   });
 });

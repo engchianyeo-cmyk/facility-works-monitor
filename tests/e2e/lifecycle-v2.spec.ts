@@ -193,10 +193,18 @@ test.describe("Work Order Lifecycle v2", () => {
     await row.getByRole("link").first().click();
     await expect(page).toHaveURL(new RegExp(`${workOrderPath}$`));
     const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Singapore" }).format(new Date());
+    // D-41: Finance opens the invoice and ticks the check before confirming receipt.
+    await expect(page.getByRole("button", { name: "Confirm Invoice Received" })).toBeDisabled();
+    const popup = page.waitForEvent("popup");
+    await page.getByRole("button", { name: /^Open the invoice/ }).click();
+    await (await popup).close();
+    await expect(page.getByRole("button", { name: /^Invoice opened/ })).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel("I have checked the invoice against the approved amount").check();
     await page.getByLabel("Date Finance received the invoice").fill(today);
     await page.getByRole("button", { name: "Confirm Invoice Received" }).click();
     await expect(page.getByText("Invoice receipt recorded")).toBeVisible({ timeout: 20_000 });
-    const now = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 16);
+    // D-41: "Paid on" is the browser's local time and may not be in the future.
+    const now = await page.evaluate(() => { const at = new Date(Date.now() - 60_000); return new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16); });
     await page.getByLabel("Paid on").fill(now);
     await page.getByLabel("Payment reference").fill(`PAY-${runId}`);
     await page.getByLabel("Finance note").fill("Paid per contractor terms.");

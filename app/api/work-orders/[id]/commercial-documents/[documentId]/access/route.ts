@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 type Context = { params: Promise<{ id: string; documentId: string }> };
 
 export async function POST(_: Request, { params }: Context) {
-  if (!await getCurrentIdentity()) return NextResponse.json({ ok: false, code: "AUTHENTICATION_REQUIRED", message: "Authentication is required." }, { status: 401 });
+  const identity = await getCurrentIdentity();
+  if (!identity) return NextResponse.json({ ok: false, code: "AUTHENTICATION_REQUIRED", message: "Authentication is required." }, { status: 401 });
   const { id, documentId } = await params;
   const supabase = await createClient();
   const commercial = await supabase.from("work_order_commercial_documents").select("storage_path,original_filename").eq("id", documentId).eq("work_order_id", id).is("deleted_at", null).maybeSingle();
@@ -15,6 +16,8 @@ export async function POST(_: Request, { params }: Context) {
   if (commercial.error || finalCost?.error || !data) return NextResponse.json({ ok: false, code: "NOT_FOUND", message: "Commercial document was not found." }, { status: 404 });
   const signed = await createAdminClient().storage.from("field-evidence").createSignedUrl(data.storage_path, 300);
   if (signed.error || !signed.data?.signedUrl) return NextResponse.json({ ok: false, code: "DOCUMENT_UNAVAILABLE", message: "Commercial document is unavailable." }, { status: 503 });
+  // D-41 (7 Nov 2026): Finance must open the invoice before confirming receipt; record that it was opened.
+  if (identity.role === "finance" && commercial.data) await supabase.rpc("record_invoice_opened", { p_work_order_id: id, p_document_id: documentId });
   return NextResponse.json({ ok: true, url: signed.data.signedUrl, filename: data.original_filename });
 }
 

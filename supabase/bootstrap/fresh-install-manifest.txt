@@ -85,3 +85,4 @@ supabase/migrations/20261105140000_technician_raises_cancelled_again.sql
 supabase/migrations/20261106100000_record_emergency_work_done.sql
 supabase/migrations/20261106120000_contractor_admission.sql
 supabase/migrations/20261107100000_notices_and_finance_register.sql
+supabase/migrations/20261107120000_payment_record_controls.sql

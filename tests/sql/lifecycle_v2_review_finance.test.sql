@@ -281,9 +281,15 @@ begin
   perform pg_temp.assert_true(public.record_work_order_finance_payment(wo,'{"paid_amount":620,"payment_reference":"PAY-1","payment_note":"x"}')->>'code'='ACCESS_DENIED','Administrator cannot record payment');
   perform pg_temp.act(pg_temp.u(12));
   perform pg_temp.assert_true(public.record_work_order_finance_payment(wo,'{"paid_amount":620,"payment_reference":"PAY-1","payment_note":"x"}')->>'code'='INVOICE_NOT_RECEIVED','payment needs invoice receipt');
+  perform pg_temp.assert_true(public.mark_work_order_invoice_received(wo)->>'code'='INVOICE_NOT_OPENED','Finance must open the invoice before confirming receipt (D-41)');
+  reset role;
+  r:=jsonb_build_object('doc',(select id from public.work_order_commercial_documents where work_order_id=wo and document_type='invoice' and deleted_at is null));
+  set local role authenticated;
+  perform public.record_invoice_opened(wo,(r->>'doc')::uuid);
   perform pg_temp.assert_true(public.mark_work_order_invoice_received(wo,((now() at time zone 'Asia/Singapore')::date+1))->>'code'='VALIDATION_ERROR','received date cannot be in the future');
   r:=public.mark_work_order_invoice_received(wo);
   perform pg_temp.assert_true((r->>'ok')::boolean and r->'payment'->>'payment_due_at' is not null,'Finance confirms receipt; due date set');
+  perform pg_temp.assert_true(public.record_work_order_finance_payment(wo,jsonb_build_object('paid_amount',620,'payment_reference','PAY-1','payment_note','x','paid_at',(now()+interval '8 hours')::text))->>'code'='VALIDATION_ERROR','a payment time later than now is refused (D-41)');
   perform pg_temp.assert_true(exists(select 1 from public.work_order_finance_tracker() t where t.work_order_id=wo and t.payment_status='invoice_received'),'tracker shows invoice received');
   perform pg_temp.act(pg_temp.u(4));
   perform pg_temp.assert_true(not exists(select 1 from public.work_order_finance_tracker()),'tracker hidden from non-Finance roles');

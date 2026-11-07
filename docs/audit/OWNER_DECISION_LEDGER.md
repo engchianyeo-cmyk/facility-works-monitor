@@ -764,6 +764,43 @@ access to the directory." and "Proceed as per your suggestion" (build after the 
 3. The Technician in charge of a Work Order has read-only access to the directory for that facility (linked from the
    Work Order).
 
+### D-41 Payment records Finance can trust — 7 November 2026 (owner: "Yes on D-41")
+
+Found in UAT: WO-TEST-007 (Sunvane) was marked paid with the invoice number and payment reference of WO-TEST-010
+(VQ-INV-2026-1219, FS-FAST-20261030-0418, filled in by the browser's autofill), and with a payment time 8 hours late
+(the "Paid on" time was sent without its time zone). Finance could also confirm an invoice without opening it.
+Owner: "Yes on D-41. WO-TEST-012 and FW-2026-0003 be marked as test data."
+
+1. Finance must open the contractor invoice (button on the Work Order) and tick "I have checked the invoice against
+   the approved amount" before "Confirm Invoice Received"; the app records who opened it and when.
+2. An invoice number already recorded on another payment, or a payment reference already used, is refused, naming
+   the Work Order and contractor it belongs to. Browser autofill is off for both fields.
+3. "Paid on" is sent with its time zone and cannot be in the future (5 minutes' allowance).
+4. Work Orders marked as test data leave the Finance tracker and the completed work register (their own Work Order
+   page still shows the For Finance box). WO-TEST-012 and FW-2026-0003 are marked as test data.
+5. WO-TEST-007 is corrected on Preview: invoice SVS-INV-2026-0544 (the Sunvane invoice attached), payment reference
+   FS-UAT-20261107-0007 (fictional UAT reference) and paid at 12:36 SGT; the correction is in the activity log.
+6. Migration `20261107120000_payment_record_controls.sql` (M24); data script
+   `scripts/rollout/preview-d41-corrections-20261107.sql` (dry run by default).
+
+### D-42 Email delivery for UAT (R1-012) — 7 November 2026 16:46
+
+Owner (16:36): Finance "is very busy and has priorities and will not be so free to open up the app regularly", so an
+email should prompt them. Owner (16:46): "Yes, agree to use fmworks.notices@gmail.com".
+
+1. During UAT the app sends email from a dedicated Gmail account, fmworks.notices@gmail.com (created and secured by
+   the owner; its app password is entered by the owner in Vercel and never shared). Before Production it moves to the
+   company's own email domain.
+2. Emails go out at once only when the reader must act (for Finance: contractor invoice uploaded); information-only
+   notices stay on My notices.
+3. A daily reminder email lists invoices not yet confirmed and payments due within 7 days or overdue.
+4. The Administrator's notices page shows each email's delivery status. Repeat notices for the same Work Order and
+   event show once, with the latest time.
+5. Build after D-41 is applied and verified.
+6. Update 17:23: the Gmail sign-up code never arrived. Owner: "Shall signup for a yahoo account,
+   fmworks.notices@yahoo.com instead?" — agreed. The sending account is fmworks.notices@yahoo.com (Yahoo app
+   password), which supersedes the Gmail account in item 1.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
@@ -884,7 +921,7 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 ## D. Decisions still open (not recoverable locally)
 
 1. ~~Emergency commercial exception (R1-003)~~ resolved by D-01.6 and D-03.3.
-2. Operational email: provider or accept `NOT_CONFIGURED` (R1-012).
+2. ~~Operational email: provider or accept `NOT_CONFIGURED` (R1-012)~~ decided by D-42 (Yahoo Mail account for UAT, company domain before Production).
 3. Disposition of untracked `0011_secure_legacy_public_tables.sql` (R1-010).
 4. Vercel deployment-protection access for hosted UAT (R1-009).
 5. ~~B-03 and B-05~~ resolved by D-01/D-02 on 20 Oct. Follow-up questions: see chat 20 Oct.

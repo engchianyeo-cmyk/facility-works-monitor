@@ -66,6 +66,10 @@ select pg_temp.assert_true(
   public.record_work_order_finance_payment('08000000-0000-4000-8000-000000000012','{"paid_amount":620,"payment_reference":"WP2A-EARLY","payment_note":"Before receipt."}'::jsonb)->>'code'='INVOICE_NOT_RECEIVED',
   'payment cannot be recorded before Finance receives the invoice'
 );
+reset role;
+update public.contractor_payment_assessments set invoice_opened_at=pg_catalog.now(), invoice_opened_by='f1a00000-0000-4000-8000-000000000001'
+where work_order_id='08000000-0000-4000-8000-000000000012';
+set local role authenticated;
 select pg_temp.assert_true(
   (public.mark_work_order_invoice_received('08000000-0000-4000-8000-000000000012')->>'ok')::boolean,
   'Finance confirms invoice receipt'

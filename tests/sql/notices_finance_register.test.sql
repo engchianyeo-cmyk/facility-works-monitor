@@ -67,4 +67,31 @@ do $t$ begin
   perform pg_temp.assert_true((select register_status from public.finance_completed_work_register((select id from ids where name='overdue')))='overdue','a payment past its due date is overdue');
   perform pg_temp.assert_true(not exists(select 1 from public.finance_completed_work_register((select id from ids where name='live'))),'work not yet completed is not in the register');
 end;$t$;
+
+-- D-41: duplicate payment references and invoice numbers are refused; test data leaves Finance's lists.
+do $t$ declare r jsonb; path text; begin
+  perform pg_temp.act(pg_temp.u(6)); set local role authenticated;
+  r:=public.record_work_order_finance_payment((select id from ids where name='overdue'),jsonb_build_object('paid_amount',100,'payment_reference','FS-D38-0001','payment_note','Paid'));
+  perform pg_temp.assert_true((r->>'ok')::boolean,'Finance records the first payment: '||coalesce(r->>'message',''));
+  r:=public.record_work_order_finance_payment((select id from ids where name='contract'),jsonb_build_object('paid_amount',565,'payment_reference','fs-d38-0001 ','payment_note','Paid'));
+  perform pg_temp.assert_true(r->>'code'='DUPLICATE_PAYMENT_REFERENCE' and r->>'message' like '%already recorded on%','a payment reference used on another payment is refused: '||coalesce(r->>'message',''));
+  reset role;
+  insert into ids select 'dup', (public.create_work_order(jsonb_build_object('title','D38 dup','location','Plant room','facility_id',(select facility_id from f)))->'work_order'->>'id')::uuid
+    from (select pg_temp.act(pg_temp.u(1))) x;
+  update public.work_orders set status='reviewed', reviewed_at=now(), assigned_technician_id=pg_temp.u(1), assigned_vendor_id=(select id from ids where name='vendor') where id=(select id from ids where name='dup');
+  insert into public.contractor_payment_assessments(work_order_id,vendor_id,status,assessed_amount) values ((select id from ids where name='dup'),(select id from ids where name='vendor'),'approved_for_payment',80);
+  path:='commercial/work-order/'||(select id from ids where name='dup')::text||'/inv.pdf';
+  insert into storage.objects(bucket_id,name) values('field-evidence',path);
+  perform pg_temp.act(pg_temp.u(1)); set local role authenticated;
+  r:=public.register_work_order_invoice((select id from ids where name='dup'),path,'inv.pdf','application/pdf',100,'inv-1',80);
+  perform pg_temp.assert_true(r->>'code'='DUPLICATE_INVOICE_NUMBER' and r->>'message' like '%D38 Contractor%','an invoice number already recorded is refused: '||coalesce(r->>'message',''));
+  r:=public.register_work_order_invoice((select id from ids where name='dup'),path,'inv.pdf','application/pdf',100,'INV-3',80);
+  perform pg_temp.assert_true((r->>'ok')::boolean,'a new invoice number is accepted');
+  reset role;
+  insert into public.work_order_test_data(work_order_id,reason) values ((select id from ids where name='overdue'),'D38 test record');
+  perform pg_temp.act(pg_temp.u(6)); set local role authenticated;
+  perform pg_temp.assert_true(not exists(select 1 from public.finance_completed_work_register() where work_order_id=(select id from ids where name='overdue')),'test data leaves the register');
+  perform pg_temp.assert_true(not exists(select 1 from public.work_order_finance_tracker() where work_order_id=(select id from ids where name='overdue')),'test data leaves the Finance tracker');
+  perform pg_temp.assert_true(exists(select 1 from public.finance_completed_work_register((select id from ids where name='overdue'))),'a test Work Order still shows its own Finance box');
+end;$t$;
 rollback;
