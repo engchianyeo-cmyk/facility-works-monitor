@@ -876,6 +876,10 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 7 Nov 00:45 | `release:verify` PASS (30 browser tests, 5.6 min); commit `fc2eb92` pushed (D-37 with M22) | Owner |
 | 7 Nov 00:5x | Backup taken with `pg_dump --role=postgres -n public -n supabase_migrations`: `.git/preview-backup-20261107-pre-m22.sql` (2,593,409 bytes) | Owner, guided |
 | 7 Nov 00:5x | Increment applied (sha256 `16a89a3e…`): `20261106120000` contractor admission (D-37, M22); preflight 71; ledger now 72; COMMIT | Owner, guided |
+| 7 Nov 01:5x | Contractor script `preview-uat-contractors-20261106.sql` applied (dry run, then apply) for WO-TEST-007's facility: Kelvinbay, Polarline, Coolharbour, Gensteady, Aquaroute and Sunvane (all "(UAT)") added and approved | Owner, guided |
+| 7 Nov 15:5x | `release:verify` PASS (30 browser tests, 5.7 min); commit `a8cb83d` pushed (D-38, D-39 with M23; timeline and list fixes) | Owner |
+| 7 Nov 15:5x | Backup `.git/preview-backup-20261107-pre-m23.sql` (2,710,241 bytes, `--role=postgres`) | Owner, guided |
+| 7 Nov 15:5x | Increment applied (sha256 `7958caa0…`): `20261107100000` notices and Finance register (D-38, D-39, M23); preflight 72; ledger now 73; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 
