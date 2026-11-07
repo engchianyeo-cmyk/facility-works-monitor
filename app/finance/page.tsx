@@ -37,6 +37,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     <div>
       <h1 className="text-3xl font-black">Contractor payments</h1>
       <p className="mt-2 text-slate-600">Completed Work Orders with an approved payable. Payment terms run from the date Finance receives the invoice. Open a Work Order to confirm receipt or record payment.</p>
+      <p className="mt-3"><Link href="/finance/register" className="inline-block rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800">Completed work register — in-house and contractor, due dates, CSV →</Link></p>
     </div>
     {error && <p role="alert" className="rounded border border-red-300 bg-red-50 p-4 text-red-800">The payment tracker could not be loaded.</p>}
     <nav aria-label="Filter by payment status" className="flex flex-wrap gap-2">

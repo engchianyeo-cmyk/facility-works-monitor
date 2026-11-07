@@ -522,3 +522,53 @@ describe("Contractor admission screens (D-37, UAT 6 Nov 2026)", () => {
     expect(readFileSync("components/work-orders/trial-evaluation.tsx", "utf8")).toContain("Action needed — score this trial job");
   });
 });
+
+describe("A Draft not ready to submit points to what is missing (UAT 7 Nov 2026)", () => {
+  it("sends the submit step's link to the first missing item, not to the Submit button", () => {
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page).toContain('const draftOutstanding = status === "draft" && approvalReadiness ? draftNextSteps(approvalReadiness.missing_requirements, id) : [];');
+    expect(page).toContain("finish the Draft first — ${first.label}${more} — then submit it for approval");
+    expect(page).toContain("pointToOutstanding(step.key, responsibilityFor(");
+  });
+});
+
+describe("Only the person whose turn it is gets a link (UAT 7 Nov 2026)", () => {
+  it("shows others that there is nothing for them to do instead of linking to someone else's section", () => {
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page).toContain("Nothing for you to do on this step. When it is your turn, this box turns red with a link.");
+    expect(page).toContain("{isNext && who?.viewerIsResponsible && <a href={who.href}");
+    expect(page).not.toContain('"Go to the section"');
+  });
+});
+
+describe("My notices, bell and the Administrator view (D-38, UAT 7 Nov 2026)", () => {
+  it("lists the reader's notices with what is waiting for them and marks them read", () => {
+    const page = readFileSync("app/notices/page.tsx", "utf8");
+    expect(page).toContain('.eq("recipient_profile_id", identity.userId)');
+    expect(page).toContain("waitingForReader(order, { id: identity.userId, role: identity.role })");
+    expect(readFileSync("components/notices/notices-list.tsx", "utf8")).toContain("Open and act →");
+    expect(readFileSync("app/api/notices/read/route.ts", "utf8")).toContain('rpc("mark_my_notices_read"');
+    expect(readFileSync("components/site-header.tsx", "utf8")).toContain('href="/notices"');
+    expect(readFileSync("app/administration/notices/page.tsx", "utf8")).toContain('if (identity.role !== "administrator")');
+  });
+});
+
+describe("Finance summary and completed work register (D-39, UAT 7 Nov 2026)", () => {
+  it("shows Finance what it needs on each Work Order and in one register with due dates", () => {
+    const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
+    expect(page).toContain('supabase.rpc("finance_completed_work_register", { p_work_order_id: id })');
+    expect(page).toContain("{financeSummaryEl}");
+    const register = readFileSync("app/finance/register/page.tsx", "utf8");
+    expect(register).toContain('supabase.rpc("finance_completed_work_register")');
+    expect(register).toContain("Download as spreadsheet (CSV)");
+    expect(readFileSync("app/finance/page.tsx", "utf8")).toContain('href="/finance/register"');
+  });
+});
+
+describe("Work Orders list shows no 'null' and the real Technician (UAT 7 Nov 2026)", () => {
+  it("leaves out a missing level and reads the assigned Technician's name", () => {
+    const list = readFileSync("app/work-orders/page.tsx", "utf8");
+    expect(list).toContain("[order.facility_area.level, `${order.facility_area.area_code} ${order.facility_area.name}`].filter(Boolean).join(\" · \")");
+    expect(list).toContain("technician:profiles!work_orders_assigned_technician_id_fkey(display_name)");
+  });
+});

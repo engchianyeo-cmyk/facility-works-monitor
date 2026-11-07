@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentAccountIdentity } from "@/lib/auth";
 import { operationalLabel } from "@/lib/product-terminology";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function SiteHeader() {
   // The global header must reflect the authenticated account even when a
@@ -10,6 +11,18 @@ export default async function SiteHeader() {
   const identity = await getCurrentAccountIdentity();
   const management = identity && ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role);
   const contractorAdmin = identity && ["supervisor", "facility_manager", "administrator"].includes(identity.role);
+  // D-38 (7 Nov 2026): unread notices for the bell. Missing before the database update; then shown without a number.
+  let unreadNotices = 0;
+  if (identity) {
+    try {
+      const supabase = await createClient();
+      const { count } = await supabase.from("notification_outbox").select("id", { count: "exact", head: true })
+        .eq("recipient_profile_id", identity.userId).is("read_at", null);
+      unreadNotices = count ?? 0;
+    } catch {
+      unreadNotices = 0;
+    }
+  }
 
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -45,6 +58,9 @@ export default async function SiteHeader() {
         <nav className="flex flex-wrap items-center gap-2" aria-label="Main navigation">
           <Link href="/" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Home</Link>
           <Link href="/work-orders" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Work Orders</Link>
+          {identity && <Link href="/notices" aria-label={unreadNotices ? `Notices, ${unreadNotices} new` : "Notices"} className="relative rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            Notices{unreadNotices > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-black text-white">{unreadNotices > 99 ? "99+" : unreadNotices}</span>}
+          </Link>}
           {identity && <Link href="/assets" className="rounded-lg px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">Assets</Link>}
           {identity && <Link href="/drawings" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Drawings</Link>}
           {identity && <Link href="/operations" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Operations</Link>}

@@ -5,6 +5,8 @@ import WorkOrderDrawings from "@/components/work-order-drawings";
 import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace";
 import ContractorNeeded from "@/components/work-orders/contractor-needed";
 import TrialEvaluation from "@/components/work-orders/trial-evaluation";
+import FinanceSummary from "@/components/work-orders/finance-summary";
+import type { RegisterRow } from "@/lib/finance-register";
 import EvidencePanel from "@/components/evidence/evidence-panel";
 import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
 import TechnicianPicker from "@/components/work-orders/technician-picker";
@@ -13,7 +15,7 @@ import ActualWorkTimes from "@/components/work-orders/actual-work-times";
 import TechnicianEndorsement, { type Endorsement, type QuotationSummary } from "@/components/work-orders/technician-endorsement";
 import WorkCompletionSteps, { type CompletionStep } from "@/components/work-orders/work-completion-steps";
 import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel } from "@/lib/facility-settings";
-import { nextStepKey, responsibilityFor, type ResponsibilityContext, type TimelineStepKey } from "@/lib/work-orders/timeline-responsibility";
+import { nextStepKey, responsibilityFor, type Responsibility, type ResponsibilityContext, type TimelineStepKey } from "@/lib/work-orders/timeline-responsibility";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import DraftNextSteps from "@/components/work-orders/draft-next-steps";
@@ -41,7 +43,7 @@ import {
 export const revalidate = 0;
 
 /** Lifecycle v2 steps shown in the Workflow timeline (stage names follow Roles & Stages). */
-function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission: string | null; review: string | null }, endorsementSetting: string) {
+function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission: string | null; review: string | null }, endorsementSetting: string, invoiceUploadedAt: string | null = null) {
   const at = (value: unknown) => (typeof value === "string" && value ? value : null);
   const steps: Array<{ key: string; label: string; at: string | null; note?: string }> = [
     { key: "created", label: `${workOrderStatusLabel("draft")} created`, at: at(order.created_at) },
@@ -57,6 +59,10 @@ function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission:
   if (["before_review", "both"].includes(endorsementSetting) || order.emergency_work) steps.push({ key: "endorse-review", label: "Second Technician endorsed (work and final cost)", at: endorsedAt.review });
   steps.push(
     { key: "reviewed", label: workOrderStatusLabel("reviewed"), at: at(order.reviewed_at) },
+  );
+  // UAT 7 Nov 2026: a contractor job shows the invoice upload as its own step, so Closed is clearly Finance's payment.
+  if (!order.in_house_work) steps.push({ key: "invoiced", label: "Contractor invoice uploaded", at: invoiceUploadedAt });
+  steps.push(
     { key: "closed", label: `${workOrderStatusLabel("closed")} (paid or no payment due)`, at: at(order.closed_at) },
   );
   if (at(order.cancelled_at)) steps.push({ key: "cancelled", label: workOrderStatusLabel("cancelled"), at: at(order.cancelled_at) });
@@ -289,7 +295,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const endorsementStageValue = (facilitySettingResult.data as { endorsement_stage?: string } | null)?.endorsement_stage ?? DEFAULT_ENDORSEMENT_STAGE;
   const endorsementStage = endorsementStageLabel(endorsementStageValue);
   // D-34: who is responsible for each timeline step, and which step is next.
-  const paymentRow = status === "reviewed" ? await supabase.from("contractor_payment_assessments").select("invoice_uploaded_at").eq("work_order_id", id).maybeSingle() : { data: null, error: null };
+  const paymentRow = ["reviewed", "closed"].includes(status) ? await supabase.from("contractor_payment_assessments").select("invoice_uploaded_at").eq("work_order_id", id).maybeSingle() : { data: null, error: null };
   const designatedApproverId = (facilitySettingResult.data as { designated_approver_id?: string | null } | null)?.designated_approver_id ?? null;
   const responsibilityContext: ResponsibilityContext = {
     technician1Name: order.assigned_technician_id ? nameById.get(order.assigned_technician_id) ?? resolvedAssignee ?? null : null,
@@ -303,9 +309,18 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     invoiceUploaded: Boolean((paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at),
     viewer: { id: identity.userId, role: identity.role },
   };
-  const timeline = timelineSteps(order, latestEndorsement, endorsementStageValue);
+  const timeline = timelineSteps(order, latestEndorsement, endorsementStageValue, (paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at ?? null);
   const nextKey = nextStepKey(timeline, status);
-  const nextResponsibility = nextKey ? responsibilityFor(nextKey as TimelineStepKey, responsibilityContext) : null;
+  // UAT 7 Nov 2026: while a Draft is not ready to submit, the submit step points to the first missing item
+  // (e.g. Proposal / Quotation), not to the Submit button, which is not there yet.
+  const draftOutstanding = status === "draft" && approvalReadiness ? draftNextSteps(approvalReadiness.missing_requirements, id) : [];
+  const pointToOutstanding = (key: string, responsibility: Responsibility): Responsibility => {
+    if (key !== "submitted" || draftOutstanding.length === 0) return responsibility;
+    const first = draftOutstanding[0];
+    const more = draftOutstanding.length > 1 ? ` (${draftOutstanding.length} items to do)` : "";
+    return { ...responsibility, action: `finish the Draft first — ${first.label}${more} — then submit it for approval`, href: first.href ?? "#next-steps", section: "what is missing" };
+  };
+  const nextResponsibility = nextKey ? pointToOutstanding(nextKey, responsibilityFor(nextKey as TimelineStepKey, responsibilityContext)) : null;
   const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status);
   const actualTimes = { started: (order as { actual_work_started_at?: string | null }).actual_work_started_at ?? null, ended: (order as { actual_work_ended_at?: string | null }).actual_work_ended_at ?? null };
   const actualTimesEditable = order.assigned_technician_id === identity.userId && ["assigned", "in_progress", "completed"].includes(status);
@@ -460,6 +475,14 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         scores={scored.map((item) => ({ capacity: item.scorer_capacity, quality: item.quality, onTime: item.on_time, safety: item.safety, documents: item.documents, price: item.price, comments: item.comments }))} />;
     }
   }
+  // D-39 (7 Nov 2026): Finance and the Administrator see a summary of what Finance needs at the top of the page.
+  let financeSummaryEl: ReactNode = null;
+  if (["finance", "administrator"].includes(identity.role)) {
+    const { data: financeRows, error: financeError } = ["reviewed", "closed"].includes(status)
+      ? await supabase.rpc("finance_completed_work_register", { p_work_order_id: id })
+      : { data: [], error: null };
+    if (!financeError) financeSummaryEl = <FinanceSummary row={((financeRows ?? []) as RegisterRow[])[0] ?? null} status={status} />;
+  }
   const workspaceEl = <>
     <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />
     {showContractorNeeded && <ContractorNeeded workOrderId={id} requests={contractorRequests} />}
@@ -539,6 +562,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         }}
       />
 
+      {financeSummaryEl}
+
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="mb-4 font-semibold">Workflow timeline</h2>
         {nextResponsibility && <div role="status" className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg p-4 ${nextResponsibility.viewerIsResponsible ? "border-4 border-red-600 bg-red-50" : "border-2 border-amber-400 bg-amber-50"}`}>
@@ -548,11 +573,11 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           </div>
           {nextResponsibility.viewerIsResponsible
             ? <a href={nextResponsibility.href} className="min-h-11 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-black text-white">Go to {nextResponsibility.section} →</a>
-            : <a href={nextResponsibility.href} className="min-h-11 rounded-lg border border-amber-600 bg-white px-4 py-2.5 text-sm font-bold text-amber-900">See {nextResponsibility.section} →</a>}
+            : <p className="max-w-xs text-sm text-amber-900">Nothing for you to do on this step. When it is your turn, this box turns red with a link.</p>}
         </div>}
         <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {timeline.map((step) => {
-            const who = step.key === "cancelled" ? null : responsibilityFor(step.key as TimelineStepKey, responsibilityContext);
+            const who = step.key === "cancelled" ? null : pointToOutstanding(step.key, responsibilityFor(step.key as TimelineStepKey, responsibilityContext));
             const isNext = step.key === nextKey;
             return (
               <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : isNext ? "border-2 border-red-600 bg-white" : "border-slate-200 bg-slate-50"}`}>
@@ -560,7 +585,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
                 <p className="font-semibold">{step.label}</p>
                 <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
                 {who && who.role !== "System" && <p className="mt-1 text-xs text-slate-700"><span className="font-semibold">{who.role}:</span> {who.who}</p>}
-                {isNext && who && <a href={who.href} className="mt-2 inline-block text-xs font-bold text-red-700 underline">{who.viewerIsResponsible ? "Do this now" : "Go to the section"} →</a>}
+                {isNext && who?.viewerIsResponsible && <a href={who.href} className="mt-2 inline-block text-xs font-bold text-red-700 underline">Do this now →</a>}
               </li>
             );
           })}

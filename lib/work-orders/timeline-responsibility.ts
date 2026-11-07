@@ -4,7 +4,7 @@
  */
 export type TimelineStepKey =
   | "created" | "endorse-submission" | "submitted" | "approved" | "started" | "finished"
-  | "completed" | "endorse-review" | "reviewed" | "closed" | "cancelled";
+  | "completed" | "endorse-review" | "reviewed" | "invoiced" | "closed" | "cancelled";
 
 export type ResponsibilityContext = {
   technician1Name: string | null;
@@ -50,6 +50,7 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
     case "completed": return tech1("submit Physical Completion", "#execution-title", "Technician execution");
     case "endorse-review": return tech2("review", "check the work and final cost, then endorse");
     case "reviewed": return approver("review the work and approve it as Completed");
+    case "invoiced": return tech1("upload the contractor invoice", "#payment-heading", "Contractor Invoice and Payment");
     case "closed":
       if (ctx.inHouse) return { role: "System", who: "closes automatically", action: "close when approved as Completed (in-house, no payment)", href: "#execution-title", section: "Work Order actions", viewerIsResponsible: false };
       if (!ctx.invoiceUploaded) return tech1("upload the contractor invoice", "#payment-heading", "Contractor Invoice and Payment");

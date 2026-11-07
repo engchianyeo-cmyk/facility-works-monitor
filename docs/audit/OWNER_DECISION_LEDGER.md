@@ -715,6 +715,55 @@ Built (6 Nov 2026), migration `20261106120000_contractor_admission.sql` (M22):
 Interim (6 Nov): the six UAT contractors from the test documents are added to Preview by script
 `scripts/rollout/preview-uat-contractors-20261106.sql`, as fictional, pre-approved test data.
 
+### D-38 My notices page, bell and the Administrator's notice view — 7 November 2026 11:13
+
+Owner (10:28): "So there is not to view the email status except for the way you have instructed me to query via coded
+instruction?" Owner (10:52): "where can i see the notices sent to him? Is there a single page to log in all the notices
+for his action and a link to his email messages to connect to this app?" Owner (11:13): "Shall we proceed?"
+
+1. Every user has **My notices** (bell "Notices" with a red unread count in the header): every notice sent to them,
+   newest first, with an Open link to the right section of the Work Order; Work Orders still waiting for them are
+   listed first, outlined in red; opening a notice marks it read; "Mark all as read".
+2. Administrators have **All notices and delivery status**, filterable by status and event.
+3. Email delivery stays open (R1-012). When connected, each email will carry the same text and an "Open in FMWorks"
+   link. Until then notices are delivered in the app.
+4. Migration `20261107100000_notices_and_finance_register.sql` (M23), shared with D-39.
+
+### D-39 Finance summary on each Work Order and the completed work register — 7 November 2026 11:13
+
+Owner (11:03): Finance could not find the invoice on FW-2026-0005 and the work done description was not clear.
+Owner (11:11): "it may make sense to have a summary of completed work orders and their status whether in-house or
+contracting work have been carried out with dates of completion and the grace period to carry out the payment following
+invoice submission."
+
+1. Finance and Administrators see a **For Finance** box at the top of each completed Work Order: in-house (no invoice,
+   no payment) or the contractor; who approved it and when; who approved it as Completed and when; the work performed,
+   hours and actual times; approved and final amounts; the invoice (before GST, GST 9%, total; uploaded and received
+   dates); payment due date and days left, or paid date and reference; a red action when Finance must act.
+2. **Finance › Completed work register**: every Work Order approved as Completed, in-house or contractor, with facility,
+   who approved it, completion date, invoice, received date, payment due date with days left (amber within 7 days, red
+   overdue), paid and status; totals (outstanding, due in 7 days, overdue, paid this month); filters by status,
+   in-house/contractor, month and facility; CSV download.
+3. Payment terms run from the date Finance confirms the invoice was received, using the standard terms until each
+   facility's own terms are set (D-28).
+
+### D-40 Facility Overview and Contractor directory — 7 November 2026 11:39 (to build after D-38/D-39 are verified)
+
+Owner (11:25): "a summary page can also be provided to the Administrator, Approver and Supervisor for them to have a
+good overview of the facility services and work order carried out. This includes a directory of contractor's contact
+list to call for emergencies/ normal ops." Owner (11:39): "Yes, agree the Technician in charge of the work order has
+access to the directory." and "Proceed as per your suggestion" (build after the D-38/D-39 batch is verified).
+
+1. **Facility Overview** for Administrators, Approvers, Supervisors and Facility Managers, per facility: Work Order
+   counts by stage (incl. overdue and emergencies this month), this month and year to date (completed in-house and by
+   contractor, contractor spend before GST, average days approval to completion, awaiting payment and overdue),
+   services with their jobs and approved contractors (services without an approved contractor flagged red), and the
+   last 20 completed jobs.
+2. **Contractor directory**: contractors approved for the facility by service, contact person, phone (tap to call),
+   email, payment terms, listed or on trial; emergency-available contractors first; link to the On-call roster.
+3. The Technician in charge of a Work Order has read-only access to the directory for that facility (linked from the
+   Work Order).
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

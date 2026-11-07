@@ -24,6 +24,7 @@ describe("D-34 timeline responsibility", () => {
     expect(responsibilityFor("closed", base)).toMatchObject({ role: "Technician 1", href: "#payment-heading", viewerIsResponsible: true });
     expect(responsibilityFor("closed", { ...base, invoiceUploaded: true, viewer: { id: "f1", role: "finance" } })).toMatchObject({ role: "Finance", viewerIsResponsible: true });
     expect(responsibilityFor("closed", { ...base, inHouse: true }).role).toBe("System");
+    expect(responsibilityFor("invoiced", base)).toMatchObject({ role: "Technician 1", action: "upload the contractor invoice", href: "#payment-heading" });
   });
   it("gives the endorsement to Technician 2, any other Technician, and links to the endorsement panel", () => {
     const r = responsibilityFor("endorse-review", { ...base, endorserName: { submission: null, review: null }, viewer: { id: "t2", role: "technician" } });
