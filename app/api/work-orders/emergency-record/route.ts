@@ -3,9 +3,11 @@ import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult, WorkOrderRecord } from "@/lib/work-orders/types";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 // D-36 (6 Nov 2026): record emergency work that has already been carried out, in one step.
 export async function POST(request: NextRequest) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   try {
     if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
     let payload: unknown;

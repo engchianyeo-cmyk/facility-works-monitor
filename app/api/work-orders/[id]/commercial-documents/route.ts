@@ -3,11 +3,13 @@ import { getCurrentIdentity } from "@/lib/auth";
 import { cleanFilename, validateEvidenceFile } from "@/lib/evidence";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 type Context = { params: Promise<{ id: string }> };
 const fail = (code: string, message: string, status = 400) => NextResponse.json({ ok: false, code, message }, { status });
 
 export async function POST(request: NextRequest, { params }: Context) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   const identity = await getCurrentIdentity();
   if (!identity) return fail("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;

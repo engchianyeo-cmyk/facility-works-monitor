@@ -5,11 +5,13 @@ import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/
 import type { RpcResult, WorkOrderRecord } from "@/lib/work-orders/types";
 import { isAssignmentType } from "@/lib/work-orders/validation";
 import { notifyAssignment } from "@/lib/notifications/provider";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 type RouteContext = { params: Promise<{ id: string }> };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   const identity = await getCurrentIdentity();
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   let body: Record<string, unknown>;

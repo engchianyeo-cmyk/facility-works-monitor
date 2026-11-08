@@ -3,11 +3,13 @@ import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult } from "@/lib/work-orders/types";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 type Context = { params: Promise<{ id: string }> };
 
 /** D-11: a second Technician of the facility endorses the Work Order as authentic (endorse_work_order). */
 export async function POST(request: NextRequest, { params }: Context) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   try {
     if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
     const body = await request.json().catch(() => null) as { statement?: unknown; checklist?: unknown } | null;

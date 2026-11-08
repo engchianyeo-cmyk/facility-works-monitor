@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult, WorkOrderRecord } from "@/lib/work-orders/types";
 import { isWorkOrderAction } from "@/lib/work-orders/validation";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -47,6 +48,7 @@ async function transitionWorkOrder(request: NextRequest, { params }: RouteContex
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   try {
     return await transitionWorkOrder(request, context);
   } catch {

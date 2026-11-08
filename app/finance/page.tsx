@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 export const revalidate = 0;
 
@@ -25,6 +26,7 @@ const day = (value: string | null) => value ? new Intl.DateTimeFormat("en-SG", {
 export default async function FinancePage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/finance");
+  scheduleEmailDispatch(); // D-42: also sends the daily payment reminder from 8 am
   if (!["finance", "administrator"].includes(identity.role)) return <main className="p-8"><h1 className="text-2xl font-bold">Access denied</h1><p>The payment tracker is available to Finance and the Administrator.</p></main>;
   const { status } = await searchParams;
   const supabase = await createClient();

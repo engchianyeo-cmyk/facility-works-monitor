@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export type NoticeItem = {
-  id: string; createdAt: string; read: boolean; emailStatus: string; workOrderId: string | null; workOrderLabel: string;
+  id: string; ids: string[]; repeats: number; createdAt: string; read: boolean; emailStatus: string; workOrderId: string | null; workOrderLabel: string;
   text: string; href: string; waiting: boolean;
 };
 
@@ -22,7 +22,7 @@ export default function NoticesList({ items }: { items: NoticeItem[] }) {
   const unread = items.filter((item) => !item.read).length;
 
   async function open(item: NoticeItem) {
-    if (!item.read) await markRead([item.id]);
+    if (!item.read) await markRead(item.ids);
     if (item.href) router.push(item.href); else router.refresh();
   }
   async function markAll() {
@@ -57,9 +57,9 @@ export default function NoticesList({ items }: { items: NoticeItem[] }) {
               <div className="min-w-0">
                 <p className={item.read ? "text-slate-800" : "font-black text-slate-900"}>
                   {!item.read && <span className="mr-2 rounded bg-blue-700 px-2 py-0.5 text-xs font-black text-white">New</span>}
-                  {item.workOrderLabel} — {item.text}
+                  {item.workOrderLabel} — {item.text}{item.repeats > 1 ? ` (${item.repeats} times)` : ""}
                 </p>
-                <p className="text-xs text-slate-500">{sgt(item.createdAt)} · email: {item.emailStatus === "pending" ? "not sent (email not connected)" : item.emailStatus}</p>
+                <p className="text-xs text-slate-500">{sgt(item.createdAt)} · email: {item.emailStatus}</p>
               </div>
               {item.href && <button type="button" onClick={() => void open(item)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-blue-800">Open →</button>}
             </li>

@@ -5,6 +5,7 @@ import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/
 import type { RpcResult } from "@/lib/work-orders/types";
 import { invalidFinancialNumber } from "@/lib/work-orders/numeric-validation";
 import { isUuidLike } from "@/lib/work-orders/decision-header";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -69,6 +70,7 @@ export async function GET(_: NextRequest, { params }: Context) {
 }
 
 export async function POST(request: NextRequest, { params }: Context) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   try {
   if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
   const { id } = await params;

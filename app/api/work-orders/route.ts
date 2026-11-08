@@ -1,3 +1,4 @@
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -136,6 +137,7 @@ async function createWorkOrder(request: Request) {
 }
 
 export async function POST(request: Request) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   try {
     return await createWorkOrder(request);
   } catch {

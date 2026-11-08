@@ -800,6 +800,14 @@ email should prompt them. Owner (16:46): "Yes, agree to use fmworks.notices@gmai
 6. Update 17:23: the Gmail sign-up code never arrived. Owner: "Shall signup for a yahoo account,
    fmworks.notices@yahoo.com instead?" — agreed. The sending account is fmworks.notices@yahoo.com (Yahoo app
    password), which supersedes the Gmail account in item 1.
+7. Built 8 Nov 2026 (Yahoo was still holding back the app password on the new account; the owner retries later).
+   Sending is off until the Vercel variables `EMAIL_SMTP_USER` and `EMAIL_SMTP_PASSWORD` exist (Preview only). The app
+   sends through Yahoo's mail server with its own small mail client (no new package). Emails go out right after the
+   action that queued them; Finance's daily reminder goes out from 8 am SGT with the first app activity of the day
+   (there is no scheduler on Preview). Only notices from the previous 24 hours are emailed when sending starts, so
+   the old backlog is not sent. Who gets an email at once: Finance for an uploaded invoice; the Technician when the
+   Work Order is approved, assigned to them or returned to Draft; approvers for submissions, emergency starts and
+   endorsements. Everything else shows "in app only".
 
 ### Preview rollout record — 21 October 2026
 
@@ -917,6 +925,11 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 7 Nov 15:5x | `release:verify` PASS (30 browser tests, 5.7 min); commit `a8cb83d` pushed (D-38, D-39 with M23; timeline and list fixes) | Owner |
 | 7 Nov 15:5x | Backup `.git/preview-backup-20261107-pre-m23.sql` (2,710,241 bytes, `--role=postgres`) | Owner, guided |
 | 7 Nov 15:5x | Increment applied (sha256 `7958caa0…`): `20261107100000` notices and Finance register (D-38, D-39, M23); preflight 72; ledger now 73; COMMIT | Owner, guided |
+| 7 Nov 21:5x | `release:verify` failed 1 unit test: the 30 Oct red-button test expected the old "Confirm Invoice Received" style; D-41 added a greyed-out style until the invoice is opened. Claude updated the test | Owner |
+| 7 Nov 23:1x | `release:verify` PASS; commit `bce4ede` (D-41 with M24; D-42 recorded) | Owner |
+| 7 Nov 23:17 | Backup `.git/preview-backup-20261107-pre-m24.sql` (2,721,621 bytes, `--role=postgres`) | Owner, guided |
+| 7 Nov 23:1x | Increment applied (sha256 `a43d1ac5…`): `20261107120000` payment record controls (D-41, M24); preflight 73; ledger now 74; COMMIT. Commit `bce4ede` pushed afterwards | Owner, guided |
+| 7 Nov 23:21 | Data script `preview-d41-corrections-20261107.sql` (dry run, then apply): WO-TEST-007 invoice VQ-INV-2026-1219 → SVS-INV-2026-0544, payment reference FS-FAST-20261030-0418 → FS-UAT-20261107-0007, paid 20:35 → 12:35 SGT; FW-2026-0003 and WO-TEST-012 marked as test data; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

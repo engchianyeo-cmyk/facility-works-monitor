@@ -3,11 +3,13 @@ import { getCurrentIdentity } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { errorResponse, rpcResponse, transportFailure } from "@/lib/work-orders/api";
 import type { RpcResult, WorkOrderRecord } from "@/lib/work-orders/types";
+import { scheduleEmailDispatch } from "@/lib/notifications/schedule-email";
 
 type Context = { params: Promise<{ id: string }> };
 
 /** D-07: declare (or undo) in-house services while Draft. PostgreSQL checks the preparer rule (set_work_order_in_house). */
 export async function POST(request: NextRequest, { params }: Context) {
+  scheduleEmailDispatch(); // D-42: send any emails this action queued, after the response
   try {
     if (!await getCurrentIdentity()) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication is required.", 401);
     const body = await request.json().catch(() => null) as { in_house?: unknown } | null;
