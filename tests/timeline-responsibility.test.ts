@@ -56,3 +56,14 @@ describe("No contractor payment (UAT 9 Nov 2026)", () => {
     expect(readFileSync("components/work-orders/release-one-workspace.tsx", "utf8")).toContain("No contractor payment on this Work Order.");
   });
 });
+
+describe("Draft with no Technician yet (UAT 9 Nov 2026)", () => {
+  it("gives the Draft steps and the link to the person who created it", () => {
+    const noTech = { ...base, technician1Id: null, technician1Name: null, preparer: { id: "s1", name: "Sam Supervisor" } };
+    const mine = responsibilityFor("submitted", { ...noTech, viewer: { id: "s1", role: "supervisor" } });
+    expect(mine.viewerIsResponsible).toBe(true);
+    expect(mine.who).toContain("Sam Supervisor");
+    expect(responsibilityFor("created", { ...noTech, viewer: { id: "a1", role: "approver" } }).viewerIsResponsible).toBe(false);
+    expect(responsibilityFor("submitted", { ...base, preparer: { id: "s1", name: "Sam" } }).viewerIsResponsible).toBe(true);
+  });
+});

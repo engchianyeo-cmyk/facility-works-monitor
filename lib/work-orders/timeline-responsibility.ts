@@ -13,6 +13,8 @@ export type ResponsibilityContext = {
   endorserName: { submission: string | null; review: string | null };
   inHouse: boolean;
   invoiceUploaded: boolean;
+  /** UAT 9 Nov 2026: who created the Draft. While no Technician is assigned, the Draft steps are theirs. */
+  preparer?: { id: string | null; name: string | null };
   /** UAT 9 Nov 2026: false when no contractor payment exists (no contractor quotation was approved). Absent = true. */
   contractorPayable?: boolean;
   /** The "No payment required" decision on a Work Order without a contractor payment. */
@@ -37,6 +39,13 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
   const isT2 = ctx.viewer.role === "technician" && !isT1;
   const isApprover = APPROVERS.includes(ctx.viewer.role) && !isT1;
   const tech1 = (action: string, href: string, section: string): Responsibility => ({ role: "Technician 1", who: t1, action, href, section, viewerIsResponsible: isT1 });
+  // UAT 9 Nov 2026: a Draft with no Technician yet belongs to whoever created it (e.g. a Supervisor), who must assign the
+  // field-witness Technician and finish it; they get the red box and link.
+  const draftStep = (action: string, href: string, section: string): Responsibility => {
+    if (ctx.technician1Id || !ctx.preparer?.id) return tech1(action, href, section);
+    return { role: "Technician 1", who: `${ctx.preparer.name ?? "the person who created the Draft"} (creator) — no Technician assigned yet`, action, href, section,
+      viewerIsResponsible: ctx.viewer.id === ctx.preparer.id };
+  };
   const tech2 = (stage: "submission" | "review", action: string): Responsibility => ({
     role: "Technician 2", who: ctx.endorserName[stage] ?? "any other Technician of this facility", action,
     href: "#technician-endorsement", section: "Second Technician endorsement", viewerIsResponsible: isT2,
@@ -54,9 +63,9 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
       viewerIsResponsible: isT1 || ["supervisor", "facility_manager", "administrator"].includes(ctx.viewer.role) };
   };
   switch (key) {
-    case "created": return tech1("prepare the Draft", "#next-steps", "Next steps before you submit");
+    case "created": return draftStep("prepare the Draft", "#next-steps", "Next steps before you submit");
     case "endorse-submission": return tech2("submission", "check the Draft and endorse it");
-    case "submitted": return tech1("submit the Work Order for approval", "#execution-title", "Technician execution");
+    case "submitted": return draftStep("submit the Work Order for approval", "#execution-title", "Technician execution");
     case "approved": return approver("approve the Work Order");
     case "started": return tech1("start the work", "#execution-title", "Technician execution");
     case "finished": return tech1("record when the work started and ended", "#actual-work-times", "Actual work times");

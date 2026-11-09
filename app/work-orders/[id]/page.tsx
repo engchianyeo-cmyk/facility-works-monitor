@@ -321,6 +321,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     inHouse: Boolean((order as { in_house_work?: boolean }).in_house_work),
     invoiceUploaded: Boolean((paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at),
     contractorPayable,
+    preparer: { id: (order as { requested_by?: string | null }).requested_by ?? null, name: (order as { requested_by?: string | null }).requested_by ? nameById.get(String((order as { requested_by?: string | null }).requested_by)) ?? null : null },
     noPayment: { status: disposition?.status ?? null, proposedBy: disposition?.proposed_by ?? null },
     viewer: { id: identity.userId, role: identity.role },
   };
