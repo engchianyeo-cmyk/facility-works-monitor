@@ -13,6 +13,10 @@ export type ResponsibilityContext = {
   endorserName: { submission: string | null; review: string | null };
   inHouse: boolean;
   invoiceUploaded: boolean;
+  /** UAT 9 Nov 2026: false when no contractor payment exists (no contractor quotation was approved). Absent = true. */
+  contractorPayable?: boolean;
+  /** The "No payment required" decision on a Work Order without a contractor payment. */
+  noPayment?: { status: string | null; proposedBy: string | null };
   viewer: { id: string; role: string };
 };
 
@@ -40,6 +44,15 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
   const approver = (action: string): Responsibility => ({
     role: "Approver", who: ctx.approverName ?? "the Approver", action, href: "#execution-title", section: "Work Order actions", viewerIsResponsible: isApprover,
   });
+  // UAT 9 Nov 2026: no contractor was approved, so there is no invoice to upload. The Work Order closes once someone
+  // proposes "No payment required" and a different approver approves it.
+  const noPaymentStep = (): Responsibility => {
+    const status = ctx.noPayment?.status ?? null;
+    if (status === "approved") return { role: "System", who: "closes automatically", action: "close now that No payment required is approved", href: "#payment-heading", section: "Contractor Invoice and Payment", viewerIsResponsible: false };
+    if (status === "proposed") return { role: "Approver", who: ctx.approverName ?? "an Approver who did not propose it", action: "approve No payment required (no contractor was paid on this Work Order)", href: "#payment-heading", section: "Contractor Invoice and Payment", viewerIsResponsible: isApprover && ctx.viewer.id !== ctx.noPayment?.proposedBy };
+    return { role: "Technician 1", who: t1, action: "propose No payment required — no contractor was approved, so there is no invoice", href: "#payment-heading", section: "Contractor Invoice and Payment",
+      viewerIsResponsible: isT1 || ["supervisor", "facility_manager", "administrator"].includes(ctx.viewer.role) };
+  };
   switch (key) {
     case "created": return tech1("prepare the Draft", "#next-steps", "Next steps before you submit");
     case "endorse-submission": return tech2("submission", "check the Draft and endorse it");
@@ -50,8 +63,11 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
     case "completed": return tech1("submit Physical Completion", "#execution-title", "Technician execution");
     case "endorse-review": return tech2("review", "check the work and final cost, then endorse");
     case "reviewed": return approver("review the work and approve it as Completed");
-    case "invoiced": return tech1("upload the contractor invoice", "#payment-heading", "Contractor Invoice and Payment");
+    case "invoiced":
+      if (!ctx.inHouse && ctx.contractorPayable === false) return noPaymentStep();
+      return tech1("upload the contractor invoice", "#payment-heading", "Contractor Invoice and Payment");
     case "closed":
+      if (!ctx.inHouse && ctx.contractorPayable === false) return noPaymentStep();
       if (ctx.inHouse) return { role: "System", who: "closes automatically", action: "close when approved as Completed (in-house, no payment)", href: "#execution-title", section: "Work Order actions", viewerIsResponsible: false };
       if (!ctx.invoiceUploaded) return tech1("upload the contractor invoice", "#payment-heading", "Contractor Invoice and Payment");
       return { role: "Finance", who: "Finance", action: "confirm the invoice was received and record the payment", href: "#payment-heading", section: "Contractor Invoice and Payment", viewerIsResponsible: ctx.viewer.role === "finance" };

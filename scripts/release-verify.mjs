@@ -219,6 +219,7 @@ async function main() {
   sql("tests/sql/facility_setup.test.sql");
   sql("tests/sql/contractor_admission.test.sql");
   sql("tests/sql/notices_finance_register.test.sql");
+  sql("tests/sql/site_sla.test.sql");
   const env = {
     ...process.env,
     ...identities,

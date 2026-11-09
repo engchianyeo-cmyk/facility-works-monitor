@@ -6,6 +6,8 @@ import ReleaseOneWorkspace from "@/components/work-orders/release-one-workspace"
 import ContractorNeeded from "@/components/work-orders/contractor-needed";
 import TrialEvaluation from "@/components/work-orders/trial-evaluation";
 import FinanceSummary from "@/components/work-orders/finance-summary";
+import SlaCountdown from "@/components/work-orders/sla-countdown";
+import type { SlaClockRow } from "@/lib/sla/card";
 import type { RegisterRow } from "@/lib/finance-register";
 import EvidencePanel from "@/components/evidence/evidence-panel";
 import DocumentCorrectionControl from "@/components/work-orders/document-correction-control";
@@ -43,7 +45,8 @@ import {
 export const revalidate = 0;
 
 /** Lifecycle v2 steps shown in the Workflow timeline (stage names follow Roles & Stages). */
-function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission: string | null; review: string | null }, endorsementSetting: string, invoiceUploadedAt: string | null = null) {
+function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission: string | null; review: string | null }, endorsementSetting: string, invoiceUploadedAt: string | null = null,
+  noPayable: { approvedAt: string | null } | null = null) {
   const at = (value: unknown) => (typeof value === "string" && value ? value : null);
   const steps: Array<{ key: string; label: string; at: string | null; note?: string }> = [
     { key: "created", label: `${workOrderStatusLabel("draft")} created`, at: at(order.created_at) },
@@ -61,7 +64,9 @@ function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission:
     { key: "reviewed", label: workOrderStatusLabel("reviewed"), at: at(order.reviewed_at) },
   );
   // UAT 7 Nov 2026: a contractor job shows the invoice upload as its own step, so Closed is clearly Finance's payment.
-  if (!order.in_house_work) steps.push({ key: "invoiced", label: "Contractor invoice uploaded", at: invoiceUploadedAt });
+  // UAT 9 Nov 2026: with no contractor payment there is no invoice; the step is the No payment required decision.
+  if (!order.in_house_work && noPayable) steps.push({ key: "invoiced", label: "No payment required (no contractor payment)", at: noPayable.approvedAt });
+  else if (!order.in_house_work) steps.push({ key: "invoiced", label: "Contractor invoice uploaded", at: invoiceUploadedAt });
   steps.push(
     { key: "closed", label: `${workOrderStatusLabel("closed")} (paid or no payment due)`, at: at(order.closed_at) },
   );
@@ -295,7 +300,15 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const endorsementStageValue = (facilitySettingResult.data as { endorsement_stage?: string } | null)?.endorsement_stage ?? DEFAULT_ENDORSEMENT_STAGE;
   const endorsementStage = endorsementStageLabel(endorsementStageValue);
   // D-34: who is responsible for each timeline step, and which step is next.
-  const paymentRow = ["reviewed", "closed"].includes(status) ? await supabase.from("contractor_payment_assessments").select("invoice_uploaded_at").eq("work_order_id", id).maybeSingle() : { data: null, error: null };
+  const [paymentRow, dispositionRow] = ["reviewed", "closed"].includes(status)
+    ? await Promise.all([
+      supabase.from("contractor_payment_assessments").select("id,invoice_uploaded_at").eq("work_order_id", id).maybeSingle(),
+      supabase.from("work_order_financial_dispositions").select("status,proposed_by,approved_at").eq("work_order_id", id).maybeSingle(),
+    ])
+    : [{ data: null, error: null }, { data: null, error: null }];
+  // UAT 9 Nov 2026: a non-in-house Work Order approved as Completed without any contractor payment has nothing to invoice.
+  const disposition = (dispositionRow.error ? null : dispositionRow.data) as { status: string | null; proposed_by: string | null; approved_at: string | null } | null;
+  const contractorPayable = paymentRow.error ? true : Boolean(paymentRow.data);
   const designatedApproverId = (facilitySettingResult.data as { designated_approver_id?: string | null } | null)?.designated_approver_id ?? null;
   const responsibilityContext: ResponsibilityContext = {
     technician1Name: order.assigned_technician_id ? nameById.get(order.assigned_technician_id) ?? resolvedAssignee ?? null : null,
@@ -307,9 +320,12 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     },
     inHouse: Boolean((order as { in_house_work?: boolean }).in_house_work),
     invoiceUploaded: Boolean((paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at),
+    contractorPayable,
+    noPayment: { status: disposition?.status ?? null, proposedBy: disposition?.proposed_by ?? null },
     viewer: { id: identity.userId, role: identity.role },
   };
-  const timeline = timelineSteps(order, latestEndorsement, endorsementStageValue, (paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at ?? null);
+  const timeline = timelineSteps(order, latestEndorsement, endorsementStageValue, (paymentRow.data as { invoice_uploaded_at?: string | null } | null)?.invoice_uploaded_at ?? null,
+    contractorPayable ? null : { approvedAt: disposition?.status === "approved" ? disposition.approved_at : null });
   const nextKey = nextStepKey(timeline, status);
   // UAT 7 Nov 2026: while a Draft is not ready to submit, the submit step points to the first missing item
   // (e.g. Proposal / Quotation), not to the Submit button, which is not there yet.
@@ -483,6 +499,11 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       : { data: [], error: null };
     if (!financeError) financeSummaryEl = <FinanceSummary row={((financeRows ?? []) as RegisterRow[])[0] ?? null} status={status} />;
   }
+  // D-45 (9 Nov 2026): the SLA countdown, visible to everyone who can see the Work Order.
+  const slaClockResult = await supabase.from("work_order_sla_clocks")
+    .select("started_at,acknowledgement_deadline,response_deadline,attendance_deadline,make_safe_deadline,rectification_deadline,acknowledged_at,responded_at,attended_at,made_safe_at,rectified_at")
+    .eq("work_order_id", id).maybeSingle();
+  const slaClock = slaClockResult.error ? null : (slaClockResult.data as SlaClockRow | null);
   const workspaceEl = <>
     <ReleaseOneWorkspace id={id} role={identity.role} status={status} userId={identity.userId} quotationNeeded={needsQuotation} workRecordVersion={`${order.actual_labour_hours ?? ""}|${order.completion_notes ?? ""}`} />
     {showContractorNeeded && <ContractorNeeded workOrderId={id} requests={contractorRequests} />}
@@ -596,6 +617,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Overall (created → closed)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.created_at, order.closed_at) ?? "Open"}</dd></div>
         </dl>
       </section>
+
+      <SlaCountdown clock={slaClock} status={status} finishedAt={(order as { completed_at?: string | null }).completed_at ?? null} />
 
       {upcomingCheck && <div role="note" className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
         <span className="block font-black">You may be the independent checker for this Work Order</span>

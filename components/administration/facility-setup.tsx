@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { roleLabel } from "@/lib/product-terminology";
-import { facilityDrawingSrc, MAX_DRAWING_BYTES, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import { facilityDrawingSrc, hasPinImage, MAX_DRAWING_BYTES, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import { pdfFirstPageToPng } from "@/lib/pdf-pin-image";
 
 /** D-17: Administrator screens for facility setup — new facility, details, areas, drawings and staff. */
 
@@ -114,8 +115,22 @@ export function DrawingUploadForm({ facilityId }: { facilityId: string }) {
       const form = new FormData();
       form.set("file", file); form.set("code", code); form.set("title", title); form.set("revision", revision);
       if (size) { form.set("width", String(size.width)); form.set("height", String(size.height)); }
+      // D-44: a PDF stays the master copy; its first page also becomes the image used for pins.
+      let pinNote = "";
+      if (file.type === "application/pdf") {
+        try {
+          const pin = await pdfFirstPageToPng(file);
+          form.set("pin_file", new File([pin.blob], "pin.png", { type: "image/png" }));
+          form.set("pin_width", String(pin.width)); form.set("pin_height", String(pin.height));
+          pinNote = ` Pins can be placed on it (image of page 1, ${pin.width} × ${pin.height} pixels${pin.pages > 1 ? `; only page 1 of ${pin.pages} is used for pins` : ""}).`;
+        } catch {
+          pinNote = " The PDF could not be turned into an image here, so pins cannot be placed on it; it can still be viewed and downloaded.";
+        }
+      }
       const result = await send(`/api/administration/facilities/${facilityId}/drawings`, "POST", form);
-      return result.ok ? { ok: true, message: "Drawing uploaded. Staff of this facility can now view and download it." } : result;
+      const data = (result as { data?: { superseded?: boolean; superseded_revision?: string | null } }).data;
+      const replaced = data?.superseded ? ` The previous revision${data.superseded_revision ? ` (${data.superseded_revision})` : ""} moved to Earlier revisions.` : "";
+      return result.ok ? { ok: true, message: `Drawing uploaded. Staff of this facility can now view and download it.${pinNote}${replaced}` } : result;
     }, () => { setFile(null); setCode(""); setTitle(""); setRevision(""); setFormKey((k) => k + 1); });
   }}>
     <label className="font-semibold sm:col-span-2">Drawing file (PNG, JPEG, WebP or PDF, up to 50 MB)
@@ -125,7 +140,7 @@ export function DrawingUploadForm({ facilityId }: { facilityId: string }) {
     <label className="font-semibold">Revision<input maxLength={40} value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="e.g. Rev A" className={input} /></label>
     <label className="font-semibold sm:col-span-2">Title<input required maxLength={160} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Level 1 floor plan" className={input} /></label>
     <div className="space-y-2 sm:col-span-2"><button disabled={busy || !file} className={button}>{busy ? "Uploading…" : "Upload drawing"}</button><Result outcome={outcome} /></div>
-    <p className="text-sm text-slate-600 sm:col-span-2">Image drawings can also be used to pin areas and mark up Work Orders. PDF drawings are for viewing and download.</p>
+    <p className="text-sm text-slate-600 sm:col-span-2">PDF is preferred: staff view and download the PDF, and the app turns its first page into an image for pins and Work Order markup. To issue a new revision, upload it with the same drawing number and the new revision; the old one moves to Earlier revisions.</p>
   </form>;
 }
 
@@ -137,7 +152,7 @@ export function DrawingList({ drawings, canRemove }: { drawings: FacilityDrawing
     <ul className="divide-y rounded-lg border">
       {drawings.map((drawing) => <li key={drawing.id} className="flex flex-wrap items-center gap-3 p-3">
         <span className="min-w-0 flex-1"><span className="block font-semibold">{drawing.code} — {drawing.title}</span>
-          <span className="block text-sm text-slate-600">{drawing.revision ?? "No revision"} · {drawing.content_type === "application/pdf" ? "PDF" : "Image"} · {(drawing.byte_size / 1024 / 1024).toFixed(1)} MB · {drawing.original_filename}</span></span>
+          <span className="block text-sm text-slate-600">{drawing.revision ?? "No revision"} · {drawing.content_type === "application/pdf" ? (hasPinImage(drawing) ? "PDF · pins ✓" : "PDF · no pin image") : "Image · pins ✓"} · {(drawing.byte_size / 1024 / 1024).toFixed(1)} MB · {drawing.original_filename}</span></span>
         <a href={facilityDrawingSrc(drawing.id)} target="_blank" rel="noopener" className="min-h-11 rounded border px-3 py-2 text-sm font-semibold text-blue-700">View</a>
         <a href={facilityDrawingSrc(drawing.id, true)} className="min-h-11 rounded border px-3 py-2 text-sm font-semibold text-blue-700">Download</a>
         {canRemove && <button type="button" onClick={() => { setRemoving(drawing.id); setReason(""); }} className="min-h-11 rounded border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">Remove</button>}

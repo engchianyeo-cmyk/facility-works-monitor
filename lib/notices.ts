@@ -33,3 +33,34 @@ export function waitingForReader(order: { status: string; assigned_technician_id
   if (reader.role === "technician") return order.assigned_technician_id === reader.id && ["draft", "approved", "assigned", "in_progress"].includes(order.status);
   return false;
 }
+
+/**
+ * D-43 (9 Nov 2026): only the most current notices are shown first; older ones wait in "Earlier notices".
+ * Current = the newest notice of each Work Order, while that Work Order is still open or the notice is under
+ * two days old; and today's daily payment reminder. Everything else is earlier, read or not.
+ */
+export const CURRENT_WINDOW_HOURS = 48;
+const FINISHED = ["closed", "cancelled"];
+
+export function currentNoticeIds(
+  rows: Array<{ id: string; work_order_id: string | null; event_type: string; created_at: string }>,
+  statusOf: (workOrderId: string) => string | undefined,
+  now = Date.now(),
+): Set<string> {
+  const current = new Set<string>();
+  const seen = new Set<string>();
+  const sorted = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Singapore" }).format(new Date(now));
+  for (const row of sorted) {
+    if (row.event_type === "finance_daily_reminder") {
+      if (new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Singapore" }).format(new Date(row.created_at)) === today) current.add(row.id);
+      continue;
+    }
+    if (!row.work_order_id || seen.has(row.work_order_id)) continue;
+    seen.add(row.work_order_id);
+    const status = statusOf(row.work_order_id);
+    const recent = now - new Date(row.created_at).getTime() < CURRENT_WINDOW_HOURS * 3_600_000;
+    if (recent || (status !== undefined && !FINISHED.includes(status))) current.add(row.id);
+  }
+  return current;
+}

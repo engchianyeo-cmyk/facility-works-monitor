@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentAccountIdentity } from "@/lib/auth";
 import { operationalLabel } from "@/lib/product-terminology";
 import { createClient } from "@/lib/supabase/server";
+import { currentNoticeIds } from "@/lib/notices";
 
 export default async function SiteHeader() {
   // The global header must reflect the authenticated account even when a
@@ -16,9 +17,15 @@ export default async function SiteHeader() {
   if (identity) {
     try {
       const supabase = await createClient();
-      const { count } = await supabase.from("notification_outbox").select("id", { count: "exact", head: true })
-        .eq("recipient_profile_id", identity.userId).is("read_at", null);
-      unreadNotices = count ?? 0;
+      // D-43 (9 Nov 2026): the bell counts only current notices not yet opened, not superseded or finished ones.
+      const { data: notices } = await supabase.from("notification_outbox").select("id,work_order_id,event_type,created_at,read_at")
+        .eq("recipient_profile_id", identity.userId).order("created_at", { ascending: false }).limit(300);
+      const rows = (notices ?? []) as Array<{ id: string; work_order_id: string | null; event_type: string; created_at: string; read_at: string | null }>;
+      const orderIds = Array.from(new Set(rows.filter((row) => !row.read_at && row.work_order_id).map((row) => row.work_order_id as string)));
+      const { data: orders } = orderIds.length ? await supabase.from("work_orders").select("id,status").in("id", orderIds) : { data: [] };
+      const statusOf = new Map(((orders ?? []) as Array<{ id: string; status: string }>).map((order) => [order.id, order.status]));
+      const current = currentNoticeIds(rows, (id) => statusOf.get(id));
+      unreadNotices = rows.filter((row) => !row.read_at && current.has(row.id)).length;
     } catch {
       unreadNotices = 0;
     }
@@ -63,6 +70,7 @@ export default async function SiteHeader() {
           </Link>}
           {identity && <Link href="/assets" className="rounded-lg px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">Assets</Link>}
           {identity && <Link href="/drawings" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Drawings</Link>}
+          {identity && <Link href="/sla" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Site SLA</Link>}
           {identity && <Link href="/operations" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Operations</Link>}
           {identity && identity.role !== "technician" && <Link href="/maintenance" className="rounded-lg px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">Maintenance</Link>}
           {identity && <Link href="/incidents" className="rounded-lg px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Emergency</Link>}

@@ -86,3 +86,5 @@ supabase/migrations/20261106100000_record_emergency_work_done.sql
 supabase/migrations/20261106120000_contractor_admission.sql
 supabase/migrations/20261107100000_notices_and_finance_register.sql
 supabase/migrations/20261107120000_payment_record_controls.sql
+supabase/migrations/20261109100000_drawing_pdf_master.sql
+supabase/migrations/20261109120000_site_sla_visibility.sql

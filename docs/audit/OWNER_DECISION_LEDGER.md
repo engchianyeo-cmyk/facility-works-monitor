@@ -809,6 +809,59 @@ email should prompt them. Owner (16:46): "Yes, agree to use fmworks.notices@gmai
    Work Order is approved, assigned to them or returned to Draft; approvers for submissions, emergency starts and
    endorsements. Everything else shows "in app only".
 
+### D-43 Only current notices shown first — 9 November 2026 19:08
+
+Found in UAT: the Approver's My notices listed 19 "New" notices, most about steps long finished (e.g. WO-TEST-010
+"submitted for approval" after it was closed). Owner: "update the notices so that it is the most current appear.
+Leave the unread, old notices in a separate folder and only appear which the approver wants to read them by
+clicking on this folder."
+
+1. My notices shows, in order: Work Orders waiting for you (red); then **Current notices** — the newest notice of each
+   Work Order still open, anything under two days old, and today's daily payment reminder — each with the Work
+   Order's current status ("now: …").
+2. All other notices, read or not, sit in a closed **Earlier notices** folder, opened by clicking it.
+3. The bell counts only current notices not yet opened.
+4. No database change.
+
+### D-44 Facility drawings kept as PDF, with automatic pin images — 9 November 2026 19:51
+
+Owner: "On drawings, keep the current layouts in this folder [the Facility drawings page], preferred in PDF format."
+Owner (19:55): "Yes, build D-44".
+
+1. The PDF is the master copy: staff view and download it from the Facility drawings page.
+2. On upload, the Administrator's browser turns page 1 of the PDF into an image (about 3,500 pixels on the long side),
+   stored with it, so Technicians can pin and mark up Work Orders on PDF drawings. Image drawings work as before.
+3. Uploading a new revision with the same drawing number supersedes the current one; the old revision moves to
+   "Earlier revisions" on the Facility drawings page, kept for reference. The same revision cannot be uploaded twice.
+4. Migration `20261109100000_drawing_pdf_master.sql` (M25). Uses the PDF library already in the app (pdfjs-dist).
+
+### D-45 Site SLA for everyone, and an SLA countdown on each Work Order — 9 November 2026 19:55
+
+Owner asked that "every individual can comprehend the SLA expectation for the site"; owner: "Yes, build D-45".
+
+1. A **Site SLA** page for every role (header link): approved times by priority to acknowledge, respond, attend,
+   make safe and fix, the KPI target, what each step means and what it means for each role.
+2. Each Work Order with an SLA clock shows an **SLA countdown**: per step, time left (green), 75% used (amber),
+   missed (red), or met.
+3. The managers' SLA page is reworded in plain language (SLA documents and rules), without the technical wrapper text.
+4. Staff can read approved SLA rules and the clocks of Work Orders they can already see; writing is unchanged.
+   Migration `20261109120000_site_sla_visibility.sql` (M26).
+
+### D-46 Test data hidden from working lists — 9 November 2026 19:55
+
+Owner: "Yes, mark and hide". FW-2026-0001, FW-2026-0002 and FW-2026-0004 (old automated test records) are marked as
+test data (script `preview-d46-test-data-20261109.sql`), and all test-data Work Orders are hidden from the Operations
+Workspace and the Work Orders list (a "show" link on the list brings them back; direct links still work).
+
+### UAT fixes 9 November 2026 (no owner decision needed)
+
+- A Work Order approved as Completed with no contractor payment (no contractor quotation approved, not in-house)
+  no longer asks for a contractor invoice: the timeline step reads "No payment required (no contractor payment)"
+  and points the assigned Technician, Supervisor or Facility Manager to Propose No Payment Required, then a
+  different approver to Approve No Payment Required (found on WO-TEST-008).
+- Approve as Completed shows the final cost and approved amount beside the review note, and says plainly when no
+  amount was approved.
+
 ### Preview rollout record — 21 October 2026
 
 | Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |

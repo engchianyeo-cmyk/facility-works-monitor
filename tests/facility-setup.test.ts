@@ -58,11 +58,26 @@ describe("D-17 facility setup", () => {
     expect((await uploadDrawing(request(), params(facility))).status).toBe(201);
     const path = mocks.upload.mock.calls[0][0] as string;
     expect(path).toMatch(new RegExp(`^drawings/facility/${facility}/[0-9a-f-]{36}-Level-1-plan\\.png$`));
-    expect(mocks.rpc).toHaveBeenCalledWith("admin_register_facility_drawing", expect.objectContaining({ p_code: "TPY-L1-001", p_width: 1600, p_height: 900, p_storage_path: path }));
+    expect(mocks.rpc).toHaveBeenCalledWith("admin_register_facility_drawing_revision", expect.objectContaining({ p_code: "TPY-L1-001", p_width: 1600, p_height: 900, p_storage_path: path, p_pin_image_path: null }));
     expect(mocks.remove).not.toHaveBeenCalled();
     mocks.rpc.mockResolvedValueOnce({ data: { ok: false, code: "VALIDATION_ERROR", message: "Duplicate" }, error: null });
     expect((await uploadDrawing(request(), params(facility))).status).toBe(400);
     expect(mocks.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores a PDF with the image of its first page for pins (D-44)", async () => {
+    mocks.upload.mockResolvedValue({ error: null });
+    const f = new FormData();
+    f.set("file", new File([new Uint8Array(10)], "HLH-A-101.pdf", { type: "application/pdf" })); f.set("code", "HLH-A-101"); f.set("title", "1st Storey Plan"); f.set("revision", "Rev B");
+    f.set("pin_file", new File([new Uint8Array(10)], "pin.png", { type: "image/png" })); f.set("pin_width", "3500"); f.set("pin_height", "2474");
+    expect((await uploadDrawing(new NextRequest("http://localhost/x", { method: "POST", body: f }), params(facility))).status).toBe(201);
+    const [pdfPath, pinPath] = mocks.upload.mock.calls.map((call) => call[0] as string);
+    expect(pinPath).toMatch(new RegExp(`^drawings/facility/${facility}/[0-9a-f-]{36}-pin\\.png$`));
+    expect(mocks.rpc).toHaveBeenCalledWith("admin_register_facility_drawing_revision", expect.objectContaining({ p_storage_path: pdfPath, p_pin_image_path: pinPath, p_pin_width: 3500, p_pin_height: 2474, p_width: null }));
+    const page = readFileSync("app/drawings/page.tsx", "utf8");
+    expect(page).toContain("Earlier revisions (");
+    expect(readFileSync("lib/facility-drawings.ts", "utf8")).toContain("src: facilityDrawingSrc(row.id, false, pdf)");
+    expect(readFileSync("components/administration/facility-setup.tsx", "utf8")).toContain("await pdfFirstPageToPng(file)");
   });
 
   it("refuses unsupported drawing files", async () => {

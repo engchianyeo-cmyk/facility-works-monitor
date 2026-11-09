@@ -76,7 +76,10 @@ export default async function OperationsPage() {
     supabase.from("evidence_items").select("work_order_id").not("work_order_id", "is", null).is("deleted_at", null),
   ]);
 
-  const rawOrders = (orderResult.error ? [] : orderResult.data ?? []) as unknown as RawOrder[];
+  // D-46 (9 Nov 2026): Work Orders marked as test data stay out of the Operations Workspace.
+  const { data: testRows } = await supabase.from("work_order_test_data").select("work_order_id");
+  const testIds = new Set(((testRows ?? []) as Array<{ work_order_id: string }>).map((row) => row.work_order_id));
+  const rawOrders = ((orderResult.error ? [] : orderResult.data ?? []) as unknown as RawOrder[]).filter((order) => !testIds.has(order.id));
   const rawIncidents = (incidentResult.error ? [] : incidentResult.data ?? []) as RawIncident[];
   const evidenceCounts = new Map<string, number>();
   if (!evidenceResult.error) for (const row of evidenceResult.data ?? []) if (row.work_order_id) evidenceCounts.set(row.work_order_id, (evidenceCounts.get(row.work_order_id) ?? 0) + 1);

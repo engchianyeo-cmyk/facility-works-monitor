@@ -84,6 +84,25 @@ begin
   perform pg_temp.assert_true(public.admin_remove_facility_drawing(did,'Superseded')->>'code'='ACCESS_DENIED','Technician cannot remove drawings');
   perform pg_temp.act(pg_temp.u(6));
   perform pg_temp.assert_true((public.admin_remove_facility_drawing(did,'Superseded by revision B')->>'ok')::boolean,'Administrator removes a drawing');
+
+  -- D-44 (9 Nov 2026): a PDF keeps a pin image made from its first page; a new revision supersedes the current one.
+  reset role;
+  insert into storage.objects(bucket_id,name) values('field-evidence','drawings/facility/'||fac::text||'/plan-b.pdf'),
+    ('field-evidence','drawings/facility/'||fac::text||'/plan-b-pin.png');
+  set local role authenticated; perform pg_temp.act(pg_temp.u(1));
+  perform pg_temp.assert_true(public.admin_register_facility_drawing_revision(fac,'NP-PDF','Site plan','Rev B','plan-b.pdf','application/pdf',2000,null,null,
+    'drawings/facility/'||fac::text||'/plan-b.pdf','drawings/facility/'||fac::text||'/plan-b-pin.png',3508,2480)->>'code'='ACCESS_DENIED','only the Administrator uploads drawings');
+  perform pg_temp.act(pg_temp.u(6));
+  perform pg_temp.assert_true(public.admin_register_facility_drawing_revision(fac,'NP-PDF','Site plan',null,'plan-b.pdf','application/pdf',2000,null,null,
+    'drawings/facility/'||fac::text||'/plan-b.pdf',null,null,null)->>'code'='VALIDATION_ERROR','the same revision cannot be uploaded again');
+  perform pg_temp.assert_true(public.admin_register_facility_drawing_revision(fac,'NP-PDF','Site plan','Rev B','plan-b.pdf','application/pdf',2000,null,null,
+    'drawings/facility/'||fac::text||'/plan-b.pdf','evidence/other.png',3508,2480)->>'code'='INVALID_STORAGE_OBJECT','the pin image must sit in the facility drawing folder');
+  r:=public.admin_register_facility_drawing_revision(fac,'NP-PDF','Site plan','Rev B','plan-b.pdf','application/pdf',2000,null,null,
+    'drawings/facility/'||fac::text||'/plan-b.pdf','drawings/facility/'||fac::text||'/plan-b-pin.png',3508,2480);
+  perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'superseded')::boolean and (r->'drawing'->>'pin_width')::int=3508,'Rev B with a pin image supersedes the PDF: '||coalesce(r->>'message',''));
+  perform pg_temp.assert_true((select not d.active and d.superseded_by=(r->'drawing'->>'id')::uuid and d.superseded_at is not null
+    from public.facility_drawings d where d.facility_id=fac and d.code='NP-PDF' and d.revision is null),'the earlier revision is kept, inactive, pointing to its successor');
+  perform pg_temp.assert_true((select count(*) from public.facility_drawings where facility_id=fac and code='NP-PDF' and active)=1,'only one current revision');
   reset role;
   perform pg_temp.assert_true((select count(*) from public.activity_logs where action like 'facility_%' and note like '%'||fac::text||'%')>=7,'every facility change is audited');
 end;$test$;

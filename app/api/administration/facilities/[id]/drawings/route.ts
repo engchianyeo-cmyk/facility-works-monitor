@@ -28,18 +28,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!isPdf && !(Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0 && width <= 20000 && height <= 20000)) {
     return errorResponse("VALIDATION_ERROR", "The image size could not be read. Try another file.", 400);
   }
+  // D-44 (9 Nov 2026): with a PDF, the browser also sends an image of its first page for pins and markup.
+  const pinFile = isPdf ? form?.get("pin_file") : null;
+  const pinWidth = Number(form?.get("pin_width") ?? 0); const pinHeight = Number(form?.get("pin_height") ?? 0);
+  const withPin = pinFile instanceof File && pinFile.type === "image/png" && pinFile.size > 0 && pinFile.size <= MAX_DRAWING_BYTES
+    && Number.isInteger(pinWidth) && Number.isInteger(pinHeight) && pinWidth > 0 && pinHeight > 0 && pinWidth <= 20000 && pinHeight <= 20000;
   const path = `drawings/facility/${id}/${randomUUID()}-${safeFilename(file.name)}`;
+  const pinPath = withPin ? `drawings/facility/${id}/${randomUUID()}-pin.png` : null;
   let admin;
   try { admin = createAdminClient(); } catch { return unavailable("The drawing"); }
   const uploaded = await admin.storage.from("field-evidence").upload(path, file, { contentType: file.type, upsert: false });
   if (uploaded.error) return unavailable("The drawing");
+  if (pinPath && pinFile instanceof File) {
+    const pinUploaded = await admin.storage.from("field-evidence").upload(pinPath, pinFile, { contentType: "image/png", upsert: false });
+    if (pinUploaded.error) { await admin.storage.from("field-evidence").remove([path]); return unavailable("The drawing"); }
+  }
   const supabase = await createClient();
-  const result = await supabase.rpc("admin_register_facility_drawing", {
+  const result = await supabase.rpc("admin_register_facility_drawing_revision", {
     p_facility_id: id, p_code: code, p_title: title, p_revision: revision, p_original_filename: file.name.slice(0, 200),
     p_content_type: file.type, p_byte_size: file.size, p_width: isPdf ? null : width, p_height: isPdf ? null : height, p_storage_path: path,
+    p_pin_image_path: pinPath, p_pin_width: pinPath ? pinWidth : null, p_pin_height: pinPath ? pinHeight : null,
   });
   const data = result.data as RpcResult | null;
-  if (result.error || data?.ok !== true) await admin.storage.from("field-evidence").remove([path]);
+  if (result.error || data?.ok !== true) await admin.storage.from("field-evidence").remove(pinPath ? [path, pinPath] : [path]);
   if (result.error) return unavailable("The drawing");
   return rpcResponse(data, 201);
 }

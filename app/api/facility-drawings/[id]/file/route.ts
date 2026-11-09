@@ -12,12 +12,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   if (!isUuidLike(id)) return fail("NOT_FOUND", "Drawing not found.", 404);
   const supabase = await createClient();
-  const { data, error } = await supabase.from("facility_drawings").select("storage_path,original_filename").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("facility_drawings").select("storage_path,original_filename,pin_image_path,code,revision").eq("id", id).maybeSingle();
   if (error || !data) return fail("NOT_FOUND", "Drawing not found.", 404);
   const download = request.nextUrl.searchParams.get("download") === "1";
+  // D-44: ?pin=1 serves the image made from a PDF's first page (used for pins and markup).
+  const pin = request.nextUrl.searchParams.get("pin") === "1" && Boolean(data.pin_image_path);
   try {
     const { data: signed, error: signedError } = await createAdminClient().storage.from("field-evidence")
-      .createSignedUrl(data.storage_path, 300, download ? { download: data.original_filename } : undefined);
+      .createSignedUrl(pin ? String(data.pin_image_path) : data.storage_path, 300, download ? { download: data.original_filename } : undefined);
     if (signedError || !signed) return fail("ACCESS_FAILED", "The drawing could not be opened.", 503);
     const response = NextResponse.redirect(signed.signedUrl, 302);
     response.headers.set("Cache-Control", "private, no-store");

@@ -365,7 +365,7 @@ export default function WorkOrderActions(props: Props) {
               <div><dt className="font-bold text-violet-700">Completed</dt><dd className="mt-1">{dateTimeLabel(props.reviewContext.completedAt)}</dd></div>
               <div><dt className="font-bold text-violet-700">Evidence</dt><dd className="mt-1">{props.reviewContext.evidence}</dd></div>
               <div><dt className="font-bold text-violet-700">Final cost</dt><dd className="mt-1">{props.reviewContext.inHouse ? "Not required — in-house services, pricing waived" : props.reviewContext.finalCost === null || props.reviewContext.finalCost === undefined ? "Not yet entered — required before approval" : `S$${Number(props.reviewContext.finalCost).toFixed(2)}`}</dd></div>
-              <div><dt className="font-bold text-violet-700">Approved amount</dt><dd className="mt-1">{props.reviewContext.approvedAmount === null || props.reviewContext.approvedAmount === undefined ? "None (emergency or in-house)" : `S$${Number(props.reviewContext.approvedAmount).toFixed(2)}`}{props.reviewContext.finalCost !== null && props.reviewContext.finalCost !== undefined && props.reviewContext.approvedAmount !== null && props.reviewContext.approvedAmount !== undefined && Number(props.reviewContext.finalCost) > Number(props.reviewContext.approvedAmount) ? " · Variance: a review note is required" : ""}</dd></div>
+              <div><dt className="font-bold text-violet-700">Approved amount</dt><dd className="mt-1">{props.reviewContext.approvedAmount === null || props.reviewContext.approvedAmount === undefined ? (props.reviewContext.inHouse ? "None — in-house work" : "None recorded — any final cost needs a reason in the review note") : `S$${Number(props.reviewContext.approvedAmount).toFixed(2)}`}{props.reviewContext.finalCost !== null && props.reviewContext.finalCost !== undefined && props.reviewContext.approvedAmount !== null && props.reviewContext.approvedAmount !== undefined && Number(props.reviewContext.finalCost) > Number(props.reviewContext.approvedAmount) ? " · Variance: a review note is required" : ""}</dd></div>
               {props.reviewContext.relatedIncident && <div className="sm:col-span-2"><dt className="font-bold text-violet-700">Related incident</dt><dd className="mt-1">{props.reviewContext.relatedIncident}</dd></div>}
             </dl>
             <a href="#work-order-evidence" className="inline-flex min-h-11 items-center font-black text-violet-800 underline decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-200">Review evidence record</a>
@@ -491,6 +491,18 @@ export default function WorkOrderActions(props: Props) {
               <h3 className="font-black text-emerald-950">Approve as Completed</h3>
               <p id="review-help" className="mt-1 text-sm text-emerald-900">You are approving the work done, the final cost and the supporting documents together. Your monetary limit applies to the final cost. If the final cost exceeds the approved amount, state why it is accepted. The contractor invoice follows after this approval.</p>
             </div>
+            {/* UAT 9 Nov 2026: the amounts the note is about, next to the note, so the Approver need not scroll up. */}
+            {props.reviewContext && !props.reviewContext.inHouse && props.reviewContext.finalCost !== null && props.reviewContext.finalCost !== undefined && (() => {
+              const approved = props.reviewContext?.approvedAmount ?? null;
+              const final = Number(props.reviewContext?.finalCost);
+              const needsReason = final > Number(approved ?? 0);
+              return (
+                <p role="note" className={`rounded-lg border p-3 text-sm ${needsReason ? "border-red-300 bg-red-50 text-red-900" : "border-emerald-300 bg-white text-emerald-950"}`}>
+                  <b>Final cost S${final.toFixed(2)}</b> · Approved amount {approved === null ? "none recorded" : `S$${Number(approved).toFixed(2)}`}.{" "}
+                  {needsReason ? (approved === null ? `No amount was approved for this Work Order, so the final cost of S$${final.toFixed(2)} needs a reason in the review note.` : `The final cost is S$${(final - Number(approved)).toFixed(2)} above the approved amount; give the reason it is accepted.`) : "Within the approved amount."}
+                </p>
+              );
+            })()}
             <label className="block text-sm font-bold text-emerald-950">Review note (required for a cost variance or Administrator self-review)
               <textarea rows={3} maxLength={2000} value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="mt-1 w-full rounded-lg border border-emerald-300 bg-white p-3" placeholder="For Administrator self-verification, state the reason for exercising Administrator authority." />
             </label>
