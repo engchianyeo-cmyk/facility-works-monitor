@@ -177,7 +177,9 @@ describe("Work Order page tidy-up (27 Oct UAT review)", () => {
     expect(page()).toContain('const predictive = ["condition_based", "predictive"].includes(order.source);');
   });
   it("uses the lifecycle v2 steps in the Workflow timeline", () => {
-    expect(page()).toContain("Second Technician endorsed (work and final cost)");
+    expect(page()).toContain("Second Technician endorses (work and final cost)");
+    // UAT 9 Nov 2026: steps are named as actions, so the NEXT card reads as what has to happen next.
+    for (const label of ["Create the Draft", "Submit for approval", "Approve as Completed", "Upload the contractor invoice", "Close (paid, or no payment due)"]) expect(page()).toContain(`label: "${label}"`);
     expect(page()).not.toContain('["accepted_at", "Accepted"]');
   });
   it("folds the audit history behind a button, with each entry's details folded too", () => {
@@ -409,7 +411,7 @@ describe("Technician 1's Draft sections in red (UAT 2 Nov 2026)", () => {
 describe("Draft wording for people who are not the preparer (UAT 3 Nov 2026)", () => {
   it("tells the Approver the Draft is waiting for the assigned Technician", () => {
     const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
-    for (const text of ["Not yet submitted", "Waiting for the assigned Technician to complete and submit it", "Once the assigned Technician submits it, the approval button appears here in red."]) expect(actions).toContain(text);
+    for (const text of ["Not yet submitted", "Waiting for Technician 1 (or whoever created the Draft, if no Technician is chosen yet) to complete and submit it", "Once it is submitted, the approval button appears here in red for the Approver."]) expect(actions).toContain(text);
   });
 });
 

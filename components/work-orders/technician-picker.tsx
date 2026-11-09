@@ -31,7 +31,7 @@ export default function TechnicianPicker({ workOrderId, technicians, currentId }
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <label className="block text-sm font-bold text-violet-950">Field-witness Technician
+      <label className="block text-sm font-bold text-violet-950">Technician 1 (does and records the work)
         <select required value={id} onChange={(event) => setId(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
           <option value="">Select an active Technician at this facility</option>
           {technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.name}{technician.detail ? ` · ${technician.detail}` : ""}</option>)}

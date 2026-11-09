@@ -327,7 +327,7 @@ export default function WorkOrderActions(props: Props) {
         {["draft", "submitted"].includes(props.status) && props.approvalReadiness && (
           <section className={`rounded-xl border-2 p-4 ${props.approvalReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
             <p className="text-xs font-black uppercase tracking-wide">{props.status === "draft" ? (props.canEdit ? "Ready to submit?" : "Not yet submitted") : "Approval readiness"}</p>
-            <h3 className="mt-1 font-black">{props.status === "draft" && !props.canEdit ? (props.approvalReadiness.ready ? "Ready — waiting for the assigned Technician to submit it" : "Waiting for the assigned Technician to complete and submit it") : props.approvalReadiness.ready ? (props.status === "draft" ? "Ready to submit for approval" : "Ready for approval") : (props.status === "draft" ? "Complete these items before submitting" : "Not ready for approval")}</h3>
+            <h3 className="mt-1 font-black">{props.status === "draft" && !props.canEdit ? (props.approvalReadiness.ready ? "Ready — waiting for Technician 1 to submit it" : "Waiting for Technician 1 (or whoever created the Draft, if no Technician is chosen yet) to complete and submit it") : props.approvalReadiness.ready ? (props.status === "draft" ? "Ready to submit for approval" : "Ready for approval") : (props.status === "draft" ? "Complete these items before submitting" : "Not ready for approval")}</h3>
             {props.approvalReadiness.proposed_cost > 0 && <p className="mt-2 text-sm">Quotation: S${Number(props.approvalReadiness.proposed_cost).toLocaleString("en-SG", { minimumFractionDigits: 2 })} · Lowest approval level: {roleLabel(props.approvalReadiness.required_authority)}</p>}
             {props.approvalReadiness.missing_requirements.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm">{props.approvalReadiness.missing_requirements.map((item) => <li key={item}>{item.replaceAll("_", " ")}</li>)}</ul>}
           </section>
@@ -462,7 +462,7 @@ export default function WorkOrderActions(props: Props) {
             {returnAction.label}
           </button>
         ) : decisionActions.length === 0 && !props.canRecordWork && !(props.formalCompletionAuthority && ["assigned", "in_progress"].includes(props.status)) && (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once the assigned Technician submits it, the approval button appears here in red." : props.waitingFor ? `Nothing for you to do here now. Waiting for ${props.waitingFor}.` : "No workflow action is currently available for your role and this Work Order state."}</p>
+          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">{props.status === "draft" && !props.canEdit ? "Nothing for you to do yet. This Work Order is still a Draft. Once it is submitted, the approval button appears here in red for the Approver." : props.waitingFor ? `Nothing for you to do here now. Waiting for ${props.waitingFor}.` : "No workflow action is currently available for your role and this Work Order state."}</p>
         )}
 
         {workRecordFormOpen && (

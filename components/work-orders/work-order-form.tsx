@@ -87,7 +87,7 @@ export default function WorkOrderForm({
       {!isEdit && superior && (
         <div className="grid gap-4 rounded-lg border border-violet-200 bg-violet-50 p-4 sm:grid-cols-2">
           <p className="text-sm text-violet-900 sm:col-span-2">You are creating this because the Technician is unavailable. Assign the Technician who will witness the work. You cannot approve a Work Order you created.</p>
-          <div><label className="mb-1 block text-sm font-medium">Field-witness Technician</label><select name="assigned_technician_id" className={input} defaultValue=""><option value="">Assign later (required before submission)</option>{technicians.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></div>
+          <div><label className="mb-1 block text-sm font-medium">Technician 1 (does and records the work)</label><select name="assigned_technician_id" className={input} defaultValue=""><option value="">Assign later (required before submission)</option>{technicians.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></div>
           {facilities.length > 1 && <div><label className="mb-1 block text-sm font-medium">Facility</label><select name="facility_id" className={input} defaultValue=""><option value="">From the asset or my membership</option>{facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</select></div>}
         </div>
       )}

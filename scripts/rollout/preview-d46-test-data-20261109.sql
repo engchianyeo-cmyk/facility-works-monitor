@@ -1,6 +1,7 @@
 -- One-off Preview UAT data change (owner decision D-46, 9 Nov 2026): mark the old automated test records
--- FW-2026-0001, FW-2026-0002 and FW-2026-0004 as test data, so they leave the Operations Workspace, the Work Orders
+-- FW-2026-0001 and FW-2026-0002 as test data, so they leave the Operations Workspace, the Work Orders
 -- list and Finance's lists (still reachable by direct link). FW-2026-0003 and WO-TEST-012 were marked under D-41.
+-- FW-2026-0004 is a real UAT Draft (a copy of WO-TEST-008), not test data: owner, 9 Nov 20:58, "No".
 -- Preview only (pvajuywwwpjlikqjnvgv). Dry run by default:
 --   psql -X -c "set role postgres" -f this file
 -- Apply:
@@ -14,7 +15,7 @@ begin
   if current_user <> 'postgres' then raise exception 'Run as postgres (set role postgres)'; end if;
   if pg_catalog.to_regclass('public.work_order_test_data') is null then raise exception 'Increment M24 is not applied; nothing changed'; end if;
   select id into admin from public.profiles where role = 'administrator' and is_active and deleted_at is null order by created_at limit 1;
-  foreach n in array array['FW-2026-0001', 'FW-2026-0002', 'FW-2026-0004'] loop
+  foreach n in array array['FW-2026-0001', 'FW-2026-0002'] loop
     select * into w from public.work_orders where work_order_number = n;
     if w.id is null then raise notice '% not found; skipped.', n; continue; end if;
     if exists(select 1 from public.work_order_test_data where work_order_id = w.id) then raise notice '% already marked.', n; continue; end if;

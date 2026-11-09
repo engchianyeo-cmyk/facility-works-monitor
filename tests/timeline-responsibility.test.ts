@@ -49,7 +49,7 @@ describe("No contractor payment (UAT 9 Nov 2026)", () => {
   it("labels the step and explains the amounts beside the review note", async () => {
     const { readFileSync } = await import("node:fs");
     const page = readFileSync("app/work-orders/[id]/page.tsx", "utf8");
-    expect(page).toContain('label: "No payment required (no contractor payment)"');
+    expect(page).toContain('label: "Approve No payment required (no contractor payment)"');
     const actions = readFileSync("components/work-orders/work-order-actions.tsx", "utf8");
     expect(actions).toContain("No amount was approved for this Work Order, so the final cost of S$");
     expect(actions).not.toContain('"None (emergency or in-house)"');

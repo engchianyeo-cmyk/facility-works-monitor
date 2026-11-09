@@ -49,26 +49,26 @@ function timelineSteps(order: Record<string, unknown>, endorsedAt: { submission:
   noPayable: { approvedAt: string | null } | null = null) {
   const at = (value: unknown) => (typeof value === "string" && value ? value : null);
   const steps: Array<{ key: string; label: string; at: string | null; note?: string }> = [
-    { key: "created", label: `${workOrderStatusLabel("draft")} created`, at: at(order.created_at) },
+    { key: "created", label: "Create the Draft", at: at(order.created_at) },
   ];
-  if (["before_submission", "both"].includes(endorsementSetting) && !order.emergency_work) steps.push({ key: "endorse-submission", label: "Second Technician endorsed (before submission)", at: endorsedAt.submission });
+  if (["before_submission", "both"].includes(endorsementSetting) && !order.emergency_work) steps.push({ key: "endorse-submission", label: "Second Technician checks the Draft", at: endorsedAt.submission });
   steps.push(
-    { key: "submitted", label: `Submitted — ${workOrderStatusLabel("submitted")}`, at: at(order.submitted_at) },
-    { key: "approved", label: workOrderStatusLabel("approved"), at: at(order.approved_at) },
-    { key: "started", label: "Work started (actual)", at: at(order.actual_work_started_at) ?? at(order.started_at) },
-    { key: "finished", label: "Work finished (actual)", at: at(order.actual_work_ended_at) },
-    { key: "completed", label: workOrderStatusLabel("completed"), at: at(order.completed_at) },
+    { key: "submitted", label: "Submit for approval", at: at(order.submitted_at) },
+    { key: "approved", label: "Approve", at: at(order.approved_at) },
+    { key: "started", label: "Start the work", at: at(order.actual_work_started_at) ?? at(order.started_at) },
+    { key: "finished", label: "Finish the work", at: at(order.actual_work_ended_at) },
+    { key: "completed", label: "Submit Physical Completion", at: at(order.completed_at) },
   );
-  if (["before_review", "both"].includes(endorsementSetting) || order.emergency_work) steps.push({ key: "endorse-review", label: "Second Technician endorsed (work and final cost)", at: endorsedAt.review });
+  if (["before_review", "both"].includes(endorsementSetting) || order.emergency_work) steps.push({ key: "endorse-review", label: "Second Technician endorses (work and final cost)", at: endorsedAt.review });
   steps.push(
-    { key: "reviewed", label: workOrderStatusLabel("reviewed"), at: at(order.reviewed_at) },
+    { key: "reviewed", label: "Approve as Completed", at: at(order.reviewed_at) },
   );
   // UAT 7 Nov 2026: a contractor job shows the invoice upload as its own step, so Closed is clearly Finance's payment.
   // UAT 9 Nov 2026: with no contractor payment there is no invoice; the step is the No payment required decision.
-  if (!order.in_house_work && noPayable) steps.push({ key: "invoiced", label: "No payment required (no contractor payment)", at: noPayable.approvedAt });
-  else if (!order.in_house_work) steps.push({ key: "invoiced", label: "Contractor invoice uploaded", at: invoiceUploadedAt });
+  if (!order.in_house_work && noPayable) steps.push({ key: "invoiced", label: "Approve No payment required (no contractor payment)", at: noPayable.approvedAt });
+  else if (!order.in_house_work) steps.push({ key: "invoiced", label: "Upload the contractor invoice", at: invoiceUploadedAt });
   steps.push(
-    { key: "closed", label: `${workOrderStatusLabel("closed")} (paid or no payment due)`, at: at(order.closed_at) },
+    { key: "closed", label: "Close (paid, or no payment due)", at: at(order.closed_at) },
   );
   if (at(order.cancelled_at)) steps.push({ key: "cancelled", label: workOrderStatusLabel("cancelled"), at: at(order.cancelled_at) });
   return steps;
@@ -605,7 +605,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
               <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : isNext ? "border-2 border-red-600 bg-white" : "border-slate-200 bg-slate-50"}`}>
                 {isNext && <p className="mb-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-white">Next</p>}
                 <p className="font-semibold">{step.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{step.at ? formatDateTime(step.at) : "Pending"}</p>
+                <p className="mt-1 text-xs text-slate-500">{step.at ? `Done · ${formatDateTime(step.at)}` : "Pending"}</p>
                 {who && who.role !== "System" && <p className="mt-1 text-xs text-slate-700"><span className="font-semibold">{who.role}:</span> {who.who}</p>}
                 {isNext && who?.viewerIsResponsible && <a href={who.href} className="mt-2 inline-block text-xs font-bold text-red-700 underline">Do this now →</a>}
               </li>
@@ -700,7 +700,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
 
       {canSetTechnician(identity.role, status) && (
         <section className="rounded-xl border border-violet-200 bg-violet-50 p-5">
-          <h2 className="font-semibold text-violet-950">Field-witness Technician</h2>
+          <h2 className="font-semibold text-violet-950">Technician 1 (does and records the work)</h2>
           <p className="mb-4 mt-1 text-sm text-violet-800">Required before submission. The Technician witnesses the contractor&apos;s work, uploads evidence and submits the work for review.</p>
           <TechnicianPicker workOrderId={id} technicians={facilityTechnicians} currentId={order.assigned_technician_id} />
         </section>

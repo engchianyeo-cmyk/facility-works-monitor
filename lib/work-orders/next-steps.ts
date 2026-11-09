@@ -28,7 +28,7 @@ export function draftNextSteps(missing: readonly string[], workOrderId: string):
       return { label: item, how: "In Actual work times, enter when the work started and ended, then Save work times.", href: "#actual-work-times" };
     }
     if (item === "Field-witness Technician") {
-      return { label: item, how: "Assign the Technician who will witness the work.", href: null };
+      return { label: "Technician 1 (does and records the work)", how: "Whoever created the Draft chooses the Technician who will attend, witness and record the work.", href: null };
     }
     return { label: item, how: "", href: null };
   });

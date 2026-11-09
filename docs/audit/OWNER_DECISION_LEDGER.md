@@ -849,8 +849,9 @@ Owner asked that "every individual can comprehend the SLA expectation for the si
 
 ### D-46 Test data hidden from working lists — 9 November 2026 19:55
 
-Owner: "Yes, mark and hide". FW-2026-0001, FW-2026-0002 and FW-2026-0004 (old automated test records) are marked as
-test data (script `preview-d46-test-data-20261109.sql`), and all test-data Work Orders are hidden from the Operations
+Owner: "Yes, mark and hide". FW-2026-0001 and FW-2026-0002 (old automated test records) are marked as test data
+(script `preview-d46-test-data-20261109.sql`). FW-2026-0004 was first listed in error: it is a real UAT Draft (a copy of
+WO-TEST-008); owner, 20:58: "No" to hiding it. All test-data Work Orders are hidden from the Operations
 Workspace and the Work Orders list (a "show" link on the list brings them back; direct links still work).
 
 ### UAT fixes 9 November 2026 (no owner decision needed)
@@ -861,6 +862,9 @@ Workspace and the Work Orders list (a "show" link on the list brings them back; 
   different approver to Approve No Payment Required (found on WO-TEST-008).
 - Approve as Completed shows the final cost and approved amount beside the review note, and says plainly when no
   amount was approved.
+- A Draft with no Technician yet gives its next step (and the red box and link) to the person who created it.
+- Timeline steps are named as actions ("Submit for approval", "Approve as Completed", …) with "Done · date"; "Field-witness
+  Technician" is renamed "Technician 1 (does and records the work)" (owner: "Agree and execute", 20:49).
 
 ### Preview rollout record — 21 October 2026
 
@@ -983,6 +987,11 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 7 Nov 23:17 | Backup `.git/preview-backup-20261107-pre-m24.sql` (2,721,621 bytes, `--role=postgres`) | Owner, guided |
 | 7 Nov 23:1x | Increment applied (sha256 `a43d1ac5…`): `20261107120000` payment record controls (D-41, M24); preflight 73; ledger now 74; COMMIT. Commit `bce4ede` pushed afterwards | Owner, guided |
 | 7 Nov 23:21 | Data script `preview-d41-corrections-20261107.sql` (dry run, then apply): WO-TEST-007 invoice VQ-INV-2026-1219 → SVS-INV-2026-0544, payment reference FS-FAST-20261030-0418 → FS-UAT-20261107-0007, paid 20:35 → 12:35 SGT; FW-2026-0003 and WO-TEST-012 marked as test data; COMMIT | Owner, guided |
+| 9 Nov 20:51 | `release:verify` PASS (incl. `site_sla.test.sql`, 30 browser tests); commit `10a68df` (D-43 to D-46) | Owner |
+| 9 Nov 20:52 | Backup `.git/preview-backup-20261109-pre-m25.sql` (2,763,276 bytes, `--role=postgres`) | Owner, guided |
+| 9 Nov 20:53 | Increment applied (sha256 `b12230da…`): `20261109100000` PDF drawings (D-44, M25) and `20261109120000` Site SLA visibility (D-45, M26); preflight 74; ledger now 76; COMMIT. Commit `10a68df` pushed afterwards | Owner, guided |
+| 9 Nov 20:5x | D-46 script dry run listed FW-2026-0004 in error; owner declined hiding it; script corrected to FW-2026-0001 and 0002 only | Owner, guided |
+| 9 Nov 21:04 | D-46 script applied (corrected): FW-2026-0001 and FW-2026-0002 marked as test data; FW-2026-0004 not marked; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 
