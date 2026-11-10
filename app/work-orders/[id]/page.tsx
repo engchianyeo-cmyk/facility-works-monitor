@@ -17,7 +17,7 @@ import ActualWorkTimes from "@/components/work-orders/actual-work-times";
 import TechnicianEndorsement, { type Endorsement, type QuotationSummary } from "@/components/work-orders/technician-endorsement";
 import WorkCompletionSteps, { type CompletionStep } from "@/components/work-orders/work-completion-steps";
 import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel } from "@/lib/facility-settings";
-import { nextStepKey, responsibilityFor, type Responsibility, type ResponsibilityContext, type TimelineStepKey } from "@/lib/work-orders/timeline-responsibility";
+import { nextStepKey, responsibilityFor, stepPassedOver, type Responsibility, type ResponsibilityContext, type TimelineStepKey } from "@/lib/work-orders/timeline-responsibility";
 import { canMutateWorkOrderEvidence } from "@/lib/evidence";
 import WorkOrderActions from "@/components/work-orders/work-order-actions";
 import DraftNextSteps from "@/components/work-orders/draft-next-steps";
@@ -32,7 +32,7 @@ import { operationalLabel, workOrderStatusLabel } from "@/lib/product-terminolog
 import { createClient } from "@/lib/supabase/server";
 import { buildWorkOrderDecisionModel, safeHumanLabel } from "@/lib/work-orders/decision-header";
 import { authorizedExecutionActions } from "@/lib/work-orders/execution-interaction";
-import { canAct, canAssign, canEdit, canRecordWork, canSetTechnician, isApprovalAuthority, isPreparer } from "@/lib/work-orders/permissions";
+import { canAct, canAssign, canEdit, canRecordWork, canSetSecondTechnician, canSetTechnician, isApprovalAuthority, isPreparer } from "@/lib/work-orders/permissions";
 import { deriveWorkOrderOperationalStage } from "@/lib/work-orders/operational-stage";
 import { FACILITY_DRAWING_COLUMNS, facilityDrawingSrc, markupDrawingsFor, type FacilityDrawingRow } from "@/lib/facility-drawings";
 import { activeReworkContext, reworkHistory } from "@/lib/work-orders/rework";
@@ -271,7 +271,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     status === "completed" ? supabase.from("work_order_financial_controls").select("approved_budget,quoted_cost").eq("work_order_id", id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     supabase.from("work_order_copied_parties").select("profile_id").eq("work_order_id", id),
     supabase.rpc("work_order_people_directory"),
-    canSetTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
+    canSetTechnician(identity.role, status) || canSetSecondTechnician(identity.role, status) ? supabase.rpc("work_order_facility_technicians", { p_work_order_id: id }) : Promise.resolve({ data: [], error: null }),
     supabase.from("work_order_endorsements").select("id,stage,endorsed_by,statement,endorsed_at,checklist").eq("work_order_id", id).order("endorsed_at", { ascending: true }),
     order.facility_id ? supabase.from("facility_settings").select("endorsement_stage,designated_approver_id").eq("facility_id", order.facility_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     order.facility_id ? supabase.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", order.facility_id).eq("active", true).order("code") : Promise.resolve({ data: [], error: null }),
@@ -283,6 +283,10 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const people = (directoryResult.error ? [] : (directoryResult.data ?? []) as Array<{ id: string; display_name: string; role: string }>).map((person) => ({ id: person.id, name: person.display_name, role: person.role }));
   const facilityTechnicians = (facilityTechniciansResult.error ? [] : (facilityTechniciansResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null; email?: string | null }>).map((item) => ({ id: item.id, name: item.display_name, detail: [item.trade_discipline, item.email].filter(Boolean).join(" · ") || null }));
   const nameById = new Map(people.map((person) => [person.id, person.name]));
+  // D-49 (10 Nov 2026): the named Technician 2 (independent checker), if any.
+  const secondTechnicianId = (order as { second_technician_id?: string | null }).second_technician_id ?? null;
+  const secondTechnicianName = secondTechnicianId ? nameById.get(secondTechnicianId) ?? "the named Technician 2" : null;
+  const isNamedT2 = Boolean(secondTechnicianId) && identity.userId === secondTechnicianId;
   const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string; checklist?: { checks?: string[]; award_basis_note?: string | null } | null }>)
     .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at, checks: row.checklist?.checks ?? [], awardBasis: row.checklist?.award_basis_note ?? null }));
   // D-25: quotations for the independent checker to compare (awarded = approved, else recommended contractor).
@@ -313,6 +317,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const responsibilityContext: ResponsibilityContext = {
     technician1Name: order.assigned_technician_id ? nameById.get(order.assigned_technician_id) ?? resolvedAssignee ?? null : null,
     technician1Id: order.assigned_technician_id ?? null,
+    technician2Name: secondTechnicianName,
+    technician2Id: secondTechnicianId,
     approverName: designatedApproverId ? nameById.get(designatedApproverId) ?? null : null,
     endorserName: {
       submission: endorsements.filter((item) => item.stage === "submission").at(-1)?.endorser ?? null,
@@ -338,7 +344,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     return { ...responsibility, action: `finish the Draft first — ${first.label}${more} — then submit it for approval`, href: first.href ?? "#next-steps", section: "what is missing" };
   };
   const nextResponsibility = nextKey ? pointToOutstanding(nextKey, responsibilityFor(nextKey as TimelineStepKey, responsibilityContext)) : null;
-  const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status);
+  const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status)
+    && (!secondTechnicianId || isNamedT2);
   const actualTimes = { started: (order as { actual_work_started_at?: string | null }).actual_work_started_at ?? null, ended: (order as { actual_work_ended_at?: string | null }).actual_work_ended_at ?? null };
   const actualTimesEditable = order.assigned_technician_id === identity.userId && ["assigned", "in_progress", "completed"].includes(status);
   const showActualTimes = actualTimesEditable || Boolean(actualTimes.started) || ["in_progress", "completed", "reviewed", "closed"].includes(status);
@@ -375,6 +382,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       final_cost?: { final_contractor_amount: number; variation_order: boolean | null; variation_justification: string | null; documents: number } | null } | null;
   // A Technician who can check this Work Order is told in advance while the work is still under way (D-25 follow-up, 30 Oct).
   const upcomingCheck = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by
+    && (!secondTechnicianId || isNamedT2)
     && ["assigned", "in_progress"].includes(status) && ["before_review", "both"].includes(endorsementStageValue);
   const reviewEndorsementDue = status === "completed" && endorsementStatus?.ok === true && endorsementStatus.due === true;
   const endorsementRequired = (status === "draft" && Boolean(approvalSummary?.missing_requirements?.includes("Second Technician endorsement")))
@@ -600,14 +608,15 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
             : <p className="max-w-xs text-sm text-amber-900">Nothing for you to do on this step. When it is your turn, this box turns red with a link.</p>}
         </div>}
         <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {timeline.map((step) => {
-            const who = step.key === "cancelled" ? null : pointToOutstanding(step.key, responsibilityFor(step.key as TimelineStepKey, responsibilityContext));
+          {timeline.map((step, index) => {
+            const passedOver = stepPassedOver(timeline, index, status);
+            const who = step.key === "cancelled" || passedOver ? null : pointToOutstanding(step.key, responsibilityFor(step.key as TimelineStepKey, responsibilityContext));
             const isNext = step.key === nextKey;
             return (
               <li key={step.key} className={`rounded-lg border p-3 text-sm ${step.at ? "border-emerald-200 bg-emerald-50" : isNext ? "border-2 border-red-600 bg-white" : "border-slate-200 bg-slate-50"}`}>
                 {isNext && <p className="mb-1 inline-block rounded bg-red-600 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-white">Next</p>}
                 <p className="font-semibold">{step.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{step.at ? `Done · ${formatDateTime(step.at)}` : "Pending"}</p>
+                <p className="mt-1 text-xs text-slate-500">{step.at ? `Done · ${formatDateTime(step.at)}` : passedOver ? "Not recorded (passed over before the approval; can no longer be added)" : "Pending"}</p>
                 {who && who.role !== "System" && <p className="mt-1 text-xs text-slate-700"><span className="font-semibold">{who.role}:</span> {who.who}</p>}
                 {isNext && who?.viewerIsResponsible && <a href={who.href} className="mt-2 inline-block text-xs font-bold text-red-700 underline">Do this now →</a>}
               </li>
@@ -615,7 +624,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           })}
         </ol>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (actual start → end, entered by the Technician)</dt><dd className="mt-1 text-slate-700">{formatDuration(actualTimes.started, actualTimes.ended) ?? "Not yet entered"}</dd></div>
+          <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Work duration (actual start → end, entered by the Technician)</dt><dd className="mt-1 text-slate-700">{formatDuration(actualTimes.started, actualTimes.ended) ?? (["reviewed", "closed"].includes(status) ? "Not recorded" : "Not yet entered")}</dd></div>
           <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Labour hours recorded</dt><dd className="mt-1 text-slate-700">{order.actual_labour_hours === null || order.actual_labour_hours === undefined ? "Not yet recorded" : `${order.actual_labour_hours} h`}</dd></div>
           <div className="rounded-lg border border-slate-200 p-3"><dt className="font-semibold">Overall (created → closed)</dt><dd className="mt-1 text-slate-700">{formatDuration(order.created_at, order.closed_at) ?? "Open"}</dd></div>
         </dl>
@@ -624,7 +633,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       <SlaCountdown clock={slaClock} status={status} finishedAt={(order as { completed_at?: string | null }).completed_at ?? null} />
 
       {upcomingCheck && <div role="note" className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
-        <span className="block font-black">You may be the independent checker for this Work Order</span>
+        <span className="block font-black">{isNamedT2 ? `You are Technician 2 (independent checker) — work with Technician 1${responsibilityContext.technician1Name ? ` (${responsibilityContext.technician1Name})` : ""}` : "You may be the independent checker for this Work Order"}</span>
         <span className="mt-1 block text-sm">No action yet. Your endorsement will be needed after the assigned Technician submits Physical Completion; a flashing banner will then appear here, and the endorsement panel at the end of the page will turn red with your checklist.</span>
       </div>}
 
@@ -704,7 +713,18 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         <section className="rounded-xl border border-violet-200 bg-violet-50 p-5">
           <h2 className="font-semibold text-violet-950">Technician 1 (does and records the work)</h2>
           <p className="mb-4 mt-1 text-sm text-violet-800">Required before submission. The Technician witnesses the contractor&apos;s work, uploads evidence and submits the work for review.</p>
-          <TechnicianPicker workOrderId={id} technicians={facilityTechnicians} currentId={order.assigned_technician_id} />
+          <TechnicianPicker workOrderId={id} technicians={facilityTechnicians} currentId={order.assigned_technician_id} excludeIds={[secondTechnicianId]} />
+        </section>
+      )}
+      {(canSetSecondTechnician(identity.role, status) || secondTechnicianId) && (
+        <section id="technician-2" className={`rounded-xl p-5 ${!secondTechnicianId && canSetSecondTechnician(identity.role, status) ? "border-2 border-amber-500 bg-amber-50" : "border border-violet-200 bg-violet-50"}`}>
+          <h2 className="font-semibold text-violet-950">Technician 2 (independent checker)</h2>
+          <p className="mt-1 text-sm text-violet-800">
+            {secondTechnicianId
+              ? <>Named: <strong>{secondTechnicianName}</strong>. They work with Technician 1{responsibilityContext.technician1Name ? ` (${responsibilityContext.technician1Name})` : ""}, are copied on this Work Order, and are the only Technician who can check and endorse it.</>
+              : <>Not named yet. Name another Technician of this facility now, so they know in advance to work with Technician 1 and are told when the endorsement is due. Until one is named, any other Technician of the facility may endorse.</>}
+          </p>
+          {canSetSecondTechnician(identity.role, status) && <div className="mt-4"><TechnicianPicker which="second" workOrderId={id} technicians={facilityTechnicians} currentId={secondTechnicianId} excludeIds={[order.assigned_technician_id, (order as { requested_by?: string | null }).requested_by]} /></div>}
         </section>
       )}
       <CopiedParties workOrderId={id} people={people} selected={copiedIds} canEdit={copiedEditable} />

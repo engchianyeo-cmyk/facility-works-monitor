@@ -562,7 +562,7 @@ describe("My notices, bell and the Administrator view (D-38, UAT 7 Nov 2026)", (
   it("lists the reader's notices with what is waiting for them and marks them read", () => {
     const page = readFileSync("app/notices/page.tsx", "utf8");
     expect(page).toContain('.eq("recipient_profile_id", identity.userId)');
-    expect(page).toContain("waitingForReader(order, { id: identity.userId, role: identity.role })");
+    expect(page).toContain("waitingForReader(order, { id: identity.userId, role: identity.role }, Boolean(row.work_order_id && endorsedByMe.has(row.work_order_id)))");
     expect(readFileSync("components/notices/notices-list.tsx", "utf8")).toContain("Open and act →");
     expect(readFileSync("app/api/notices/read/route.ts", "utf8")).toContain('rpc("mark_my_notices_read"');
     expect(readFileSync("components/site-header.tsx", "utf8")).toContain('href="/notices"');

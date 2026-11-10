@@ -10,7 +10,7 @@ const APPROVERS = ["approver", "supervisor", "facility_manager", "administrator"
 /** Events that ask the reader to act, by the reader's role. Everything else is in-app only. */
 export const ACTION_EVENTS: Record<string, string[]> = {
   finance: ["work_order_invoice_uploaded"],
-  technician: ["work_order_approved", "work_order_technician_assigned", "work_order_returned_to_draft"],
+  technician: ["work_order_approved", "work_order_technician_assigned", "work_order_returned_to_draft", "work_order_second_technician_named", "work_order_endorsement_due"],
   approver: ["work_order_submitted_for_approval", "work_order_emergency_started", "work_order_endorsed"],
 };
 

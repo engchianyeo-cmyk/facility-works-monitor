@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MINIMUM_PASSWORD_LENGTH } from "@/lib/auth/password";
+import PasswordInput from "@/components/password-input";
 
 export default function PasswordChangeForm({
   required,
@@ -48,11 +49,11 @@ export default function PasswordChangeForm({
     <form onSubmit={submit} className="mt-6 space-y-4">
       <div>
         <label htmlFor="password" className="text-sm font-medium">New password</label>
-        <input id="password" name="password" type="password" autoComplete="new-password" minLength={MINIMUM_PASSWORD_LENGTH} required className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={MINIMUM_PASSWORD_LENGTH} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
       </div>
       <div>
         <label htmlFor="confirmation" className="text-sm font-medium">Confirm new password</label>
-        <input id="confirmation" name="confirmation" type="password" autoComplete="new-password" minLength={MINIMUM_PASSWORD_LENGTH} required className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
+        <PasswordInput id="confirmation" name="confirmation" autoComplete="new-password" minLength={MINIMUM_PASSWORD_LENGTH} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
       </div>
       <p className="text-xs text-slate-500">Use at least {MINIMUM_PASSWORD_LENGTH} characters. Passwords are never written to application logs or audit records.</p>
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}

@@ -9,6 +9,9 @@ export type TimelineStepKey =
 export type ResponsibilityContext = {
   technician1Name: string | null;
   technician1Id: string | null;
+  /** D-49 (10 Nov 2026): the named Technician 2, if any. When named, only they are responsible for the endorsement. */
+  technician2Name?: string | null;
+  technician2Id?: string | null;
   approverName: string | null;
   endorserName: { submission: string | null; review: string | null };
   inHouse: boolean;
@@ -36,7 +39,7 @@ const APPROVERS = ["approver", "supervisor", "facility_manager", "administrator"
 export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityContext): Responsibility {
   const t1 = ctx.technician1Name ?? "the assigned Technician";
   const isT1 = Boolean(ctx.technician1Id) && ctx.viewer.id === ctx.technician1Id;
-  const isT2 = ctx.viewer.role === "technician" && !isT1;
+  const isT2 = ctx.viewer.role === "technician" && !isT1 && (!ctx.technician2Id || ctx.viewer.id === ctx.technician2Id);
   const isApprover = APPROVERS.includes(ctx.viewer.role) && !isT1;
   const tech1 = (action: string, href: string, section: string): Responsibility => ({ role: "Technician 1", who: t1, action, href, section, viewerIsResponsible: isT1 });
   // UAT 9 Nov 2026: a Draft with no Technician yet belongs to whoever created it (e.g. a Supervisor), who must assign the
@@ -47,7 +50,7 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
       viewerIsResponsible: ctx.viewer.id === ctx.preparer.id };
   };
   const tech2 = (stage: "submission" | "review", action: string): Responsibility => ({
-    role: "Technician 2", who: ctx.endorserName[stage] ?? "any other Technician of this facility", action,
+    role: "Technician 2", who: ctx.endorserName[stage] ?? ctx.technician2Name ?? "any other Technician of this facility", action,
     href: "#technician-endorsement", section: "Second Technician endorsement", viewerIsResponsible: isT2,
   });
   // UAT 9 Nov 2026: whoever raised the Work Order may not approve it (the Administrator excepted, with a reason).
@@ -89,5 +92,17 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
 /** The first step not yet done, unless the Work Order is finished. */
 export function nextStepKey(steps: Array<{ key: string; at: string | null }>, status: string): string | null {
   if (["closed", "cancelled"].includes(status)) return null;
-  return steps.find((step) => !step.at && step.key !== "cancelled")?.key ?? null;
+  const live = steps.filter((step) => step.key !== "cancelled");
+  return live.find((step, index) => !step.at && !stepPassedOver(live, index, status))?.key ?? null;
+}
+
+/**
+ * UAT 10 Nov 2026: once the Approver has approved the work as Completed, earlier steps that were never recorded
+ * (e.g. actual work times on records approved before the times became required) can no longer be done, so they
+ * are shown as "Not recorded" and are never pointed to as the next step.
+ */
+export function stepPassedOver(steps: Array<{ key: string; at: string | null }>, index: number, status: string): boolean {
+  if (steps[index]?.at || !["reviewed", "closed"].includes(status)) return false;
+  const reviewedIndex = steps.findIndex((step) => step.key === "reviewed");
+  return reviewedIndex >= 0 && index < reviewedIndex;
 }

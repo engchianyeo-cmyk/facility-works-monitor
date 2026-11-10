@@ -89,3 +89,4 @@ supabase/migrations/20261107120000_payment_record_controls.sql
 supabase/migrations/20261109100000_drawing_pdf_master.sql
 supabase/migrations/20261109120000_site_sla_visibility.sql
 supabase/migrations/20261109140000_audit_names_and_technician_emails.sql
+supabase/migrations/20261110100000_named_second_technician.sql

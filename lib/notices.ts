@@ -4,7 +4,8 @@
  */
 export type NoticeEvent =
   | "work_order_submitted_for_approval" | "work_order_approved" | "work_order_technician_assigned" | "work_order_emergency_started"
-  | "work_order_returned_to_draft" | "work_order_completed" | "work_order_endorsed" | "work_order_invoice_uploaded" | "work_order_closed";
+  | "work_order_returned_to_draft" | "work_order_completed" | "work_order_endorsed" | "work_order_invoice_uploaded" | "work_order_closed"
+  | "work_order_second_technician_named" | "work_order_endorsement_due";
 
 const TEXT: Record<string, { text: string; href: string }> = {
   work_order_submitted_for_approval: { text: "submitted for approval", href: "#execution-title" },
@@ -16,6 +17,9 @@ const TEXT: Record<string, { text: string; href: string }> = {
   work_order_endorsed: { text: "endorsed by the second Technician", href: "#technician-endorsement" },
   work_order_invoice_uploaded: { text: "contractor invoice uploaded — confirm receipt and record the payment", href: "#payment-heading" },
   work_order_closed: { text: "closed", href: "#execution-title" },
+  // D-49 (10 Nov 2026): Technician 2 is named on the Work Order and told when the endorsement is due.
+  work_order_second_technician_named: { text: "you are Technician 2 (independent checker) — work with Technician 1; you will check and endorse the work", href: "#technician-endorsement" },
+  work_order_endorsement_due: { text: "your endorsement as Technician 2 is due — check the work and endorse it", href: "#technician-endorsement" },
 };
 
 export function noticeText(event: string): { text: string; href: string } {
@@ -25,9 +29,11 @@ export function noticeText(event: string): { text: string; href: string } {
 const APPROVERS = ["approver", "supervisor", "facility_manager", "administrator"];
 
 /** Is the Work Order this notice is about still waiting for the reader? Based on its current state, not the notice. */
-export function waitingForReader(order: { status: string; assigned_technician_id: string | null; in_house_work: boolean | null } | undefined,
-  reader: { id: string; role: string }): boolean {
+export function waitingForReader(order: { status: string; assigned_technician_id: string | null; in_house_work: boolean | null; second_technician_id?: string | null } | undefined,
+  reader: { id: string; role: string }, endorsedByReader = false): boolean {
   if (!order) return false;
+  // D-49: the named Technician 2 is waited for while the work is Submitted for Review and not yet endorsed by them.
+  if (reader.role === "technician" && order.second_technician_id === reader.id) return order.status === "completed" && !endorsedByReader;
   if (reader.role === "finance") return order.status === "reviewed" && !order.in_house_work;
   if (APPROVERS.includes(reader.role)) return ["submitted", "completed"].includes(order.status) && order.assigned_technician_id !== reader.id;
   if (reader.role === "technician") return order.assigned_technician_id === reader.id && ["draft", "approved", "assigned", "in_progress"].includes(order.status);

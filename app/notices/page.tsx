@@ -30,9 +30,14 @@ export default async function MyNoticesPage() {
   const rows = Array.from(groups.values());
   const orderIds = Array.from(new Set(rows.map(({ row }) => row.work_order_id).filter(Boolean))) as string[];
   const { data: orders } = orderIds.length
-    ? await supabase.from("work_orders").select("id,work_order_number,title,status,assigned_technician_id,in_house_work").in("id", orderIds)
+    ? await supabase.from("work_orders").select("id,work_order_number,title,status,assigned_technician_id,in_house_work,second_technician_id").in("id", orderIds)
     : { data: [] };
-  const orderOf = new Map((orders ?? []).map((row) => [(row as { id: string }).id, row as { id: string; work_order_number: string | null; title: string; status: string; assigned_technician_id: string | null; in_house_work: boolean | null }]));
+  // D-49: review endorsements already given by the reader (the named Technician 2 is then no longer waited for).
+  const { data: myEndorsements } = orderIds.length && identity.role === "technician"
+    ? await supabase.from("work_order_endorsements").select("work_order_id").eq("endorsed_by", identity.userId).eq("stage", "review").in("work_order_id", orderIds)
+    : { data: [] };
+  const endorsedByMe = new Set((myEndorsements ?? []).map((row) => (row as { work_order_id: string }).work_order_id));
+  const orderOf = new Map((orders ?? []).map((row) => [(row as { id: string }).id, row as { id: string; work_order_number: string | null; title: string; status: string; assigned_technician_id: string | null; in_house_work: boolean | null; second_technician_id: string | null }]));
   // D-43 (9 Nov 2026): the most current notices first; superseded and finished ones under Earlier notices.
   const current = currentNoticeIds(all, (workOrderId) => orderOf.get(workOrderId)?.status);
   const items: NoticeItem[] = rows.map(({ row, ids, read }) => {
@@ -47,7 +52,7 @@ export default async function MyNoticesPage() {
       id: row.id, ids, repeats: ids.length, createdAt: row.created_at, read, emailStatus,
       workOrderId: row.work_order_id, workOrderLabel: order ? `${order.work_order_number ?? ""} ${order.title}`.trim() : "Work Order",
       text: meaning.text, href: row.work_order_id ? `/work-orders/${row.work_order_id}${meaning.href}` : "",
-      waiting: waitingForReader(order, { id: identity.userId, role: identity.role }),
+      waiting: waitingForReader(order, { id: identity.userId, role: identity.role }, Boolean(row.work_order_id && endorsedByMe.has(row.work_order_id))),
       current: current.has(row.id),
       statusLabel: order ? workOrderStatusLabel(order.status) : null,
     };

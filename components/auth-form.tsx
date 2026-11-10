@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
+import PasswordInput from "@/components/password-input";
 
 type AuthFormProps = {
   mode?: "login";
@@ -59,7 +60,7 @@ export default function AuthForm({ nextPath = "/" }: AuthFormProps) {
       </div>
       <div>
         <label htmlFor="password" className="text-sm font-medium">Password</label>
-        <input id="password" name="password" type="password" autoComplete="current-password" required className={inputClass} />
+        <PasswordInput id="password" name="password" autoComplete="current-password" className={inputClass} />
       </div>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <button

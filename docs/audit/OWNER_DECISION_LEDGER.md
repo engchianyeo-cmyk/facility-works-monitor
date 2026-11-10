@@ -937,12 +937,38 @@ provided by D-47 (CT-01 and CT-02 on the Central Plant Block roof, on FW-006, FW
    rendered site plan show the rows, walkways, guardrail, stair, ladder and robot docks. The D-47 script adds area SPV-01
    "Solar PV Canopy (Car Park)" pinned on FW-007, so cleaning and maintenance Work Orders can point to it.
 
+### D-49 Technician 2 is named on the Work Order — 10 November 2026 18:29 (refines D-11, D-25)
+
+Owner (18:28): "For Technician 2, who is assigned to verify the work order completion. He was not given any notice to
+work with Technician 1 for the work order. Is this correct?" Until now no Technician 2 was named: any other Technician
+of the facility could endorse, and notices reached the checker only after endorsing. Owner chose "Name Technician 2".
+
+1. An Approver, Supervisor, Facility Manager or Administrator of the facility names Technician 2 on the Work Order
+   (section "Technician 2 (independent checker)"): another active Technician of the same facility, not Technician 1 and
+   not the person who raised it. It can be changed until Technician 2 has endorsed for review.
+2. Technician 2 is notified when named ("you are Technician 2 — work with Technician 1") and again when the
+   endorsement is due (work Submitted for Review; or a Draft at a facility that endorses before submission); both
+   are emailed once email is switched on. Technician 2 is copied on the Work Order; a replaced Technician 2 who has not
+   endorsed is removed from the copied parties.
+3. Only the named Technician 2 may endorse. A Work Order with no Technician 2 named works as before (any other
+   Technician of the facility). Technician 1 cannot be the named Technician 2.
+4. My notices keeps the Work Order outlined in red for Technician 2 until they have endorsed it.
+5. Migration `20261110100000_named_second_technician.sql` (M28); SQL test `named_second_technician.test.sql`.
+
 ### Drawings on the Work Order page — 10 November 2026 15:41
 
 Owner: "you may now include them in the work order page." Every Work Order of a facility with no uploaded drawings now shows
 FW-001 to FW-008 (site plan and 1st storey, 2nd storey, roof, elevations, 3D and Utility Block, Plant Block, solar PV canopy
 access, rendered site plan); each can be opened, pinned and marked up. A facility with its own uploaded drawings (D-17,
 D-44) shows only those, as before. FW-008 is reserved as a mock-up number for uploads.
+
+### Timeline after approval — 10 November 2026 22:13 (UAT fix, no new decision)
+
+Owner (WO-TEST-012, approved as Completed in Sept): the timeline said "Next step — yours: record when the work started
+and ended", but the times can no longer be entered after the review. Now, once a Work Order is approved as Completed,
+an earlier step that was never recorded shows "Not recorded (passed over before the approval; can no longer be added)"
+and is never the next step; the next step is the first open step after the approval (e.g. upload the contractor
+invoice). Before the review, missing times are still required and remain the next step.
 
 ### Preview rollout record — 21 October 2026
 
@@ -1071,6 +1097,16 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 9 Nov 20:5x | D-46 script dry run listed FW-2026-0004 in error; owner declined hiding it; script corrected to FW-2026-0001 and 0002 only | Owner, guided |
 | 9 Nov 21:04 | D-46 script applied (corrected): FW-2026-0001 and FW-2026-0002 marked as test data; FW-2026-0004 not marked; COMMIT | Owner, guided |
 | 9 Nov 21:18 | `release:verify` PASS; commit `246ca7d` (timeline steps named as actions, Technician 1 wording, D-46 script correction) pushed | Owner |
+| 10 Nov 15:43 | `release:verify` stopped at the database stage: Docker Desktop not running (952 unit tests had passed) | Owner |
+| 10 Nov 16:05 | `release:verify` PASS (SQL gate, 30 browser tests) | Owner |
+| 10 Nov ~16:10 | Commit `384c67c` (A/B round with M27; D-47/D-48 one building, FW-001 to FW-008 on the Work Order page, PV canopy access) | Owner |
+| 10 Nov 16:11 | Backup `.git/preview-backup-20261110-pre-m27.sql` (2,822,725 bytes, `--role=postgres`); later renamed `preview-backup-20261110-pre-d47.sql` (it predates both M27 and the D-47 script) | Owner, guided |
+| 10 Nov 16:1x | Target checked (`cli_login_postgres.pvajuywwwpjlikqjnvgv`); increment applied: `20261109140000` audit names and Technician emails (M27); preflight 76; ledger now 77; 79 "Unknown user" audit entries back-filled; COMMIT | Owner, guided |
+| 10 Nov 16:1x | D-47/D-48 script dry run: 40 changes (27 areas, 9 new assets, 3 asset moves, WO-TEST-002 to the AHU Room); rolled back | Owner, guided |
+| 10 Nov 16:1x–16:49 | D-47/D-48 script applied (output not captured); confirmed at 16:53 when a repeat apply found 0 changes to make | Owner, guided |
+| 10 Nov 16:21 | Commit `384c67c` pushed to `uat/claude-review` | Owner |
+| 10 Nov 16:49 | A repeat apply was refused at login (EAUTHQUERY, connection details not loaded); nothing changed | Owner, guided |
+| 10 Nov 16:53 | Repeat apply after reloading the connection: 0 changes; COMMIT (nothing to change) | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 

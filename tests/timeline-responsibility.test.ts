@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextStepKey, responsibilityFor, type ResponsibilityContext } from "@/lib/work-orders/timeline-responsibility";
+import { nextStepKey, responsibilityFor, stepPassedOver, type ResponsibilityContext } from "@/lib/work-orders/timeline-responsibility";
 
 const base: ResponsibilityContext = {
   technician1Name: "Yang Ying Zhang", technician1Id: "t1", approverName: null,
@@ -12,6 +12,17 @@ describe("D-34 timeline responsibility", () => {
     const steps = [{ key: "created", at: "x" }, { key: "submitted", at: "x" }, { key: "reviewed", at: null }, { key: "closed", at: null }];
     expect(nextStepKey(steps, "completed")).toBe("reviewed");
     expect(nextStepKey(steps, "closed")).toBeNull();
+  });
+  it("UAT 10 Nov 2026: after approval as Completed, never points back to a step that was not recorded", () => {
+    const steps = [{ key: "started", at: "x" }, { key: "finished", at: null }, { key: "completed", at: "x" }, { key: "endorse-review", at: null },
+      { key: "reviewed", at: "x" }, { key: "invoiced", at: null }, { key: "closed", at: null }];
+    expect(nextStepKey(steps, "reviewed")).toBe("invoiced");
+    expect(stepPassedOver(steps, 1, "reviewed")).toBe(true);
+    expect(stepPassedOver(steps, 3, "reviewed")).toBe(true);
+    expect(stepPassedOver(steps, 5, "reviewed")).toBe(false);
+    // Before the review, missing times are still required and stay the next step.
+    expect(nextStepKey(steps.map((step) => step.key === "reviewed" ? { ...step, at: null } : step), "completed")).toBe("finished");
+    expect(stepPassedOver(steps, 1, "completed")).toBe(false);
   });
   it("names the Approver for the review, and tells Technician 1 it is not theirs", () => {
     const r = responsibilityFor("reviewed", base);

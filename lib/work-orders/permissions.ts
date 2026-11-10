@@ -49,6 +49,11 @@ export function canSetTechnician(role: UserRole, status: string): boolean {
   return isApprovalAuthority(role) && ["draft", "submitted"].includes(status);
 }
 
+/** D-49 (10 Nov 2026): Technician 2 is named (or changed) until the work is approved as Completed; the database also refuses a change once Technician 2 has endorsed for review. */
+export function canSetSecondTechnician(role: UserRole, status: string): boolean {
+  return isApprovalAuthority(role) && ["draft", "submitted", "approved", "assigned", "in_progress", "completed"].includes(status);
+}
+
 function independent(context: WorkflowContext): boolean {
   return context.role === "administrator"
     || (context.actorId !== context.requesterId && context.actorId !== context.assignedTechnicianId);
