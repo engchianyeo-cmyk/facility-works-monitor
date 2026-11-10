@@ -36,4 +36,9 @@ do $t$ declare r jsonb; wo uuid; begin
   wo:=(r->'work_order'->>'id')::uuid;
   perform pg_temp.assert_true(exists(select 1 from public.work_order_sla_clocks c where c.work_order_id=wo and c.attendance_deadline is not null),'the Technician sees the SLA clock of their own Work Order');
 end;$t$;
+reset role;
+do $t$ begin
+  perform pg_temp.act(pg_temp.u(1));
+  perform pg_temp.assert_true(public.work_order_actor()->>'name'='D45 technician 1','audited actions record the person''s name, not Unknown user');
+end;$t$;
 rollback;

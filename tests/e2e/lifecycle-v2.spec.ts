@@ -41,7 +41,7 @@ async function reviewed(page: Page, button: ReturnType<Page["getByRole"]>) {
 /** D-08: mark the location on the layout plan (API used by the markup editor) and add a Before photo on the screen. */
 async function siteRequirements(page: Page, workOrderId: string, name: string) {
   await expect(page.getByText("Location marked on the layout plan").first()).toBeVisible();
-  await workspace(page, workOrderId, "markup", { source_type: "drawing", source_reference: "FW-001", drawing_revision: "A (25 May 2024)", annotation_type: "marker", note: "Work location", geometry: { points: [{ x: 23.1, y: 37.4 }] } });
+  await workspace(page, workOrderId, "markup", { source_type: "drawing", source_reference: "FW-001", drawing_revision: "B (10 Nov 2026)", annotation_type: "marker", note: "Work location", geometry: { points: [{ x: 23.1, y: 37.4 }] } });
   const evidence = page.locator("section").filter({ has: page.getByRole("heading", { name: "Evidence" }) });
   await evidence.getByLabel("Category").selectOption("before");
   await evidence.getByLabel("Photo, video, voice recording or PDF", { exact: true }).setInputFiles({ name: `before-${name}.png`, mimeType: "image/png", buffer: PNG });

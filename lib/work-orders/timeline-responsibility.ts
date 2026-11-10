@@ -50,8 +50,10 @@ export function responsibilityFor(key: TimelineStepKey, ctx: ResponsibilityConte
     role: "Technician 2", who: ctx.endorserName[stage] ?? "any other Technician of this facility", action,
     href: "#technician-endorsement", section: "Second Technician endorsement", viewerIsResponsible: isT2,
   });
+  // UAT 9 Nov 2026: whoever raised the Work Order may not approve it (the Administrator excepted, with a reason).
+  const independentApprover = isApprover && (ctx.viewer.role === "administrator" || !ctx.preparer?.id || ctx.viewer.id !== ctx.preparer.id);
   const approver = (action: string): Responsibility => ({
-    role: "Approver", who: ctx.approverName ?? "the Approver", action, href: "#execution-title", section: "Work Order actions", viewerIsResponsible: isApprover,
+    role: "Approver", who: ctx.approverName ?? "an approver who did not raise it", action, href: "#execution-title", section: "Work Order actions", viewerIsResponsible: independentApprover,
   });
   // UAT 9 Nov 2026: no contractor was approved, so there is no invoice to upload. The Work Order closes once someone
   // proposes "No payment required" and a different approver approves it.

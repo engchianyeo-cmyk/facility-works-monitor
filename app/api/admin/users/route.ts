@@ -32,26 +32,28 @@ function presenceFor(profile: {
   if (!profile.is_active || profile.deleted_at || !profile.last_active_at) {
     return {
       presence_status: "offline" as const,
-      session_status: "No recent authenticated heartbeat",
+      session_status: "No activity recorded yet",
     };
   }
 
   const age = Date.now() - new Date(profile.last_active_at).getTime();
+  // UAT 9 Nov 2026: plain words instead of "heartbeat is aging".
+  const minutes = Math.max(1, Math.round(age / 60000));
   if (!Number.isFinite(age) || age > 30 * 60 * 1000) {
     return {
       presence_status: "offline" as const,
-      session_status: "No recent authenticated heartbeat",
+      session_status: "Not active in the last 30 minutes",
     };
   }
   if (age > 5 * 60 * 1000) {
     return {
       presence_status: "idle" as const,
-      session_status: "Authenticated heartbeat is aging",
+      session_status: `Idle — last active ${minutes} min ago`,
     };
   }
   return {
     presence_status: "online" as const,
-    session_status: "Recent authenticated heartbeat",
+    session_status: "Using the app now (last 5 minutes)",
   };
 }
 

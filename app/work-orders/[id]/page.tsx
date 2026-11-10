@@ -281,7 +281,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   const approvedAmount = financialControlResult.error ? null : (financialControlResult.data as { approved_budget: number | null } | null)?.approved_budget ?? null;
   const copiedIds = (copiedResult.error ? [] : copiedResult.data ?? []).map((row) => String(row.profile_id));
   const people = (directoryResult.error ? [] : (directoryResult.data ?? []) as Array<{ id: string; display_name: string; role: string }>).map((person) => ({ id: person.id, name: person.display_name, role: person.role }));
-  const facilityTechnicians = (facilityTechniciansResult.error ? [] : (facilityTechniciansResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null }>).map((item) => ({ id: item.id, name: item.display_name, detail: item.trade_discipline }));
+  const facilityTechnicians = (facilityTechniciansResult.error ? [] : (facilityTechniciansResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null; email?: string | null }>).map((item) => ({ id: item.id, name: item.display_name, detail: [item.trade_discipline, item.email].filter(Boolean).join(" · ") || null }));
   const nameById = new Map(people.map((person) => [person.id, person.name]));
   const endorsements: Endorsement[] = (endorsementResult.error ? [] : (endorsementResult.data ?? []) as Array<{ id: string; stage: "submission" | "review"; endorsed_by: string; statement: string; endorsed_at: string; checklist?: { checks?: string[]; award_basis_note?: string | null } | null }>)
     .map((row) => ({ id: row.id, stage: row.stage, endorser: nameById.get(row.endorsed_by) ?? "Technician", statement: row.statement, endorsed_at: row.endorsed_at, checks: row.checklist?.checks ?? [], awardBasis: row.checklist?.award_basis_note ?? null }));
@@ -529,6 +529,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         raiseAgain={canRaiseAgain}
         inHouseWork={Boolean(order.in_house_work)}
         waitingFor={nextResponsibility && !nextResponsibility.viewerIsResponsible ? `${nextResponsibility.who} (${nextResponsibility.role}) to ${nextResponsibility.action}` : null}
+        selfRaised={isApprovalAuthority(identity.role) && identity.role !== "administrator" && ["submitted", "completed"].includes(status)
+          && ((order as { requested_by?: string | null }).requested_by === identity.userId || order.assigned_technician_id === identity.userId)}
         canRecordWork={canRecordWork(context) && !(identity.role === "administrator" && operationalStage.completion.workRecordReceived && operationalStage.completion.labourHoursRecorded)}
         formalCompletionAuthority={identity.role === "administrator" && order.assigned_technician_id !== identity.userId}
         completionReadiness={operationalStage.completion}

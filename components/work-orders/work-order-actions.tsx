@@ -37,6 +37,8 @@ type Props = {
   raiseAgain?: boolean;
   inHouseWork?: boolean;
   waitingFor?: string | null;
+  /** UAT 9 Nov 2026: the viewer could approve, but raised or is assigned to this Work Order, so may not. */
+  selfRaised?: boolean;
   canRecordWork: boolean;
   formalCompletionAuthority: boolean;
   completionReadiness: CompletionReadiness;
@@ -437,6 +439,12 @@ export default function WorkOrderActions(props: Props) {
             <label className="block text-sm font-bold">Exception reason <span aria-hidden="true">*</span><textarea required rows={3} maxLength={2000} value={exceptionCompletionReason} onChange={(event) => setExceptionCompletionReason(event.target.value)} className="mt-1 w-full rounded-lg border border-violet-300 bg-white p-3" /></label>
             <div className="grid gap-3 sm:grid-cols-2"><button disabled={blocked} className="min-h-12 rounded-xl bg-violet-700 px-5 font-black text-white">Submit Exception Completion</button><button type="button" onClick={() => setInteraction(null)} className="min-h-12 rounded-xl border bg-white px-5 font-bold">Back</button></div>
           </form>
+        )}
+
+        {props.selfRaised && (
+          <p role="note" className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-sm font-bold text-amber-950">
+            You raised or are assigned to this Work Order, so you cannot {props.status === "submitted" ? "approve it" : "approve it as Completed"}. A different Approver, Supervisor or Facility Manager must do it.{props.status === "completed" ? " You can still use Reject & Reopen if the work is not acceptable." : ""}
+          </p>
         )}
 
         {refreshingFrom !== null ? (

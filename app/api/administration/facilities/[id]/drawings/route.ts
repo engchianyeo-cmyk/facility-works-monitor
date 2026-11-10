@@ -22,6 +22,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!(file instanceof File) || !code || !validDrawingCode(code) || !title) {
     return errorResponse("VALIDATION_ERROR", "Choose the file and enter the drawing number and title.", 400);
   }
+  // D-47/D-48 (10 Nov 2026): FW-006 to FW-008 join FW-001 to FW-005 as mock-up drawing numbers (the database refuses FW-001 to FW-005).
+  if (code === "FW-006" || code === "FW-007" || code === "FW-008") return errorResponse("VALIDATION_ERROR", "FW-001 to FW-008 are the mock-up drawings; choose another drawing number.", 400);
   if (!(DRAWING_CONTENT_TYPES as readonly string[]).includes(file.type)) return errorResponse("VALIDATION_ERROR", "Drawings must be PNG, JPEG, WebP or PDF.", 400);
   if (file.size <= 0 || file.size > MAX_DRAWING_BYTES) return errorResponse("VALIDATION_ERROR", "Drawings must be smaller than 50 MB.", 400);
   const isPdf = file.type === "application/pdf";

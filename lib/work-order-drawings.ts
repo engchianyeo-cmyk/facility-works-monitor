@@ -8,6 +8,9 @@ export type WorkOrderDrawing = {
   height: number;
 };
 
+/** Measured on FW-001 Rev A (1066 x 682 px, 25 May 2024). Rev B (10 Nov 2026) re-places the LDB-01 pin by script. */
+export const FW001_REV_A_SIZE = { width: 1066, height: 682 } as const;
+
 export const FW001_RS01_LOADING_DOCK = {
   sourcePixel: { x: 246, y: 255 },
   normalized: { x: 23.077, y: 37.39 },
@@ -18,12 +21,13 @@ export const FW001_RS01_LOADING_DOCK = {
 export const WORK_ORDER_DRAWINGS: readonly WorkOrderDrawing[] = [
   {
     code: "FW-001",
-    title: "Site Plot Plan, Perspective, 1st Storey and Utility Block Layout",
-    revision: "A (25 May 2024)",
-    src: "/work-order-drawings/FW-001.png",
-    alt: "FW-001 Site Plot Plan, Perspective, 1st Storey and Utility Block Layout",
-    width: 1066,
-    height: 682,
+    // D-47 Rev B (10 Nov 2026): one building (Main Building, Central Plant Block, Utility Block), drawn to scale.
+    title: "Site Plot Plan and 1st Storey Layout (one building)",
+    revision: "B (10 Nov 2026)",
+    src: "/work-order-drawings/FW-001-rev-b.png",
+    alt: "FW-001 Site Plot Plan and 1st Storey Layout of the one building",
+    width: 2048,
+    height: 1484,
   },
   {
     code: "FW-002",
@@ -45,11 +49,51 @@ export const WORK_ORDER_DRAWINGS: readonly WorkOrderDrawing[] = [
   },
   {
     code: "FW-004",
-    title: "North, South, East and West Elevations",
-    revision: "A (28 Jul 2026)",
-    src: "/work-order-drawings/FW-004.png",
-    alt: "FW-004 North, South, East and West Elevations",
-    width: 1024,
-    height: 742,
+    // D-47 Rev B (10 Nov 2026): elevations of the one building, to scale.
+    title: "North, South, East and West Elevations (one building)",
+    revision: "B (10 Nov 2026)",
+    src: "/work-order-drawings/FW-004-rev-b.png",
+    alt: "FW-004 North, South, East and West Elevations of the one building",
+    width: 2048,
+    height: 1484,
+  },
+  // Owner, 10 Nov 2026: the new drawings are shown on the Work Order page too.
+  {
+    code: "FW-005",
+    title: "3D Perspective and Utility Block Layout Plan (one building)",
+    revision: "B (10 Nov 2026)",
+    src: "/work-order-drawings/FW-005-rev-b.png",
+    alt: "FW-005 3D perspective of the one building and the Utility Block layout plan",
+    width: 2048,
+    height: 1484,
+  },
+  // D-47 (10 Nov 2026): the Central Plant Block between the Main Building and the Utility Block.
+  {
+    code: "FW-006",
+    title: "Central Plant Block Layout and Roof Plan (AHU Room, Chiller Plant Room)",
+    revision: "A (10 Nov 2026)",
+    src: "/work-order-drawings/FW-006.png",
+    alt: "FW-006 Central Plant Block Layout and Roof Plan",
+    width: 2048,
+    height: 1484,
+  },
+  // D-48 (10 Nov 2026): maintenance access on the car park solar PV canopy.
+  {
+    code: "FW-007",
+    title: "Car Park Solar PV Canopy: Maintenance Access Plan and Section",
+    revision: "A (10 Nov 2026)",
+    src: "/work-order-drawings/FW-007.png",
+    alt: "FW-007 Car Park Solar PV Canopy maintenance access plan and section",
+    width: 2048,
+    height: 1484,
+  },
+  {
+    code: "FW-008",
+    title: "Rendered Site Plan (presentation, to scale)",
+    revision: "A (10 Nov 2026)",
+    src: "/work-order-drawings/FW-008-rendered-site-plan.jpg",
+    alt: "FW-008 rendered site plan of the one building, car park canopy and site",
+    width: 2800,
+    height: 1980,
   },
 ];

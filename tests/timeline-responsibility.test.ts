@@ -16,7 +16,7 @@ describe("D-34 timeline responsibility", () => {
   it("names the Approver for the review, and tells Technician 1 it is not theirs", () => {
     const r = responsibilityFor("reviewed", base);
     expect(r.role).toBe("Approver");
-    expect(r.who).toBe("the Approver");
+    expect(r.who).toBe("an approver who did not raise it");
     expect(r.viewerIsResponsible).toBe(false);
     expect(responsibilityFor("reviewed", { ...base, viewer: { id: "a1", role: "approver" } }).viewerIsResponsible).toBe(true);
   });
@@ -65,5 +65,14 @@ describe("Draft with no Technician yet (UAT 9 Nov 2026)", () => {
     expect(mine.who).toContain("Sam Supervisor");
     expect(responsibilityFor("created", { ...noTech, viewer: { id: "a1", role: "approver" } }).viewerIsResponsible).toBe(false);
     expect(responsibilityFor("submitted", { ...base, preparer: { id: "s1", name: "Sam" } }).viewerIsResponsible).toBe(true);
+  });
+});
+
+describe("The person who raised a Work Order does not approve it (UAT 9 Nov 2026)", () => {
+  it("gives no red box to the raiser, but does to another approver and to the Administrator", () => {
+    const raised = { ...base, preparer: { id: "a1", name: "Yeo Eng Chian" } };
+    expect(responsibilityFor("reviewed", { ...raised, viewer: { id: "a1", role: "approver" } }).viewerIsResponsible).toBe(false);
+    expect(responsibilityFor("approved", { ...raised, viewer: { id: "a2", role: "supervisor" } }).viewerIsResponsible).toBe(true);
+    expect(responsibilityFor("reviewed", { ...raised, viewer: { id: "a1", role: "administrator" } }).viewerIsResponsible).toBe(true);
   });
 });

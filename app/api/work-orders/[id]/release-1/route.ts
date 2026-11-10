@@ -31,7 +31,7 @@ export async function GET(_: NextRequest, { params }: Context) {
     supabase.rpc("work_order_contractor_rate_items", { p_work_order_id: id }),
     supabase.rpc("work_order_eligible_contractors", { p_work_order_id: id }),
     supabase.from("work_order_financial_controls").select("policy_version_id,currency,estimated_cost,quoted_cost,approved_budget,cost_status,recommended_by,recommended_at,recommendation_note,financial_approved_by,financial_approved_at,financial_approval_note,rule:commercial_approval_rules(rule_code,minimum_quotations,minimum_amount,maximum_amount)").eq("work_order_id", id).maybeSingle(),
-    supabase.from("work_orders").select("requested_by,emergency_work,in_house_work,assigned_technician_id,title,description,location,status,reviewed_at,assigned_vendor_id,recommended_vendor_id,actual_labour_hours,actual_costs_confirmed_at,contractor:vendors!work_orders_assigned_vendor_fkey(name,payment_terms_days),asset:assets(asset_tag,name,asset_type,location)").eq("id", id).maybeSingle(),
+    supabase.from("work_orders").select("requested_by,emergency_work,in_house_work,assigned_technician_id,actual_costs_confirmed_by,title,description,location,status,reviewed_at,assigned_vendor_id,recommended_vendor_id,actual_labour_hours,actual_costs_confirmed_at,contractor:vendors!work_orders_assigned_vendor_fkey(name,payment_terms_days),asset:assets(asset_tag,name,asset_type,location)").eq("id", id).maybeSingle(),
     supabase.from("contractor_payment_assessments").select("id,status,assessed_amount,invoice_amount,invoice_uploaded_at,invoice_opened_at,completed_work_accepted_at,invoice_received_at,invoice_reference,payment_term_started_at,payment_due_at,recommendation_note,recommended_by,recommended_at,approval_note,approved_by,approved_at,completion_notified_at,paid_amount,payment_reference,paid_by,paid_at,payment_note").eq("work_order_id", id).maybeSingle(),
     supabase.from("work_order_commercial_documents").select("id,document_type,quotation_id,payment_assessment_id,original_filename,content_type,byte_size,uploaded_at,uploaded_by").eq("work_order_id", id).is("deleted_at", null).order("uploaded_at"),
     supabase.from("work_order_document_corrections").select("id,status,reason,opened_at,closed_at").eq("work_order_id", id).eq("status", "open").maybeSingle(),
@@ -42,6 +42,10 @@ export async function GET(_: NextRequest, { params }: Context) {
     supabase.rpc("work_order_closure_readiness", { p_work_order_id: id }),
   ]);
   const failed = [markups, costs, procurement, quotationResult, rateResult, eligibleResult, financial, order, payment, documents, correction, finalCost, finalCostDocuments, disposition, financialReadiness, closureReadiness].find((item) => item.error);
+  const confirmedById = (order.data as { actual_costs_confirmed_by?: string | null } | null)?.actual_costs_confirmed_by ?? null;
+  const confirmedByName = confirmedById
+    ? ((await supabase.from("profiles").select("display_name").eq("id", confirmedById).maybeSingle()).data as { display_name?: string | null } | null)?.display_name ?? null
+    : null;
   if (failed?.error) return transportFailure("load Release 1 workspace for");
   return NextResponse.json({
     ok: true,
@@ -55,6 +59,9 @@ export async function GET(_: NextRequest, { params }: Context) {
       financial: financial.data,
       contractor: order.data?.contractor ?? null,
       actual_costs_confirmed_at: order.data?.actual_costs_confirmed_at ?? null,
+      // UAT 9 Nov 2026: who confirmed the costing; only Technician 1's own confirmation allows Physical Completion.
+      actual_costs_confirmed_by: (order.data as { actual_costs_confirmed_by?: string | null } | null)?.actual_costs_confirmed_by ?? null,
+      actual_costs_confirmed_by_name: confirmedByName,
       order: order.data,
       payment: payment.data,
       documents: documents.data ?? [],

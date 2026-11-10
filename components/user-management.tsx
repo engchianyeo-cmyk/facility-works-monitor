@@ -352,9 +352,9 @@ export default function UserManagement({
             className={inputClass}
           >
             <option value="all">All recorded activity</option>
-            <option value="online">Recent activity</option>
-            <option value="idle">Aging activity</option>
-            <option value="offline">No recent activity</option>
+            <option value="online">Online (last 5 minutes)</option>
+            <option value="idle">Idle (5–30 minutes)</option>
+            <option value="offline">Not active (over 30 minutes)</option>
           </select>
           <select
             aria-label="Sort users"
@@ -541,10 +541,10 @@ export default function UserManagement({
                             }`}
                           >
                             {user.presence_status === "online"
-                              ? "Recent activity"
+                              ? "Online"
                               : user.presence_status === "idle"
-                                ? "Aging activity"
-                                : "No recent activity"}
+                                ? "Idle"
+                                : "Not active"}
                           </span>
                           <p className="mt-2 max-w-44 text-xs text-slate-500">
                             {user.session_status}

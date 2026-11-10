@@ -205,7 +205,7 @@ a Vercel link that works without a Vercel login (R1-009) and accounts for each p
    Administrator (Facility Locations); manual marking only optional. The mock-up drawings are
    placeholders; the commercial version uses the facility's own PDF layout drawings (Stage 2).
    Add a Generator Room to the Utility Block mock-up. The facility uses split air-conditioning,
-   not chillers. Owner gave no preference on the UAT data; default adopted: chiller items are
+   not chillers (superseded in part by D-47, 10 Nov 2026: a central chilled-water plant is added). Owner gave no preference on the UAT data; default adopted: chiller items are
    renamed to split air-conditioning equivalents (Preview data change needs the owner's go-ahead).
 2. **Finance as copied party:** not selectable while drafting; added automatically when the Work
    Order reaches Completed.
@@ -865,6 +865,84 @@ Workspace and the Work Orders list (a "show" link on the list brings them back; 
 - A Draft with no Technician yet gives its next step (and the red box and link) to the person who created it.
 - Timeline steps are named as actions ("Submit for approval", "Approve as Completed", …) with "Done · date"; "Field-witness
   Technician" is renamed "Technician 1 (does and records the work)" (owner: "Agree and execute", 20:49).
+- (owner: "Go ahead with A and B", 23:07) The person who raised a Work Order is no longer pointed to approve it, and is
+  told plainly that a different approver must; the Cost Summary says who confirmed the costing and asks Technician 1 to
+  confirm it personally; audit entries record the person's name instead of "Unknown user" (migration
+  `20261109140000_audit_names_and_technician_emails.sql`, M27, which also adds emails to the Technician picker);
+  user presence reads "Online / Idle — last active N min ago / Not active"; guides, AI knowledge pack (version 2) and
+  drawing HLH-A-101 updated to today's features.
+
+### D-47 Central Plant Block with an AHU Room and a Chiller Plant Room — 10 November 2026 13:34 (supersedes D-11.1 in part)
+
+Owner (13:02): "Are there rooms for AHUs and chillers? If not, we may have to create the 2 rooms. One recommended space is
+in between the main building and the utility block." Neither room was on the mock-up drawings (AHU-02 was recorded in a
+"Level 2 AHU Room" that no drawing showed), and D-11 had said the facility uses split air-conditioning, not chillers.
+Owner (13:34), choosing option 1 of 3: "Proceed with No. 1 option and please modify the layouts accordingly."
+
+1. **The facility now has a central chilled-water plant** as well as its split air-conditioning and VRF units. This
+   replaces D-11's "split air-conditioning, not chillers"; the split-AC renames already applied on 24 Oct stay as they are.
+2. **Central Plant Block** (1 storey, 8.0 x 24.0 m). Owner (13:59): "join the 2 buildings and cover up the opening in
+   between the buildings": the block fills the opening wall to wall, sharing 2-hour fire walls with the Main Building
+   (west) and the Utility Block (east); doors open north to the fire access road and south to the service road; vehicle and
+   fire access stay on the perimeter road. AHU Room `AHR-01` (8.0 x 8.0 m, AHU-01 and AHU-02, ducts through the west wall)
+   and Chiller Plant Room `CPR-01` (8.0 x 16.0 m: chillers CH-01/CH-02, chilled water pumps CHWP-01/02, condenser water
+   pumps CWP-01/02, panel MCC-CP-01), cooling towers CT-01/CT-02 on the roof above.
+   Owner (14:00) asked to turn the Utility Block 90 degrees; its layout plan is 12 m wide by 24 m deep, so it already runs
+   north to south as on the site plan, and turned it would not fit beside the Plant Block within the site. Owner (after 14:01):
+   keep the Utility Block as it is and close the gap.
+3. **Drawings:** new mock-up sheet FW-006 (Central Plant Block layout and roof plan), reserved as a mock-up drawing
+   number for uploads. FW-001 and FW-005 were first amended in place; that was replaced by new Rev B sheets (point 5).
+4. **Preview data:** script `preview-d47-central-plant-20261110.sql` (dry run by default): both areas pinned on FW-006
+   (the Administrator can move them), 9 new synthetic assets, AHU-02 moved to the AHU Room, WO-TEST-002 location
+   follows AHU-02 while open; every change written to the activity log. Rehearsed locally (13 changes; second run
+   changes nothing). Not applied until the owner runs it.
+
+5. **One building, drawn to scale (FW-001 Rev B, FW-005 Rev B).** Owner (14:53): "The overall facility layout (plot plan)
+   and the new proposed HVAC plant room, utility block need to be fused into one building. Note that the existing utility
+   room is not drawn to scale which have to be modified to scale proportionally." Owner asked for a 3D perspective as well;
+   owner (14:59): "Yes, make them larger if necessary" (the Utility Block holds both room sets).
+   - FW-001 Rev B: to-scale site plot plan (site 130 x 80 m, 10,400 m²) and 1st storey layout of the one building,
+     88 x 24 m: Main Building 48 m (2 storeys), Central Plant Block 8 m, Utility Block 32 m, joined by 2-hour fire walls.
+   - FW-005 Rev B: 3D perspective drawn from the same to-scale model (simplified massing, not a photo render) and the
+     Utility Block layout plan to scale. The Utility Block (32 x 24 m, 768 m²) holds the former FW-001 electrical rooms and
+     the former FW-005 fire protection rooms: maintenance workshop, fire pump room, water tank room, sprinkler tank room,
+     fire control centre, substation, transformer room, electrical switch room, generator room, solar PV rectifier room,
+     battery room, store, lobby and corridor. Total GFA 3,264 m².
+   - Rev A images are kept unchanged; markups saved on Rev A stay in the record but are not drawn on Rev B.
+   - The D-47 script also pins the 1st storey and site areas on FW-001 Rev B, adds 7 Utility Block areas, clears pins
+     left on the old FW-001 / FW-005 for the Administrator to place again, and moves TR-01 and INV-PV-02 indoors.
+   - FW-004 Rev B (owner, 15:13: "proceed to elevation drawings"): north, south, east and west elevations of the one
+     building, to scale from the same model; the front is the south elevation (main entrance, loading dock RS-01). Areas
+     pinned on the old FW-004 lose their pin for the Administrator to place again. FW-002 and FW-003 are unaffected.
+   - Owner (15:13) also asked for a quotation for WO-TEST-002: `KB-Q-2611-0002` from Kelvinbay ACMV Engineering Pte Ltd
+     (UAT), S$551.00 before GST (S$600.59 with 9% GST; V-belts S$56 only if replaced), marked as a UAT test document.
+
+### D-48 Safe access to clean and maintain the car park solar PV canopy — 10 November 2026 15:30
+
+Owner: "For the solar panel mounted above the car park, it needs men to access the panels for cleaning and maintenance.
+What you have provided cannot allow any cleaning, even with a robot to do the work. Please make provision for the
+required tasks." Owner (15:33) also noted that a water-cooled chiller system needs cooling towers on the roof: already
+provided by D-47 (CT-01 and CT-02 on the Central Plant Block roof, on FW-006, FW-001/004/005 Rev B and the 3D view).
+
+1. **Canopy layout (FW-007 Rev A, new):** 60 x 17 m canopy, deck +3.90 m, headroom +3.60 m. Five east-west PV rows, each
+   2 panels deep (2.3 m), tilted 10 degrees to the south; 0.8 m grated walkways between rows; 1.0 m perimeter walkway
+   (1.4 m on the east side) with a 1.1 m guardrail all round; horizontal lifeline on every walkway.
+2. **Access:** dog-leg stair at the north-west corner with a lockable gate (permit-to-work); caged ladder at the north-east
+   corner as a second way down.
+3. **Cleaning:** water points at the west end of every walkway; gutters at the low edge of every row to downpipes at the
+   columns, so cleaning water does not fall on parked cars; one robot docking station per row at the east end and a
+   transfer trolley on a rail to move the robot between rows.
+4. **Structure:** columns on the aisle edges (every 12 m), clear of the parking bays.
+5. **Drawings and data:** FW-007 added to the app (reserved as a mock-up number); FW-001 Rev B, FW-005 Rev B (3D) and the
+   rendered site plan show the rows, walkways, guardrail, stair, ladder and robot docks. The D-47 script adds area SPV-01
+   "Solar PV Canopy (Car Park)" pinned on FW-007, so cleaning and maintenance Work Orders can point to it.
+
+### Drawings on the Work Order page — 10 November 2026 15:41
+
+Owner: "you may now include them in the work order page." Every Work Order of a facility with no uploaded drawings now shows
+FW-001 to FW-008 (site plan and 1st storey, 2nd storey, roof, elevations, 3D and Utility Block, Plant Block, solar PV canopy
+access, rendered site plan); each can be opened, pinned and marked up. A facility with its own uploaded drawings (D-17,
+D-44) shows only those, as before. FW-008 is reserved as a mock-up number for uploads.
 
 ### Preview rollout record — 21 October 2026
 
@@ -992,6 +1070,7 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 9 Nov 20:53 | Increment applied (sha256 `b12230da…`): `20261109100000` PDF drawings (D-44, M25) and `20261109120000` Site SLA visibility (D-45, M26); preflight 74; ledger now 76; COMMIT. Commit `10a68df` pushed afterwards | Owner, guided |
 | 9 Nov 20:5x | D-46 script dry run listed FW-2026-0004 in error; owner declined hiding it; script corrected to FW-2026-0001 and 0002 only | Owner, guided |
 | 9 Nov 21:04 | D-46 script applied (corrected): FW-2026-0001 and FW-2026-0002 marked as test data; FW-2026-0004 not marked; COMMIT | Owner, guided |
+| 9 Nov 21:18 | `release:verify` PASS; commit `246ca7d` (timeline steps named as actions, Technician 1 wording, D-46 script correction) pushed | Owner |
 
 ## D. Decisions still open (not recoverable locally)
 
