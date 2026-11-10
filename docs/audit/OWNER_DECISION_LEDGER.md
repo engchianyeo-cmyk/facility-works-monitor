@@ -1107,6 +1107,11 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 10 Nov 16:21 | Commit `384c67c` pushed to `uat/claude-review` | Owner |
 | 10 Nov 16:49 | A repeat apply was refused at login (EAUTHQUERY, connection details not loaded); nothing changed | Owner, guided |
 | 10 Nov 16:53 | Repeat apply after reloading the connection: 0 changes; COMMIT (nothing to change) | Owner, guided |
+| 10 Nov 18:59 | `release:verify` PASS (D-49 Technician 2 named, show-password button) | Owner |
+| 10 Nov 22:37 | `release:verify` PASS again with the timeline-after-approval fix (SQL gate incl. `named_second_technician.test.sql`, 30 browser tests) | Owner |
+| 10 Nov ~22:39 | Commit `d8a84bd` (D-49 Technician 2 named (M28); show-password button; timeline after approval) | Owner |
+| 10 Nov 22:41 | Target checked (`cli_login_postgres.pvajuywwwpjlikqjnvgv`, pooler aws-0-ap-southeast-1); backup `.git/preview-backup-20261110-pre-m28.sql` (2,891,736 bytes, `--role=postgres`) | Owner, guided |
+| 10 Nov 22:43 | Increment `out/preview-increment-m28.sql` (sha256 `ce67043bb18ac628…`) applied: `20261110100000` named Technician 2 (M28); preflight 77; ledger now 78; COMMIT | Owner, guided |
 
 ## D. Decisions still open (not recoverable locally)
 
