@@ -126,7 +126,7 @@ describe("D-19 variation order at the final cost", () => {
     const workspace = read("components/work-orders/release-one-workspace.tsx");
     expect(workspace).toContain("Was there a variation order from the contractor?");
     expect(workspace).toContain("No — price unchanged");
-    expect(workspace).toContain("Yes — variation order");
+    expect(workspace).toContain("Yes — price changed (higher or lower)");
     expect(workspace).toContain("Variation justification (why the price changed)");
     expect(workspace).toContain("Same as approved quotation");
     expect(read("app/api/work-orders/[id]/release-1/route.ts")).toContain("variation_order,final_quotation_id,variation_justification");

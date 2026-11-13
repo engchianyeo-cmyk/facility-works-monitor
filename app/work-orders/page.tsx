@@ -15,6 +15,10 @@ const SORT: Record<string, { column: string; ascending: boolean }> = {
   due_date: { column: "due_date", ascending: true }, priority: { column: "priority_rank", ascending: false }, updated: { column: "updated_at", ascending: false },
 };
 const ACTIVE_STATUSES = ["draft", "submitted", "approved", "assigned", "in_progress"];
+// 12 Nov 2026 (owner): "Open work" includes Submitted for Review (status completed); "Finished" is Completed (reviewed), Closed, Cancelled.
+const OPEN_STATUSES = [...ACTIVE_STATUSES, "completed"];
+const FINISHED_STATUSES = ["reviewed", "closed", "cancelled"];
+const HIDDEN_BY_DEFAULT = ["closed", "cancelled"];
 
 function formatDate(value: string | null) {
   if (!value) return "Not set";
@@ -44,6 +48,10 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   const myDrafts = values.view === "drafts";
   if (myDrafts) query = query.eq("status", "draft").or(`assigned_technician_id.eq.${identity.userId},requested_by.eq.${identity.userId}`);
   if (isWorkOrderStatus(values.status)) query = query.eq("status", values.status);
+  else if (values.status === "open") query = query.in("status", OPEN_STATUSES);
+  else if (values.status === "finished") query = query.in("status", FINISHED_STATUSES);
+  // D-52: with no status chosen, Closed and Cancelled are hidden ("All statuses" shows them).
+  else if (values.status !== "all" && !values.view) query = query.not("status", "in", `(${HIDDEN_BY_DEFAULT.join(",")})`);
   if (isWorkOrderPriority(values.priority)) query = query.eq("priority", values.priority);
   if (isWorkOrderSource(values.source)) query = query.eq("source", values.source);
   if (values.department) query = query.eq("department_id", values.department);

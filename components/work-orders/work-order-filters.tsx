@@ -15,10 +15,16 @@ export default function WorkOrderFilters({
 }) {
   const input = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm";
   return (
-    <form method="get" action="/work-orders" className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-4">
+    // The key makes the form redraw whenever the address changes, so the boxes always show the filters that are
+    // actually applied (defaultValue alone keeps the old choices after Clear or Back).
+    <form key={JSON.stringify(values)} method="get" action="/work-orders" className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-4">
       <input className={`${input} md:col-span-2`} name="search" defaultValue={values.search} placeholder="Search number, title, location…" />
       <select className={input} name="status" defaultValue={values.status ?? ""}>
-        <option value="">All statuses</option>
+        {/* 12 Nov 2026 (owner, D-52): Closed and Cancelled are hidden from the everyday list; "Submitted for Review" is still under way. */}
+        <option value="">Current work (Closed and Cancelled hidden)</option>
+        <option value="open">Open work (not yet Completed)</option>
+        <option value="finished">Finished (Completed, Closed, Cancelled)</option>
+        <option value="all">All statuses, including Closed and Cancelled</option>
         {WORK_ORDER_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status as WorkOrderStatus]}</option>)}
       </select>
       <select className={input} name="priority" defaultValue={values.priority ?? ""}>

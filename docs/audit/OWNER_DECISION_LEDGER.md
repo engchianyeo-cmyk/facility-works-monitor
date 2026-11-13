@@ -808,6 +808,11 @@ email should prompt them. Owner (16:46): "Yes, agree to use fmworks.notices@gmai
    the old backlog is not sent. Who gets an email at once: Finance for an uploaded invoice; the Technician when the
    Work Order is approved, assigned to them or returned to Draft; approvers for submissions, emergency starts and
    endorsements. Everything else shows "in app only".
+8. Update 13 Nov 2026 00:56: the owner renamed one of his Gmail accounts to **fmworks.notices@gmail.com**, which now
+   replaces the Yahoo account. No code change: the mail server is set by Vercel variables. Preview only:
+   `EMAIL_SMTP_HOST=smtp.gmail.com`, `EMAIL_SMTP_PORT=465`, `EMAIL_SMTP_USER=fmworks.notices@gmail.com`,
+   `EMAIL_SMTP_PASSWORD` = a Google app password (needs 2-Step Verification), entered by the owner in Vercel and never
+   shared. Takes effect from the next Preview deployment.
 
 ### D-43 Only current notices shown first — 9 November 2026 19:08
 
@@ -962,6 +967,30 @@ FW-001 to FW-008 (site plan and 1st storey, 2nd storey, roof, elevations, 3D and
 access, rendered site plan); each can be opened, pinned and marked up. A facility with its own uploaded drawings (D-17,
 D-44) shows only those, as before. FW-008 is reserved as a mock-up number for uploads.
 
+### D-50 Facility One, Facility 2 and a Super-Administrator — 11 November 2026 15:53 (proposed; owner to confirm)
+
+Owner: "Shall we call it 'Facility One' for the existing work order handled? ... when I introduce 'Facility 2', it will
+be separate ... There will be a Super-Administrator who can oversee all the facilities under the care of this app. The
+account is engchian.yeo@gmail.com." Proposed (mock-up "FMWorks Archive and Facilities mock-up", 11 Nov):
+1. The existing trial facility is renamed **Facility One**; the pharma warehouse (layouts PB-001 to PB-201, Rev P2,
+   awaiting approval) becomes **Facility 2 — Pharma Warehouse**. Each keeps its own Work Orders, numbering, staff,
+   drawings, areas, contractors, settings and Archive (facility memberships already separate them).
+2. The everyday Work Orders list shows open work only; Closed and Cancelled Work Orders leave it at once, stay under
+   "Closed and cancelled" for N months, then move to the read-only, searchable Archive (D-18; N and the off-site copy
+   frequency set per facility).
+3. **Super-Administrator** (one account, engchian.yeo@gmail.com): adds facilities, appoints each facility's
+   Administrator, sees and searches every facility and Archive; approves or pays only where also a facility member.
+   The existing Administrator role becomes **Facility Administrator**, limited to its own facilities.
+4. Not built yet: needs a migration (role and facility-scoped Administrator), the Archive view (D-18), a facility
+   switcher, and a Preview script to rename the facility. To be planned after the owner confirms.
+
+### Final cost wording — 10 November 2026 23:35 (refines D-19)
+
+Owner: "Yes, relabel the option to 'Yes — price changed (higher or lower)'." The Final Cost Reconciliation choice now
+reads "Yes — price changed (higher or lower)": any change from the approved quotation, lower as well as higher, is a
+variation order with a revised charge, a reason and the contractor's revised quotation. The saved summary shows
+"Yes — price changed (revised quotation)".
+
 ### Timeline after approval — 10 November 2026 22:13 (UAT fix, no new decision)
 
 Owner (WO-TEST-012, approved as Completed in Sept): the timeline said "Next step — yours: record when the work started
@@ -969,6 +998,73 @@ and ended", but the times can no longer be entered after the review. Now, once a
 an earlier step that was never recorded shows "Not recorded (passed over before the approval; can no longer be added)"
 and is never the next step; the next step is the first open step after the approval (e.g. upload the contractor
 invoice). Before the review, missing times are still required and remain the next step.
+
+### D-51 Facility 2 drawings, equipment and Work Order list — 12 November 2026 15:09
+
+Owner's answers on the Facility 2 (pharma warehouse) material:
+1. **Drawing set P2 (PB-001 to PB-304) is approved as the set used for pinning Work Order locations** (not for
+   construction). Re-traced from the owner's reference drawings; the ramp stays as built.
+2. Possible Work Orders (P-01 to P-76) and the equipment list go to the facility manager for review and testing;
+   the FM marks each Keep / Drop / Change. Quotations are prepared only for those kept.
+3. AHU-G1 (GMP suite) and the purified-water system stay in the equipment list for now.
+4. Car park east side is open to the east road; 3D views keep the car park at ground level.
+5. Level 1 docks: 20 ft container trucks reverse in at an angle under a road marshal (no traffic lights).
+   Level 2 docks take 20 ft and 40 ft trucks by the west ramp.
+6. No lift to the roof: Cargo Lift 2 stops at the Level 2 mezzanine. Materials and PV cleaning robots are raised by
+   davit DV-01 at the east parapet; robots are stored and charged in R.07.
+7. West ramp shown with 1.2 m concrete crash barriers, hazard band and guardrail on both edges.
+8. Closed and cancelled Work Orders of Facility One are archived away from daily work (see D-50 point 2); whether
+   Facility 2 technicians may consult them read-only is still open.
+9. Open: email route to Finance (to retry later); the Production rollout plan and running costs (Vercel, Supabase,
+   GitHub) are not final; a full document set for the Facility 2 team is to be proposed.
+
+### D-52 Work Orders list filters and remaining test Work Orders — 12 November 2026 17:00 (extends D-46)
+
+Owner: "I saw the item 'Submitted for Review', this should be work still in progress." and "Yes, mark the remaining
+WO-TEST items as test data."
+1. The Status filter gains two choices: **Open work (not yet Completed)** = Draft, Awaiting Approval, Approved,
+   Assigned, In Progress and Submitted for Review; **Finished (Completed, Closed, Cancelled)**. Submitted for Review
+   counts as work still under way, because its review is still outstanding.
+2. Fix (owner, 16:48, "Nothing works"): after Clear or Back, the filter boxes kept showing the old choice while the
+   list had already changed. The filter form now redraws whenever the page address changes.
+3. Every remaining WO-TEST-### Work Order is marked as test data on Preview (script
+   `preview-d52-wo-test-data-20261112.sql`, dry run first). FW-2026-0004 stays visible (D-46).
+4. Owner, 17:32: "What i want is to remove those which are cancelled, closed to be hidden from the team for now."
+   The Work Orders list now hides Closed and Cancelled by default ("Current work (Closed and Cancelled hidden)").
+   They stay in the app: choose "Finished", "Closed", "Cancelled" or "All statuses, including Closed and Cancelled"
+   to see them. Completed (reviewed) Work Orders stay visible, as invoices and payments may still follow. This is the
+   interim step towards the Archive (D-18, D-50 point 2); nothing is deleted or moved.
+
+### D-53 One account as Facility One Administrator and Super-Administrator — 12 November 2026 23:12 (refines D-50 point 3)
+
+Owner: "engchian.yeo@gmail.com can be the Administrator for Facility One and also the Super-Administrator for all
+other facilities (to be created and named in future) but cannot take on other roles like Approver, Administrator of
+other facilities apart from Facility One."
+1. engchian.yeo@gmail.com: Facility One Administrator and Super-Administrator (adds facilities, appoints each
+   facility's Administrator, oversees all). It never acts as Approver or any other working role, and is not the
+   Administrator of any facility other than Facility One.
+2. Each other facility (Facility 2 first) gets its own Facility Administrator account.
+3. Explained to the owner: "FMWorks" is the app's name and covers every facility; user accounts belong to the app
+   and are linked to a facility only through "Add a staff member" (no automatic link to Facility One). The trial
+   facility is not yet renamed "Facility One" (D-50 point 1).
+4. Not built yet: today every Administrator covers all facilities and there is no Super-Administrator role. Needs the
+   D-50 build (migration, facility-limited Administrator, Super-Administrator, facility switch, rename script).
+
+### D-54 Facility Administrators, Finance per facility and the Super-Administrator's start view — 12 November 2026 23:20 (builds D-50, D-53)
+
+Owner: "Yes, proceed" (plan `docs/design/D-50_FACILITIES_AND_SUPER_ADMINISTRATOR_PLAN.md`), then chose:
+1. The Super-Administrator (engchian.yeo@gmail.com, the existing `administrator` role) **keeps emergency approval and
+   field powers**, used only with an audited reason when no Approver is available.
+2. A **Facility Administrator** (new role) may create user accounts for **its own facility only**; they are added to
+   that facility at once; it can never create Administrator or Super-Administrator accounts.
+3. **Finance is per facility**: Finance sees only the facilities it is staff of. Existing Finance accounts are added
+   to Facility One's staff so nothing changes for them. Owner, 23:25: "Finance can use the same email account for all
+   facilities so he can be a single person or separate persons." One Finance account may be staff of several
+   facilities (it then sees each of them and gets the facility switch); or each facility has its own Finance account.
+4. The Super-Administrator's start view is **All facilities**, with a facility switch in the header.
+5. Found while planning: the trial facility is "FMWorks UAT Facility" (code UAT-FAC-001), which is why "FMWorks"
+   looked like the facility's name. It is renamed **Facility One** by the Administrator in the app (Facilities ›
+   Details › Facility name, with a reason); the code UAT-FAC-001 stays, so Work Order numbers are unaffected.
 
 ### Preview rollout record — 21 October 2026
 
@@ -1120,3 +1216,10 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 3. Disposition of untracked `0011_secure_legacy_public_tables.sql` (R1-010).
 4. Vercel deployment-protection access for hosted UAT (R1-009).
 5. ~~B-03 and B-05~~ resolved by D-01/D-02 on 20 Oct. Follow-up questions: see chat 20 Oct.
+6. New facility UAT kick-off (asked 11 Nov 00:11; owner to discuss with the facility manager first). (a) Where the new
+   facility's requirements form lives: a shared web page with an AI assistant, answers saved for setup (recommended);
+   a new page inside FMWorks (Stage 2-sized build); or both (page now, app later). (b) Which testing documents: UAT test
+   plan and scripts per role; updated Onboarding Guide for a New Facility; role quick-start cards; sign-off sheet and
+   defect log (assumed all four unless told otherwise). Archive of closed and cancelled Work Orders: already decided by
+   D-18 (Stage 2); recommendation is an in-app Archive view plus the off-site bundle, with the archive settings on the
+   new facility form.
