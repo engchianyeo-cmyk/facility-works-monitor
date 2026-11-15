@@ -21,7 +21,7 @@ select set_config('fmworks.profile_admin_rpc','off',true),set_config('fmworks.pa
 create temp table lc2 as select s.id facility_id from public.sites s where s.is_active order by s.id limit 1;
 insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
 select (select facility_id from lc2),p.id,p.role,'1c200000-0000-4000-8000-000000000005' from public.profiles p
-where p.id in ('1c200000-0000-4000-8000-000000000001','1c200000-0000-4000-8000-000000000002','1c200000-0000-4000-8000-000000000003','1c200000-0000-4000-8000-000000000004');
+where p.id in ('1c200000-0000-4000-8000-000000000001','1c200000-0000-4000-8000-000000000002','1c200000-0000-4000-8000-000000000003','1c200000-0000-4000-8000-000000000004','1c200000-0000-4000-8000-000000000006'); -- D-54: Finance belongs to the facility
 insert into public.work_orders(id,user_id,requested_by,assigned_technician_id,work_order_number,title,location,priority,status,source,facility_id,created_at,updated_at)
 values('1c200000-0000-4000-8000-0000000000aa','1c200000-0000-4000-8000-000000000001','1c200000-0000-4000-8000-000000000001','1c200000-0000-4000-8000-000000000001',
   'WO-LC2-001','Foundations test','Synthetic','medium','submitted','manual',(select facility_id from lc2),now(),now());

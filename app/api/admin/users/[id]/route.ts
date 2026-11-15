@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getCurrentIdentity, isUserRole } from "@/lib/auth";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
@@ -25,12 +26,17 @@ function databaseMessage(message: string | undefined, fallback: string) {
     "Permanent deletion confirmation does not match",
     "Active work assignments must be reassigned before permanent deletion",
     "The final ready Administrator cannot be permanently deleted",
+    "You cannot change your own account here",
+    "Facility Administrators manage Technician, Approver, Supervisor, Facility Manager and Finance accounts only",
+    "This person is not staff of your facility",
   ];
   return permitted.find((value) => message.includes(value)) ?? fallback;
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const identity = await requireAdministrator();
+  // D-54: a Facility Administrator may edit its own facility's staff; the database enforces the limits.
+  const caller = await getCurrentIdentity();
+  const identity = caller && (caller.role === "administrator" || caller.role === "facility_administrator") ? caller : null;
   if (!identity) return NextResponse.json({ error: "Access denied." }, { status: 403 });
 
   try {
@@ -150,6 +156,49 @@ export async function DELETE(request: Request, context: RouteContext) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof SyntaxError ? "The request body must be valid JSON." : "Unable to archive user." },
+      { status: error instanceof SyntaxError ? 400 : 500 },
+    );
+  }
+}
+
+/**
+ * D-55 (owner, 13 and 15 Nov 2026): the Super-Administrator removes a person's details for good before a handover.
+ * The database replaces the name, email and contact number with "Former user NNNN" in the profile and the history;
+ * then the sign-in is given a placeholder email (which frees the real one), a random password and a permanent ban.
+ */
+export async function POST(request: Request, context: RouteContext) {
+  const identity = await requireAdministrator();
+  if (!identity) return NextResponse.json({ error: "Only the Super-Administrator may remove a person's details." }, { status: 403 });
+  try {
+    const { id } = await context.params;
+    const body = (await request.json()) as Record<string, unknown>;
+    if (body.action !== "remove_personal_details") return NextResponse.json({ error: "Unsupported action." }, { status: 400 });
+    if (!isAdminConfigured()) return NextResponse.json({ error: "Removing details requires configured privileged Auth access." }, { status: 503 });
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("admin_remove_personal_details", {
+      p_target_id: id, p_confirmation: String(body.confirmation ?? ""), p_reason: String(body.reason ?? ""),
+    });
+    const result = data as { ok?: boolean; code?: string; message?: string; label?: string; placeholder_email?: string } | null;
+    if (error || !result?.ok) {
+      return NextResponse.json({ error: result?.message ?? "The person's details were not removed." }, { status: 409 });
+    }
+    {
+      // NO_CHANGE (already removed) retries the sign-in clean-up with the same placeholder.
+      const placeholder = result.placeholder_email ?? `former-${id.replaceAll("-", "")}@removed.invalid`;
+      const admin = createAdminClient();
+      const { error: authError } = await admin.auth.admin.updateUserById(id, {
+        email: placeholder, email_confirm: true, password: randomBytes(24).toString("base64url"),
+        user_metadata: {}, ban_duration: "876000h",
+      });
+      if (authError) {
+        return NextResponse.json({ success: true, label: result.label,
+          warning: "The details were removed in FMWorks, but the sign-in record could not be cleared. Try again; the email is not yet free." });
+      }
+    }
+    return NextResponse.json({ success: true, label: result.label, message: `Details removed. The person is now shown as ${result.label}, and the email is free to use again.` });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof SyntaxError ? "The request body must be valid JSON." : "Unable to remove the details." },
       { status: error instanceof SyntaxError ? 400 : 500 },
     );
   }

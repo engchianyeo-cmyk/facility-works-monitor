@@ -20,7 +20,7 @@ const safeError = (error: unknown) => (error instanceof Error ? error.message : 
 
 async function send(settings: SmtpSettings, to: string, message: EmailMessage) {
   return sendSmtp({ host: settings.host, port: settings.port, secure: settings.secure, user: settings.user, pass: settings.pass },
-    { fromName: settings.fromName, from: settings.user, to, subject: message.subject, text: message.text, html: message.html });
+    { fromName: settings.fromName, from: settings.fromAddress, to, subject: message.subject, text: message.text, html: message.html });
 }
 
 async function noticeDetails(admin: Admin, workOrderId: string) {
@@ -117,10 +117,10 @@ export async function sendDailyFinanceReminders(settings: SmtpSettings, admin: A
   const ids = live.map((row) => row.work_order_id);
   const vendorIds = Array.from(new Set(live.map((row) => row.vendor_id).filter(Boolean))) as string[];
   const [{ data: orders }, { data: vendors }] = await Promise.all([
-    ids.length ? admin.from("work_orders").select("id,work_order_number,title,status").in("id", ids) : Promise.resolve({ data: [] }),
+    ids.length ? admin.from("work_orders").select("id,work_order_number,title,status,facility_id").in("id", ids) : Promise.resolve({ data: [] }),
     vendorIds.length ? admin.from("vendors").select("id,name").in("id", vendorIds) : Promise.resolve({ data: [] }),
   ]);
-  const orderOf = new Map(((orders ?? []) as Array<{ id: string; work_order_number: string | null; title: string; status: string }>).map((o) => [o.id, o]));
+  const orderOf = new Map(((orders ?? []) as Array<{ id: string; work_order_number: string | null; title: string; status: string; facility_id: string | null }>).map((o) => [o.id, o]));
   const vendorOf = new Map(((vendors ?? []) as Array<{ id: string; name: string }>).map((v) => [v.id, v.name]));
   const items = reminderItems(live.filter((row) => orderOf.has(row.work_order_id)).map((row) => ({
     work_order_id: row.work_order_id, work_order_number: orderOf.get(row.work_order_id)?.work_order_number ?? null, title: orderOf.get(row.work_order_id)?.title ?? "",
@@ -128,18 +128,29 @@ export async function sendDailyFinanceReminders(settings: SmtpSettings, admin: A
     invoice_received_at: row.invoice_received_at, payment_due_at: row.payment_due_at })), now);
   if (!items.length) return 0;
 
+  // D-54 (15 Nov 2026): Finance belongs to facilities; each person's reminder lists only their facilities' payments.
+  const { data: memberships } = await admin.from("facility_memberships").select("profile_id,facility_id")
+    .eq("membership_role", "finance").eq("active", true).in("profile_id", waiting.map((p) => p.id));
+  const facilitiesOf = new Map<string, Set<string>>();
+  for (const row of (memberships ?? []) as Array<{ profile_id: string; facility_id: string }>) {
+    if (!facilitiesOf.has(row.profile_id)) facilitiesOf.set(row.profile_id, new Set());
+    facilitiesOf.get(row.profile_id)?.add(row.facility_id);
+  }
   const origin = applicationOrigin();
   let sent = 0;
   for (const person of waiting) {
+    const mine = facilitiesOf.get(person.id) ?? new Set<string>();
+    const personItems = items.filter((item) => mine.has(orderOf.get(item.workOrderId)?.facility_id ?? ""));
+    if (!personItems.length) continue;
     // The unique event key per person and day is the claim: a second run the same day inserts nothing.
     const { data: claim, error } = await admin.from("notification_outbox").insert({
-      work_order_id: items[0].workOrderId, event_type: "finance_daily_reminder", event_key: key, recipient_user_id: person.id, recipient_profile_id: person.id,
+      work_order_id: personItems[0].workOrderId, event_type: "finance_daily_reminder", event_key: key, recipient_user_id: person.id, recipient_profile_id: person.id,
       recipient_email: person.email, channel: "email", provider: "smtp", delivery_status: "processing", attempted_at: new Date().toISOString(),
-      payload: { day: clock.day, items: items.map((item) => ({ work_order_id: item.workOrderId, state: item.state })) },
+      payload: { day: clock.day, items: personItems.map((item) => ({ work_order_id: item.workOrderId, state: item.state })) },
     }).select("id").maybeSingle();
     if (error || !claim) continue;
     try {
-      const reference = await send(settings, person.email as string, buildFinanceReminder({ recipientName: person.display_name, appOrigin: origin, items, day: clock.day }));
+      const reference = await send(settings, person.email as string, buildFinanceReminder({ recipientName: person.display_name, appOrigin: origin, items: personItems, day: clock.day }));
       const at = new Date().toISOString();
       await admin.from("notification_outbox").update({ delivery_status: "sent", sent_at: at, result_code: "SENT", provider_reference: reference, attempts: 1, updated_at: at }).eq("id", claim.id);
       sent += 1;

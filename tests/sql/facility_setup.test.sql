@@ -53,7 +53,7 @@ begin
   -- staff
   perform pg_temp.assert_true((public.admin_set_facility_membership(fac,pg_temp.u(1),true,'Joins the new plant')->>'ok')::boolean,'Technician added to the facility');
   perform pg_temp.assert_true(public.admin_set_facility_membership(fac,pg_temp.u(1),true,'Again')->>'code'='NO_CHANGE','adding twice is NO_CHANGE');
-  perform pg_temp.assert_true(public.admin_set_facility_membership(fac,pg_temp.u(7),true,'Finance')->>'code'='VALIDATION_ERROR','Finance is not a facility member');
+  perform pg_temp.assert_true((public.admin_set_facility_membership(fac,pg_temp.u(7),true,'Finance')->>'ok')::boolean,'D-54: Finance is a member of its facilities');
   perform pg_temp.assert_true(exists(select 1 from public.admin_facility_staff(fac) s where s.profile_id=pg_temp.u(1) and s.member),'staff list shows the member');
   perform pg_temp.assert_true((public.admin_set_facility_membership(fac,pg_temp.u(3),true,'Approver for the plant')->>'ok')::boolean,'Approver added');
 

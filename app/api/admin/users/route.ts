@@ -59,6 +59,10 @@ function presenceFor(profile: {
 
 export async function GET() {
   try {
+    const { getCurrentIdentity } = await import("@/lib/auth");
+    const caller = await getCurrentIdentity();
+    // D-54: a Facility Administrator sees only the staff of its own facilities (no audit trail of other people).
+    if (caller?.role === "facility_administrator") return facilityStaffDirectory(caller.userId);
     const identity = await requireAdministrator();
     if (!identity) {
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
@@ -149,6 +153,34 @@ export async function GET() {
       { status: 503 },
     );
   }
+}
+
+async function facilityStaffDirectory(callerId: string) {
+  const adminModule = await import("@/lib/supabase/admin");
+  if (!adminModule.isAdminConfigured()) {
+    return NextResponse.json({ users: [], audit: [], departments: [], provisioning_configured: false, auth_directory_available: false });
+  }
+  const admin = adminModule.createAdminClient();
+  const { data: own } = await admin.from("facility_memberships").select("facility_id")
+    .eq("profile_id", callerId).eq("membership_role", "facility_administrator").eq("active", true);
+  const facilityIds = ((own ?? []) as Array<{ facility_id: string }>).map((row) => row.facility_id);
+  const { data: members } = facilityIds.length
+    ? await admin.from("facility_memberships").select("profile_id").in("facility_id", facilityIds).eq("active", true)
+    : { data: [] };
+  const ids = Array.from(new Set(((members ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id)));
+  const [{ data: profiles, error }, { data: departments }] = await Promise.all([
+    ids.length
+      ? admin.from("profiles").select("id, display_name, email, department, department_id, trade_discipline, contact_number, role, is_active, deleted_at, password_change_required, created_at, updated_at, last_active_at, last_seen_route")
+        .in("id", ids).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    admin.from("departments").select("id, name").eq("is_active", true).is("deleted_at", null).order("name"),
+  ]);
+  if (error) {
+    return NextResponse.json({ error: "User management data could not be loaded.", code: "USER_MANAGEMENT_UNAVAILABLE" }, { status: 503 });
+  }
+  const users = ((profiles ?? []) as Array<{ is_active: boolean; deleted_at: string | null; last_active_at: string | null } & Record<string, unknown>>)
+    .map((profile) => ({ ...profile, ...presenceFor(profile), last_sign_in_at: null, email_confirmed_at: null }));
+  return NextResponse.json({ users, audit: [], departments: departments ?? [], provisioning_configured: true, auth_directory_available: false, facility_scope: true });
 }
 
 export async function POST(request: Request) {

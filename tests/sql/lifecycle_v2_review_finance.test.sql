@@ -32,7 +32,7 @@ select set_config('fmworks.profile_admin_rpc','off',true),set_config('fmworks.pa
 create temp table f as select s.id facility_id from public.sites s where s.is_active order by s.id limit 1;
 insert into public.sites(id,code,name,is_active) values ('1c400000-0000-4000-8000-0000000000f2','LC3-OTHER','LC2 Other Facility',true);
 insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
-select (select facility_id from f),p.id,p.role,pg_temp.u(6) from public.profiles p where p.id in (pg_temp.u(1),pg_temp.u(2),pg_temp.u(3),pg_temp.u(4),pg_temp.u(5));
+select (select facility_id from f),p.id,p.role,pg_temp.u(6) from public.profiles p where p.id in (pg_temp.u(1),pg_temp.u(2),pg_temp.u(3),pg_temp.u(4),pg_temp.u(5),pg_temp.u(7),pg_temp.u(12)); -- D-54: Finance belongs to the facility
 insert into public.vendors(id,name,trade,active) values ('1c400000-0000-4000-8000-0000000000e1','LC2 Contractor','Mechanical',true);
 insert into public.vendor_facility_eligibility(vendor_id,facility_id,procurement_prequalified,facility_confirmed,confirmation_basis,active)
 values ('1c400000-0000-4000-8000-0000000000e1',(select facility_id from f),true,true,'LC2 rollback-only test',true);

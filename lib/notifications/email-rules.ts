@@ -25,7 +25,7 @@ export const EMAIL_WINDOW_HOURS = 24;
 export const REPEAT_MINUTES = 30;
 export const MAX_ATTEMPTS = 3;
 
-export type SmtpSettings = { host: string; port: number; secure: boolean; user: string; pass: string; fromName: string };
+export type SmtpSettings = { host: string; port: number; secure: boolean; user: string; pass: string; fromName: string; fromAddress: string };
 
 /** Sending is on only when both Vercel variables exist. Yahoo Mail by default; host and port can be changed. */
 export function smtpSettings(env: Record<string, string | undefined> = process.env): SmtpSettings | null {
@@ -33,7 +33,9 @@ export function smtpSettings(env: Record<string, string | undefined> = process.e
   const pass = env.EMAIL_SMTP_PASSWORD?.replace(/\s+/g, "");
   if (!user || !pass) return null;
   const port = Number(env.EMAIL_SMTP_PORT ?? 465) || 465;
-  return { host: env.EMAIL_SMTP_HOST?.trim() || "smtp.mail.yahoo.com", port, secure: port === 465, user, pass, fromName: env.EMAIL_FROM_NAME?.trim() || "FMWorks notices" };
+  // 15 Nov 2026: a sending service (e.g. Brevo) signs in with its own login; EMAIL_FROM_ADDRESS is the address shown.
+  return { host: env.EMAIL_SMTP_HOST?.trim() || "smtp.mail.yahoo.com", port, secure: port === 465, user, pass,
+    fromName: env.EMAIL_FROM_NAME?.trim() || "FMWorks notices", fromAddress: env.EMAIL_FROM_ADDRESS?.trim() || user };
 }
 
 /** What My notices and the Administrator page show for a notice's email. */

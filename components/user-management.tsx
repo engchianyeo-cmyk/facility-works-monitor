@@ -12,7 +12,10 @@ const ROLES = [
   "facility_manager",
   "administrator",
   "finance",
+  "facility_administrator",
 ] as const;
+// D-54: roles a Facility Administrator may give to its facility's staff.
+const FACILITY_STAFF_ROLES: readonly string[] = ["technician", "approver", "supervisor", "facility_manager", "finance"];
 
 type Role = (typeof ROLES)[number];
 
@@ -89,6 +92,7 @@ export default function UserManagement({
   const [activityUserId, setActivityUserId] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [provisioningConfigured, setProvisioningConfigured] = useState(false);
+  const [facilityScope, setFacilityScope] = useState(false);
   const [authDirectoryAvailable, setAuthDirectoryAvailable] = useState(false);
 
   const loadUsers = useCallback(async (silent = false) => {
@@ -103,6 +107,7 @@ export default function UserManagement({
       setDepartments(result.departments ?? []);
       setProvisioningConfigured(result.provisioning_configured === true);
       setAuthDirectoryAvailable(result.auth_directory_available === true);
+      setFacilityScope(result.facility_scope === true);
       if (!silent) {
         setEditing(
           Object.fromEntries(
@@ -284,6 +289,33 @@ export default function UserManagement({
     }
   }
 
+  async function removePersonalDetails(user: ManagedUser) {
+    const warning = `Remove ${user.display_name}'s details for good? Their name, email and contact number are deleted from FMWorks and its history, the account is closed and the email becomes free to use again. Records they made stay, shown as "Former user". This cannot be undone.`;
+    if (!window.confirm(warning)) return;
+    const confirmation = window.prompt(`Type "${user.email ?? user.display_name}" to confirm.`);
+    if (confirmation === null) return;
+    const reason = window.prompt("Reason (for example: tester account after UAT).");
+    if (reason === null) return;
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove_personal_details", confirmation, reason }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "The details were not removed.");
+      setMessage(result.warning ?? result.message ?? "Details removed.");
+      await loadUsers();
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "The details were not removed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const inputClass =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200";
 
@@ -438,11 +470,11 @@ export default function UserManagement({
                             disabled={isCurrent}
                             className={inputClass}
                           >
-                            {ROLES.map((role) => (
+                            {ROLES.filter((role) => !facilityScope || FACILITY_STAFF_ROLES.includes(role) || role === editing[user.id]?.role).map((role) => (
                               <option key={role} value={role}>
                                 {role === "initiator"
                                   ? "Initiator / requester"
-                                  : role}
+                                  : operationalLabel(role)}
                               </option>
                             ))}
                           </select>
@@ -590,7 +622,7 @@ export default function UserManagement({
                           >
                             Activity ({userAudit.length})
                           </button>
-                          {!isCurrent && (
+                          {!isCurrent && !facilityScope && (
                             <>
                               <button
                                 type="button"
@@ -609,6 +641,18 @@ export default function UserManagement({
                               >
                                 Permanent delete
                               </button>
+                              {/* D-55: remove a person's details for good; their records stay as "Former user". */}
+                              {!(user.email ?? "").endsWith("@removed.invalid") && (
+                                <button
+                                  type="button"
+                                  disabled={submitting || !provisioningConfigured}
+                                  onClick={() => void removePersonalDetails(user)}
+                                  className="block w-full rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                  title="Deletes the name, email and contact number; records stay as Former user; frees the email"
+                                >
+                                  Remove personal details
+                                </button>
+                              )}
                             </>
                           )}
                         </td>

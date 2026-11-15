@@ -21,7 +21,9 @@ describe("D-42 email rules: email only when the reader must act", () => {
     expect(smtpSettings({})).toBeNull();
     expect(smtpSettings({ EMAIL_SMTP_USER: "fmworks.notices@yahoo.com" })).toBeNull();
     expect(smtpSettings({ EMAIL_SMTP_USER: "fmworks.notices@yahoo.com", EMAIL_SMTP_PASSWORD: "abcd efgh ijkl mnop" }))
-      .toEqual({ host: "smtp.mail.yahoo.com", port: 465, secure: true, user: "fmworks.notices@yahoo.com", pass: "abcdefghijklmnop", fromName: "FMWorks notices" });
+      .toEqual({ host: "smtp.mail.yahoo.com", port: 465, secure: true, user: "fmworks.notices@yahoo.com", pass: "abcdefghijklmnop", fromName: "FMWorks notices", fromAddress: "fmworks.notices@yahoo.com" });
+    expect(smtpSettings({ EMAIL_SMTP_HOST: "smtp-relay.brevo.com", EMAIL_SMTP_PORT: "587", EMAIL_SMTP_USER: "9a1b2c@smtp-brevo.com", EMAIL_SMTP_PASSWORD: "key", EMAIL_FROM_ADDRESS: "fmworks.notices@gmail.com" }))
+      .toMatchObject({ host: "smtp-relay.brevo.com", port: 587, secure: false, user: "9a1b2c@smtp-brevo.com", fromAddress: "fmworks.notices@gmail.com" });
   });
   it("labels the email status plainly", () => {
     expect(emailStatusLabel("pending", "IN_APP_ONLY")).toContain("in app only");

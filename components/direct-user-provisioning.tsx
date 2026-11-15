@@ -12,7 +12,17 @@ const ROLES = [
   "facility_manager",
   "administrator",
   "finance",
+  "facility_administrator",
 ] as const;
+
+// D-54: plain role names; the Administrator role is the Super-Administrator (all facilities).
+const ROLE_NAMES: Record<string, string> = {
+  reviewer: "Reviewer", initiator: "Initiator / requester", approver: "Approver", technician: "Technician",
+  supervisor: "Supervisor", facility_manager: "Facility Manager", administrator: "Super-Administrator (all facilities)",
+  finance: "Finance", facility_administrator: "Facility Administrator",
+};
+const FACILITY_ROLES = ["technician", "approver", "supervisor", "facility_manager", "finance", "facility_administrator"];
+type Facility = { id: string; name: string };
 
 type Role = (typeof ROLES)[number];
 type Mode = "create" | "activate_pending";
@@ -28,6 +38,7 @@ type FormState = {
   role: Role;
   mode: Mode;
   is_active: boolean;
+  facility_id: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -40,6 +51,7 @@ const EMPTY_FORM: FormState = {
   role: "reviewer",
   mode: "create",
   is_active: true,
+  facility_id: "",
 };
 
 export default function DirectUserProvisioning() {
@@ -51,6 +63,9 @@ export default function DirectUserProvisioning() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [configurationLoading, setConfigurationLoading] = useState(true);
   const [provisioningConfigured, setProvisioningConfigured] = useState(false);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [allowedRoles, setAllowedRoles] = useState<readonly string[]>(ROLES);
+  const [facilityAdministrator, setFacilityAdministrator] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +79,9 @@ export default function DirectUserProvisioning() {
           provisioning_configured?: boolean;
           departments?: Department[];
           department_setup_required?: boolean;
+          facilities?: Facility[];
+          allowed_roles?: string[] | null;
+          caller_role?: string;
         };
         if (!response.ok) {
           throw new Error(
@@ -73,6 +91,12 @@ export default function DirectUserProvisioning() {
         if (!cancelled) {
           setDepartments(result.departments ?? []);
           setProvisioningConfigured(result.provisioning_configured === true);
+          setFacilities(result.facilities ?? []);
+          if (result.allowed_roles) setAllowedRoles(result.allowed_roles);
+          if (result.caller_role === "facility_administrator") {
+            setFacilityAdministrator(true);
+            setForm((current) => ({ ...current, role: "technician", facility_id: result.facilities?.[0]?.id ?? "" }));
+          }
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -120,7 +144,8 @@ export default function DirectUserProvisioning() {
       }
 
       setMessage(result.message ?? "User provisioned successfully.");
-      setForm({ ...EMPTY_FORM, department_id: departments[0]?.id ?? "" });
+      setForm({ ...EMPTY_FORM, department_id: departments[0]?.id ?? "",
+        role: facilityAdministrator ? "technician" : EMPTY_FORM.role, facility_id: facilityAdministrator ? facilities[0]?.id ?? "" : "" });
       window.dispatchEvent(new Event("fmworks:user-provisioned"));
     } catch (submitError) {
       setError(
@@ -250,15 +275,31 @@ export default function DirectUserProvisioning() {
             }
             className={inputClass}
           >
-            {ROLES.map((role) => (
+            {ROLES.filter((role) => allowedRoles.includes(role)).map((role) => (
               <option key={role} value={role}>
-                {role === "initiator"
-                  ? "Initiator / requester"
-                  : role[0].toUpperCase() + role.slice(1)}
+                {ROLE_NAMES[role] ?? role}
               </option>
             ))}
           </select>
         </label>
+
+        {/* D-54: the account joins this facility at once (Facility Administrators: their own facility only). */}
+        {FACILITY_ROLES.includes(form.role) && facilities.length > 0 && (
+          <label className="text-sm font-medium text-slate-700">
+            Facility
+            <select
+              value={form.facility_id}
+              onChange={(event) => setForm({ ...form, facility_id: event.target.value })}
+              className={inputClass}
+              required={facilityAdministrator}
+            >
+              {!facilityAdministrator && <option value="">Not yet (add as staff later)</option>}
+              {facilities.map((facility) => (
+                <option key={facility.id} value={facility.id}>{facility.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="flex items-center gap-3 self-end rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
           <input

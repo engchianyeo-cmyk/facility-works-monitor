@@ -84,6 +84,12 @@ export default async function SiteHeader() {
           {management && <Link href="/management/staffing" className="rounded-lg px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">Staffing</Link>}
           {identity ? (
             <>
+              {identity.role === "facility_administrator" && (
+                <>
+                  <Link href="/administration/users" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Users</Link>
+                  <Link href="/administration/facilities" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">My Facility</Link>
+                </>
+              )}
               {identity.role === "administrator" && (
                 <>
                   <Link href="/administration/users" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Users</Link>

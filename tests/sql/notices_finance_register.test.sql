@@ -16,7 +16,7 @@ from (values ('technician',1),('technician',2),('approver',3),('finance',6)) a(r
 select set_config('fmworks.profile_admin_rpc','off',true),set_config('fmworks.password_change_completion','off',true);
 create temp table f as select s.id facility_id from public.sites s where s.is_active order by s.id limit 1;
 insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
-select (select facility_id from f),p.id,p.role,pg_temp.u(3) from public.profiles p where p.id in (pg_temp.u(1),pg_temp.u(2),pg_temp.u(3));
+select (select facility_id from f),p.id,p.role,pg_temp.u(3) from public.profiles p where p.id in (pg_temp.u(1),pg_temp.u(2),pg_temp.u(3),pg_temp.u(6)); -- D-54: Finance belongs to the facility
 create temp table ids(name text primary key, id uuid);
 grant select on f to authenticated; grant select, insert on ids to authenticated;
 

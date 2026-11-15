@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { FACILITY_COOKIE } from "@/lib/facility-scope";
+import FacilitySwitch from "@/components/facility-switch";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentIdentity } from "@/lib/auth";
 import WorkOrderFilters from "@/components/work-orders/work-order-filters";
@@ -55,6 +58,17 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   if (isWorkOrderPriority(values.priority)) query = query.eq("priority", values.priority);
   if (isWorkOrderSource(values.source)) query = query.eq("source", values.source);
   if (values.department) query = query.eq("department_id", values.department);
+  // D-50 / D-54: the facility switch above the list (or ?facility=) narrows it; "all" shows every facility the person
+  // may see. The Super-Administrator sees every facility; others see theirs (switch shown when they have several).
+  const { data: siteRows } = await supabase.from("sites").select("id,name").eq("is_active", true).order("name");
+  const { data: ownRows } = identity.role === "administrator" ? { data: null }
+    : await supabase.from("facility_memberships").select("facility_id").eq("profile_id", identity.userId).eq("active", true);
+  const mine = new Set(((ownRows ?? []) as Array<{ facility_id: string }>).map((row) => row.facility_id));
+  const switchFacilities = ((siteRows ?? []) as Array<{ id: string; name: string }>).filter((site) => identity.role === "administrator" || mine.has(site.id));
+  const requestedFacility = values.facility ?? (await cookies()).get(FACILITY_COOKIE)?.value ?? "all";
+  const chosenFacility = switchFacilities.some((site) => site.id === requestedFacility) ? requestedFacility : "all";
+  if (chosenFacility !== "all") query = query.eq("facility_id", chosenFacility);
+  const showFacilitySwitch = switchFacilities.length > 1;
   if (values.assignment === "mine") query = query.eq("assigned_technician_id", identity.userId);
   else if (values.assignment === "unassigned") query = query.is("assigned_technician_id", null).is("assigned_vendor_id", null).is("assigned_team_id", null);
   else if (values.assignment === "technician") query = query.not("assigned_technician_id", "is", null);
@@ -76,6 +90,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
     <main className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold tracking-tight text-slate-900">Work Orders</h1><p className="mt-1 text-sm text-slate-500">Plan, authorize, assign, execute, review, and close maintenance work.</p></div>{identity.role !== "technician" && <Link href="/work-orders/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">New work order</Link>}</div>
       {myDrafts && <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950" aria-labelledby="my-drafts-heading"><h2 id="my-drafts-heading" className="text-base font-bold">My Drafts</h2><p className="mt-1">Work Orders you started and have not yet submitted. Open one to add photos, mark the location and attach the quotation — on your phone or computer — then submit it for approval. <Link href="/work-orders" className="font-semibold underline">Show all Work Orders</Link></p></section>}
+      {showFacilitySwitch && <FacilitySwitch facilities={switchFacilities} current={chosenFacility} allowAll />}
       <WorkOrderFilters values={values} departments={departments ?? []} />
       {error && <p className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">Work orders could not be loaded.</p>}
       {!error && (orders ?? []).length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No matching work orders.</div>}

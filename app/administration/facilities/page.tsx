@@ -37,7 +37,8 @@ const when = (value: string) => new Date(value).toLocaleString("en-SG", { timeZo
 export default async function FacilitiesPage() {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/administration/facilities");
-  if (identity.role !== "administrator") return <main className="p-8"><h1 className="text-2xl font-bold">Access denied</h1><p>Only the Administrator may set up facilities.</p></main>;
+  const superAdministrator = identity.role === "administrator";
+  if (!superAdministrator && identity.role !== "facility_administrator") return <main className="p-8"><h1 className="text-2xl font-bold">Access denied</h1><p>Only the Super-Administrator or a Facility Administrator may set up facilities.</p></main>;
   const supabase = await createClient();
   const [facilities, settings, history, areas, drawings, logs] = await Promise.all([
     supabase.from("sites").select("id,code,name,address,is_active").order("is_active", { ascending: false }).order("name"),
@@ -50,7 +51,13 @@ export default async function FacilitiesPage() {
   if (facilities.error || settings.error) {
     return <main className="mx-auto max-w-4xl p-8"><h1 className="text-3xl font-black">Facilities</h1><p role="alert" className="mt-4">Facility setup is unavailable in this environment.</p></main>;
   }
-  const facilityRows = (facilities.data ?? []) as Facility[];
+  // D-54: a Facility Administrator sees and sets up only its own facilities.
+  const allFacilities = (facilities.data ?? []) as Facility[];
+  const permitted = superAdministrator ? allFacilities : (await Promise.all(allFacilities.map(async (facility) => {
+    const { data } = await supabase.rpc("facility_administrator_facility_permitted", { p_facility_id: facility.id });
+    return data === true ? facility : null;
+  }))).filter((facility): facility is Facility => facility !== null);
+  const facilityRows = permitted;
   const byFacility = new Map(((settings.data ?? []) as Settings[]).map((row) => [row.facility_id, row]));
   const areaRows = (areas.error ? [] : areas.data ?? []) as Area[];
   const drawingRows = (drawings.error ? [] : drawings.data ?? []) as FacilityDrawingRow[];
@@ -74,14 +81,14 @@ export default async function FacilitiesPage() {
   return <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-8">
     <div>
       <p className="text-sm font-semibold text-blue-700">Administration</p>
-      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-black">Facilities</h1><Link href="/administration/facilities/overview" className="min-h-11 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white">View all facilities, users and requirements →</Link></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-3xl font-black">Facilities</h1>{superAdministrator && <Link href="/administration/facilities/overview" className="min-h-11 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white">View all facilities, users and requirements →</Link>}</div>
       <p className="mt-1 text-slate-600">Add facilities, their areas, layout drawings and staff. Each facility starts on the recommended settings; change them to suit the facility. Every change is recorded with its reason. Area pins on the layout plans are set in <Link href="/administration/facility-locations" className="font-semibold text-blue-700 underline">Facility Locations</Link>.</p>
     </div>
-    <details className="rounded-xl border bg-white p-5 sm:p-6">
+    {superAdministrator && <details className="rounded-xl border bg-white p-5 sm:p-6">
       <summary className="cursor-pointer text-lg font-bold">Add a new facility</summary>
       <div className="mt-4"><AddFacilityForm /></div>
-    </details>
-    {facilityRows.length === 0 && <p>No facilities yet.</p>}
+    </details>}
+    {facilityRows.length === 0 && <p>{superAdministrator ? "No facilities yet." : "You are not the Facility Administrator of any facility yet. Ask the Super-Administrator to add you to your facility."}</p>}
     {facilityRows.map((facility) => {
       const current = byFacility.get(facility.id);
       const { candidates = [], staff = [] } = extrasByFacility.get(facility.id) ?? {};

@@ -10,7 +10,7 @@ import type { RpcResult } from "@/lib/work-orders/types";
 export async function POST(request: NextRequest) {
   const identity = await getCurrentIdentity();
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication required.", 401);
-  if (identity.role !== "administrator") return errorResponse("ACCESS_DENIED", "Only the Administrator may change facility settings.", 403);
+  if (identity.role !== "administrator" && identity.role !== "facility_administrator") return errorResponse("ACCESS_DENIED", "Only the Super-Administrator or a Facility Administrator may change facility settings.", 403);
   const body = await request.json().catch(() => null) as { facility_id?: unknown; designated_approver_id?: unknown; endorsement_stage?: unknown; reason?: unknown } | null;
   const approver = body?.designated_approver_id ?? null;
   if (!body || !isUuidLike(body.facility_id) || (approver !== null && !isUuidLike(approver))

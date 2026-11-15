@@ -5,7 +5,8 @@ import { getCurrentIdentity } from "@/lib/auth";
 export default async function AdministrationUsersPage() {
   const identity = await getCurrentIdentity();
 
-  if (!identity || identity.role !== "administrator") {
+  // D-54: a Facility Administrator manages the accounts of its own facility's staff.
+  if (!identity || (identity.role !== "administrator" && identity.role !== "facility_administrator")) {
     return (
       <main className="mx-auto max-w-xl p-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">

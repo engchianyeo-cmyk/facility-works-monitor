@@ -1,6 +1,6 @@
 # D-50 / D-53 build plan — Facility One, Facility 2, Facility Administrators and the Super-Administrator
 
-Status: plan, 12 November 2026 23:20 (owner: "Yes, proceed" to planning). Nothing is built or applied yet.
+Status: built 15 November 2026 (M29, D-57); awaiting `release:verify`, owner review and the Preview increment.
 Decisions: D-50 (11 Nov), D-53 (12 Nov). Branch `uat/claude-review`; Preview `pvajuywwwpjlikqjnvgv` only after
 `release:verify` passes locally and the owner has reviewed it. Production is not touched.
 

@@ -9,11 +9,12 @@ const user = process.env.FMW_SMTP_USER ?? "fmworks.notices@gmail.com";
 const pass = (process.env.FMW_SMTP_PASS ?? "").replace(/\s+/g, "");
 const host = process.env.FMW_SMTP_HOST ?? "smtp.gmail.com";
 const port = Number(process.env.FMW_SMTP_PORT ?? 465);
+const from = process.env.FMW_SMTP_FROM ?? user;
 if (!to || !pass) { console.error("Usage: set FMW_SMTP_PASS first, then: node scripts/smtp-test.mts <to-address>"); process.exit(2); }
 console.log(`Sending from ${user} via ${host}:${port} to ${to} ...`);
 try {
   const id = await sendSmtp({ host, port, secure: port === 465, user, pass, timeoutMs: 20000 },
-    { fromName: "FMWorks notices", from: user, to, subject: "[FMWorks] Email test", text: "If you can read this, FMWorks can send from this account.", html: "<p>If you can read this, <b>FMWorks</b> can send from this account.</p>" });
+    { fromName: "FMWorks notices", from, to, subject: "[FMWorks] Email test", text: "If you can read this, FMWorks can send from this account.", html: "<p>If you can read this, <b>FMWorks</b> can send from this account.</p>" });
   console.log(`OK: accepted by the mail server (${id}). Check the inbox and Spam.`);
 } catch (error) {
   console.error(`FAILED: ${error instanceof Error ? error.message : String(error)}`);

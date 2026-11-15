@@ -23,13 +23,41 @@ async function requireAdministrator() {
       identity: null,
     };
   }
-  if (identity.role !== "administrator") {
+  if (identity.role !== "administrator" && identity.role !== "facility_administrator") {
     return {
       response: apiError("ACCESS_DENIED", "Administrator access is required.", 403),
       identity: null,
     };
   }
   return { response: null, identity };
+}
+
+/** D-54: a Facility Administrator creates Technician, Approver, Supervisor, Facility Manager and Finance accounts for
+ * its own facilities; the Super-Administrator creates any account and may link it to any facility. */
+const FACILITY_ADMIN_ROLES: readonly UserRole[] = ["technician", "approver", "supervisor", "facility_manager", "finance"];
+const FACILITY_ROLES: readonly UserRole[] = [...FACILITY_ADMIN_ROLES, "facility_administrator"];
+
+async function assignableFacilities(identity: { userId: string; role: UserRole }): Promise<Array<{ id: string; name: string }>> {
+  try {
+    return await loadAssignableFacilities(identity);
+  } catch {
+    return [];
+  }
+}
+
+async function loadAssignableFacilities(identity: { userId: string; role: UserRole }) {
+  if (!isAdminConfigured()) return [] as Array<{ id: string; name: string }>;
+  const admin = createAdminClient();
+  if (identity.role === "administrator") {
+    const { data } = await admin.from("sites").select("id,name").eq("is_active", true).order("name");
+    return (data ?? []) as Array<{ id: string; name: string }>;
+  }
+  const { data: own } = await admin.from("facility_memberships").select("facility_id")
+    .eq("profile_id", identity.userId).eq("membership_role", "facility_administrator").eq("active", true);
+  const ids = ((own ?? []) as Array<{ facility_id: string }>).map((row) => row.facility_id);
+  if (!ids.length) return [];
+  const { data } = await admin.from("sites").select("id,name").eq("is_active", true).in("id", ids).order("name");
+  return (data ?? []) as Array<{ id: string; name: string }>;
 }
 
 export async function GET() {
@@ -53,9 +81,13 @@ export async function GET() {
       );
     }
 
+    const identity = authorization.identity!;
     return NextResponse.json({
       success: true,
       provisioning_configured: isAdminConfigured(),
+      caller_role: identity.role,
+      allowed_roles: identity.role === "administrator" ? null : FACILITY_ADMIN_ROLES,
+      facilities: await assignableFacilities(identity),
       departments: departments ?? [],
       department_setup_required: (departments ?? []).length === 0,
     });
@@ -90,6 +122,7 @@ export async function POST(request: Request) {
   const roleValue = String(body.role ?? "");
   const mode = body.mode;
   const isActive = body.is_active !== false;
+  const facilityId = String(body.facility_id ?? "").trim();
 
   if (!displayName) {
     return apiError("NAME_REQUIRED", "Display name is required.", 400);
@@ -101,6 +134,22 @@ export async function POST(request: Request) {
     return apiError("INVALID_ROLE", "Select a supported role.", 400);
   }
   const role: UserRole = roleValue;
+  const facilityAdministrator = authorization.identity.role === "facility_administrator";
+  if (facilityAdministrator && !FACILITY_ADMIN_ROLES.includes(role)) {
+    return apiError("ACCESS_DENIED", "A Facility Administrator creates Technician, Approver, Supervisor, Facility Manager or Finance accounts only.", 403);
+  }
+  if (facilityId && !UUID_PATTERN.test(facilityId)) {
+    return apiError("FACILITY_REQUIRED", "Select a facility.", 400);
+  }
+  if (facilityAdministrator && !facilityId) {
+    return apiError("FACILITY_REQUIRED", "Select the facility this person joins.", 400);
+  }
+  if (facilityId && !FACILITY_ROLES.includes(role)) {
+    return apiError("FACILITY_ROLE", "Only Technicians, Approvers, Supervisors, Facility Managers, Finance and Facility Administrators join a facility.", 400);
+  }
+  if (facilityId && !(await assignableFacilities(authorization.identity)).some((facility) => facility.id === facilityId)) {
+    return apiError("ACCESS_DENIED", "You cannot add people to that facility.", 403);
+  }
   if (!UUID_PATTERN.test(departmentId)) {
     return apiError("DEPARTMENT_REQUIRED", "Select an active department.", 400);
   }
@@ -340,6 +389,7 @@ export async function POST(request: Request) {
           contact_number: contactNumber || null,
           role,
           is_active: isActive,
+          facility_id: facilityId || null,
         },
         p_event: provisioningEvent,
       },

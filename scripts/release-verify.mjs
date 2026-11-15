@@ -105,7 +105,7 @@ insert into public.facility_memberships(facility_id,profile_id,membership_role,c
 select site.id,seed.id,seed.role,
   (select id from public.profiles where email='pilot.admin@example.test')
 from public.sites site cross join (values ${values}) as seed(id,role,display_name,password_pending)
-where site.is_active and seed.role in ('technician','approver','supervisor','facility_manager')
+where site.is_active and seed.role in ('technician','approver','supervisor','facility_manager','finance')
 on conflict do nothing;
 commit;`;
   run("docker", ["exec", "-i", localDatabaseContainer, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"], {
@@ -221,6 +221,7 @@ async function main() {
   sql("tests/sql/notices_finance_register.test.sql");
   sql("tests/sql/site_sla.test.sql");
   sql("tests/sql/named_second_technician.test.sql");
+  sql("tests/sql/facility_administrators.test.sql");
   const env = {
     ...process.env,
     ...identities,

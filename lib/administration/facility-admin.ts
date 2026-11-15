@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { getCurrentIdentity } from "@/lib/auth";
 import { errorResponse } from "@/lib/work-orders/api";
 
-/** D-17: every facility-setup route is Administrator-only; the database checks again. */
+/** D-17 / D-54: facility-setup routes are for the Super-Administrator and Facility Administrators; the database
+ * limits a Facility Administrator to its own facilities. */
 export async function requireAdministrator(): Promise<NextResponse | null> {
   const identity = await getCurrentIdentity();
   if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", "Authentication required.", 401);
-  if (identity.role !== "administrator") return errorResponse("ACCESS_DENIED", "Only the Administrator may set up facilities.", 403);
+  if (identity.role !== "administrator" && identity.role !== "facility_administrator") {
+    return errorResponse("ACCESS_DENIED", "Only the Super-Administrator or a Facility Administrator may set up facilities.", 403);
+  }
   return null;
 }
 

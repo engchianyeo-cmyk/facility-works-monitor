@@ -13,7 +13,7 @@ update public.work_orders set assigned_technician_id=pg_temp.actor_id('pilot.tec
 where id='08000000-0000-4000-8000-000000000012';
 insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by)
 select w.facility_id,p.id,p.role,pg_temp.actor_id('pilot.admin@example.test') from public.work_orders w cross join public.profiles p
-where w.id='08000000-0000-4000-8000-000000000012' and p.email in ('pilot.technician@example.test','pilot.supervisor@example.test') on conflict do nothing;
+where w.id='08000000-0000-4000-8000-000000000012' and p.email in ('pilot.technician@example.test','pilot.supervisor@example.test','wp2a.finance@example.test') on conflict do nothing; -- D-54: Finance belongs to the facility
 insert into public.work_order_financial_controls(work_order_id,estimated_cost,quoted_cost,approved_budget,cost_status)
 values('08000000-0000-4000-8000-000000000012',650,650,650,'approved');
 insert into public.work_order_cost_lines(work_order_id,cost_type,description,quantity,unit,unit_rate,entered_by,cost_phase)

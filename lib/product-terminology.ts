@@ -45,7 +45,8 @@ const ENUM_LABELS: Readonly<Record<string, string>> = {
   completed_late: "Completed Late",
   out_of_service: "Out of Service",
   decommissioned: "Decommissioned",
-  administrator: "Administrator",
+  administrator: "Super-Administrator",
+  facility_administrator: "Facility Administrator",
   facility_manager: "Facility Manager",
   approver: "Approver",
   supervisor: "Supervisor",
@@ -55,7 +56,7 @@ const ENUM_LABELS: Readonly<Record<string, string>> = {
   finance: "Finance",
 };
 
-const ROLE_CODES = new Set(["reviewer", "initiator", "approver", "technician", "supervisor", "facility_manager", "administrator", "finance"]);
+const ROLE_CODES = new Set(["reviewer", "initiator", "approver", "technician", "supervisor", "facility_manager", "administrator", "finance", "facility_administrator"]);
 
 /** Lifecycle v2 Work Order stage names (design §2). Stored status codes never change. */
 const WORK_ORDER_STATUS_LABELS: Readonly<Record<string, string>> = {

@@ -813,6 +813,22 @@ email should prompt them. Owner (16:46): "Yes, agree to use fmworks.notices@gmai
    `EMAIL_SMTP_HOST=smtp.gmail.com`, `EMAIL_SMTP_PORT=465`, `EMAIL_SMTP_USER=fmworks.notices@gmail.com`,
    `EMAIL_SMTP_PASSWORD` = a Google app password (needs 2-Step Verification), entered by the owner in Vercel and never
    shared. Takes effect from the next Preview deployment.
+9. Update 15 Nov 2026 17:27: Google offers only an SMS code to create the app password, and the SMS does not
+   arrive on the owner's Singapore number. Offered fallback: a free sending service (Brevo, 300 emails a day) that
+   signs in with its own SMTP login and sends as fmworks.notices@gmail.com. Small code change: new Vercel variable
+   `EMAIL_FROM_ADDRESS` (the address shown as sender; defaults to `EMAIL_SMTP_USER`); `smtp-test.mts` takes
+   `FMW_SMTP_HOST`, `FMW_SMTP_PORT`, `FMW_SMTP_USER` and `FMW_SMTP_FROM`.
+10. Status 15 Nov 2026 18:47: email still off. Gmail: 2-step verification on; App passwords page asks for an SMS that
+    never arrives. Brevo: Free account created; sending needs a phone check whose SMS also never arrives (possibly
+    Singapore's SMS Sender ID Registry filtering overseas senders). Yahoo (fmworks.notices@yahoo.com): 2-step
+    verification on (Authenticator), phone +65 on file, but "Create app password" stays greyed out and does not
+    respond. Retry in a day or two; any one of the three is enough. Notices remain in the app meanwhile.
+11. 15 Nov 2026 22:22: **facility_king@yahoo.com** (an older Yahoo account whose app passwords work) is the UAT
+    sender for now. `smtp-test.mts` from the owner's PC: "OK: accepted by the mail server" (Yahoo, port 465). Vercel
+    Preview: `EMAIL_SMTP_HOST=smtp.mail.yahoo.com`, `EMAIL_SMTP_PORT=465`, `EMAIL_SMTP_USER=facility_king@yahoo.com`,
+    `EMAIL_SMTP_PASSWORD` = its app password (entered by the owner). Switch to fmworks.notices (Yahoo or Gmail) once
+    its app password unlocks. The Facility 2 Administrator test login therefore uses engchian.yeo+f2admin@gmail.com
+    instead of facility_king@yahoo.com (amends D-57 point 1).
 
 ### D-43 Only current notices shown first — 9 November 2026 19:08
 
@@ -1065,6 +1081,64 @@ Owner: "Yes, proceed" (plan `docs/design/D-50_FACILITIES_AND_SUPER_ADMINISTRATOR
 5. Found while planning: the trial facility is "FMWorks UAT Facility" (code UAT-FAC-001), which is why "FMWorks"
    looked like the facility's name. It is renamed **Facility One** by the Administrator in the app (Facilities ›
    Details › Facility name, with a reason); the code UAT-FAC-001 stays, so Work Order numbers are unaffected.
+
+### D-55 Personal details must be removable before a client handover — 13 November 2026 22:43 (proposed build)
+
+Owner: "In the future, when we want to sell to a client, we will not want to leave an email account to the clients.
+Hence email records must be deletable." Proposed: an Administrator action, with a reason and a confirmation, that
+removes a person's email, sign-in and contact number for good and frees the email, while the audit history stays
+under a neutral name ("Former user 0012"). Fits Singapore PDPA. Not built yet. Owner also asked whether
+facility_king@yahoo.com is already registered on Preview (to be checked in Administration › Users, All statuses).
+Update 15 Nov 2026: the Users page already has **Archive** and **Permanent delete** for each person (type the email
+or name to confirm; refused for one's own account, the last ready Administrator, or while open Work Orders are
+assigned; it fails where retained records still refer to the person). D-55 covers people with history, whose
+details must be removed while their records stay. Owner's search for facility_king@yahoo.com (All statuses): no
+match, so no profile holds it.
+
+### D-56 Level 2 crash barrier raised to 1.5 m (drawing set Rev P3) — 15 November 2026 14:24
+
+Owner (13:25): "do you think the parapet wall for 2nd storey should be higher to prevent potential accident of trucks
+falling over edge?" Advice given: loaded container trucks carry their weight high; barriers tested for 36-tonne
+articulated vans are about 1.07 m, a 1.57 m concrete barrier has been crash-tested at the highest (tanker) level.
+Owner (14:24): "proceed".
+1. The concrete crash barrier on both ramp edges, the north-west curve, the deck road and every open edge of the
+   Level 2 apron is 1.5 m (was 1.2 m), hazard band at 1.05-1.35 m, steel guardrail top 2.1 m above the road.
+2. Ramp: 10 km/h, speed humps and convex mirrors at the curve (note on PB-304).
+3. Final barrier height, impact load and deck anchorage are for the Professional Engineer; the drawings remain for
+   pinning Work Orders, not for construction.
+4. Drawing set reissued as **Rev P3, 15 November 2026** (all 11 sheets, video, upload PDFs `PB-xxx_RevP3.pdf`);
+   status stays "Approved for pinning Work Orders". The vehicles in the 3D views and video were also redrawn
+   (cabs, glazing, wheels, containers) on 15 November.
+
+### D-57 Build of D-50 and D-55 (M29) and the Facility 2 test accounts — 15 November 2026 15:24
+
+Owner: "Oops, it should be 'sctpec2413@gmail.com'. 'ec@glorybene.com' is not a gmail ... Can i create
+'koi.kpr+two@gmail.com' instead? ... I wanted them delete after testing. Proceed to build D-50 and D-55. Then I shall
+create the users when you're done."
+1. Test accounts for Facility 2, created by the owner after M29 is on Preview: facility_king@yahoo.com (Facility
+   Administrator), sctpec2413+one@gmail.com (Approver), koi.kpr+one@gmail.com and koi.kpr+two@gmail.com
+   (Technicians). After testing they are removed with "Remove personal details" (D-55), which frees the emails.
+2. Built (migration `20261115120000_facility_administrators_and_personal_data.sql`, M29; SQL test
+   `facility_administrators.test.sql`; plan `docs/design/D-50_FACILITIES_AND_SUPER_ADMINISTRATOR_PLAN.md`):
+   - the Administrator role is shown as **Super-Administrator** (unchanged powers, all facilities);
+   - new role **Facility Administrator**: for its own facilities only, edits details (cannot switch the facility off),
+     areas, drawings, staff and settings, creates and edits Technician, Approver, Supervisor, Facility Manager and
+     Finance accounts that join its facility at once, and reads its Work Orders; never adds facilities, appoints
+     Facility Administrators, approves, executes or pays; sees no other facility's staff or Work Orders;
+   - **Finance per facility**: reads, is copied and is notified (including the daily reminder email) only for the
+     facilities it is staff of; one Finance account may belong to several facilities;
+   - **facility switch** above the Work Orders list ("All facilities" or one facility; shown to anyone who can see
+     more than one facility), remembered in the browser;
+   - **Remove personal details** (Super-Administrator, type the email and a reason): the name, email and contact
+     number leave the profile and the history ("Former user NNNN"), memberships end, the account closes, and the
+     sign-in gets a placeholder email, so the real email can be used again. Records stay.
+3. Preview script with M29: `preview-m29-finance-to-facility-one-20261115.sql` adds the existing Finance accounts
+   to Facility One (UAT-FAC-001), so Finance keeps seeing what it sees today. Existing SQL tests now add Finance to
+   the test facility.
+4. Not yet: Facility Locations (area pins) stays Super-Administrator only; the Archive (D-18) is still Stage 2.
+5. 15 Nov 23:54: `release:verify` PASS (third run; first two caught a Finance test missing its facility membership and
+   a header drop-down that slowed pages and confused a browser test; the facility switch moved to the Work Orders list
+   and the new checks were made lighter). 30 browser tests passed in 4.0 minutes.
 
 ### Preview rollout record — 21 October 2026
 
