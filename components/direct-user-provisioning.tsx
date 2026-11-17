@@ -131,7 +131,8 @@ export default function DirectUserProvisioning() {
       const response = await fetch("/api/admin/users/direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        // UAT 16 Nov 2026: a facility chosen earlier is not sent once the role no longer joins a facility.
+        body: JSON.stringify({ ...form, facility_id: FACILITY_ROLES.includes(form.role) ? form.facility_id : "" }),
       });
 
       const result = (await response.json()) as {

@@ -40,7 +40,12 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   let query = supabase.from("work_orders").select("*, categories(name), departments(code,name,colour_tag), facility:sites(code,name), facility_area:facility_areas(area_code,name,level), asset:assets(asset_tag,name), technician:profiles!work_orders_assigned_technician_id_fkey(display_name)", { count: "exact" });
   // D-46 (9 Nov 2026): Work Orders marked as test data are hidden unless asked for (?test=show); still reachable by link.
   const { data: testRows } = await supabase.from("work_order_test_data").select("work_order_id");
-  const testIds = ((testRows ?? []) as Array<{ work_order_id: string }>).map((row) => row.work_order_id);
+  const markedIds = ((testRows ?? []) as Array<{ work_order_id: string }>).map((row) => row.work_order_id);
+  // UAT fix 16 Nov 2026: count only test Work Orders this person can see (a Facility 2 Technician was told "4 hidden").
+  const { data: visibleTestRows } = markedIds.length
+    ? await supabase.from("work_orders").select("id").in("id", markedIds)
+    : { data: [] };
+  const testIds = ((visibleTestRows ?? []) as Array<{ id: string }>).map((row) => row.id);
   const showTest = values.test === "show";
   if (testIds.length && !showTest) query = query.not("id", "in", `(${testIds.join(",")})`);
   if (values.search?.trim()) {
@@ -91,6 +96,9 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
       <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold tracking-tight text-slate-900">Work Orders</h1><p className="mt-1 text-sm text-slate-500">Plan, authorize, assign, execute, review, and close maintenance work.</p></div>{identity.role !== "technician" && <Link href="/work-orders/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">New work order</Link>}</div>
       {myDrafts && <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950" aria-labelledby="my-drafts-heading"><h2 id="my-drafts-heading" className="text-base font-bold">My Drafts</h2><p className="mt-1">Work Orders you started and have not yet submitted. Open one to add photos, mark the location and attach the quotation — on your phone or computer — then submit it for approval. <Link href="/work-orders" className="font-semibold underline">Show all Work Orders</Link></p></section>}
       {showFacilitySwitch && <FacilitySwitch facilities={switchFacilities} current={chosenFacility} allowAll />}
+      {/* UAT fix 16 Nov 2026: with one facility there is no switch, so name the facility the list belongs to. */}
+      {!showFacilitySwitch && switchFacilities.length === 1 && <p className="text-sm text-slate-600">Facility: <span className="font-semibold text-slate-900">{switchFacilities[0].name}</span></p>}
+      {identity.role !== "administrator" && switchFacilities.length === 0 && <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are not yet staff of any facility, so no facility work is shown. Ask your Facility Administrator or the Super-Administrator to add you under Facilities → Add a staff member.</p>}
       <WorkOrderFilters values={values} departments={departments ?? []} />
       {error && <p className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">Work orders could not be loaded.</p>}
       {!error && (orders ?? []).length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No matching work orders.</div>}

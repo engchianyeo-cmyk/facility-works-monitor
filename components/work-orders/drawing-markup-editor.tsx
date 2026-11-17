@@ -17,7 +17,7 @@ type Annotation = {
 };
 
 const TOOLS: Array<{ value: Tool; label: string }> = [
-  { value: "marker", label: "Pin" },
+  { value: "marker", label: "★ Location star" },
   { value: "arrow", label: "Arrow" },
   { value: "circle", label: "Circle" },
   { value: "rectangle", label: "Rectangle" },
@@ -33,14 +33,25 @@ function point(event: PointerEvent<SVGSVGElement>): Point {
   };
 }
 
-function annotationShape(annotation: Annotation, selected: boolean) {
+/** UAT 16 Nov 2026 (owner): the location mark is a star. xScale keeps it star-shaped on wide or tall drawings. */
+function starPath(cx: number, cy: number, radius: number, xScale: number): string {
+  const corners: string[] = [];
+  for (let index = 0; index < 10; index += 1) {
+    const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+    const r = index % 2 === 0 ? radius : radius * 0.45;
+    corners.push(`${(cx + Math.cos(angle) * r * xScale).toFixed(2)},${(cy + Math.sin(angle) * r).toFixed(2)}`);
+  }
+  return `M ${corners.join(" L ")} Z`;
+}
+
+function annotationShape(annotation: Annotation, selected: boolean, xScale = 1) {
   const points = annotation.geometry.points;
   const start = points[0];
   const end = points.at(-1) ?? start;
   if (!start) return null;
   const colour = selected ? "#1d4ed8" : "#dc2626";
   const common = { stroke: colour, strokeWidth: selected ? 0.8 : 0.55, fill: "none", vectorEffect: "non-scaling-stroke" as const };
-  if (annotation.annotation_type === "marker") return <g><circle cx={start.x} cy={start.y} r="1.8" fill={colour} stroke="white" strokeWidth="0.45"/><path d={`M ${start.x} ${start.y + 1.5} L ${start.x} ${start.y + 4}`} {...common}/></g>;
+  if (annotation.annotation_type === "marker") return <path d={starPath(start.x, start.y, 2.6, xScale)} fill={colour} stroke="white" strokeWidth="0.35" vectorEffect="non-scaling-stroke"><title>Location</title></path>;
   if (annotation.annotation_type === "text") return <g><circle cx={start.x} cy={start.y} r="1.4" fill={colour}/><text x={start.x + 2} y={start.y + 0.8} fill={colour} fontSize="3.2" fontWeight="700">{annotation.note.slice(0, 28)}</text></g>;
   if (annotation.annotation_type === "arrow") return <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} {...common} markerEnd="url(#markup-arrow)"/>;
   if (annotation.annotation_type === "rectangle") return <rect x={Math.min(start.x,end.x)} y={Math.min(start.y,end.y)} width={Math.abs(end.x-start.x)} height={Math.abs(end.y-start.y)} {...common}/>;
@@ -156,9 +167,10 @@ export default function DrawingMarkupEditor({ workOrderId, drawing, assetMarker,
       <svg className={`absolute inset-0 h-full w-full ${canMutate?"cursor-crosshair":""}`} viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Saved and draft Work Order annotations" onPointerDown={begin} onPointerMove={move} onPointerUp={finish}>
         <defs><marker id="markup-arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="#dc2626"/></marker></defs>
         {assetMarker&&<g aria-label={assetMarker.label} data-asset-marker={assetMarker.label} data-drawing-x={assetMarker.x} data-drawing-y={assetMarker.y}><title>{assetMarker.label}</title><circle cx={assetMarker.x} cy={assetMarker.y} r="1.35" fill="#facc15" stroke="#111827" strokeWidth="0.35"/><path d={`M ${assetMarker.x+1} ${assetMarker.y-1} L ${assetMarker.x+2.2} ${assetMarker.y-2.3}`} stroke="#111827" strokeWidth="0.3" vectorEffect="non-scaling-stroke"/><rect x={assetMarker.x+2} y={assetMarker.y-5.1} width="11" height="4" rx="0.7" fill="white" fillOpacity="0.94" stroke="#111827" strokeWidth="0.25"/><text x={assetMarker.x+3} y={assetMarker.y-2.35} fill="#111827" fontSize="2" fontWeight="800">{assetMarker.label.split(/\s/)[0]}</text></g>}
-        {annotations.map((annotation)=><g key={annotation.id} onPointerDown={(event)=>{event.stopPropagation();setSelectedId(annotation.id);}} className="cursor-pointer">{annotationShape(annotation,annotation.id===selectedId)}</g>)}
+        {annotations.map((annotation)=><g key={annotation.id} onPointerDown={(event)=>{event.stopPropagation();setSelectedId(annotation.id);}} className="cursor-pointer">{annotationShape(annotation,annotation.id===selectedId,drawing.width&&drawing.height?drawing.height/drawing.width:1)}</g>)}
       </svg>
     </div>
+    {canMutate&&<p className="mt-2 text-xs text-slate-600">To remove a wrong mark: click it on the drawing (or in the list below) so it turns blue, then press <strong>Delete</strong>. Unsaved marks can also be taken back with <strong>Undo</strong>.</p>}
     {!canMutate&&<p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Markup is read-only for this Work Order state or assignment.</p>}
     {message&&<p className="mt-3 text-sm font-semibold text-blue-800" role="status">{message}</p>}
     {saved.length>0&&<ul className="mt-3 grid gap-2 sm:grid-cols-2">{saved.map((item)=><li key={item.id} className={`rounded border p-3 text-sm ${selectedId===item.id?"border-blue-600 bg-blue-50":"bg-white"}`}><button type="button" className="w-full text-left" onClick={()=>setSelectedId(item.id)}><strong>{item.annotation_type} · {item.note}</strong><span className="mt-1 block text-xs text-slate-500">Revision {drawing.revision} · {item.created_at?new Intl.DateTimeFormat("en-SG",{ timeZone: "Asia/Singapore",dateStyle:"medium",timeStyle:"short"}).format(new Date(item.created_at)):"Saved"}</span></button></li>)}</ul>}

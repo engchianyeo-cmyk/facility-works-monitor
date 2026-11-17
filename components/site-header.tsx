@@ -3,6 +3,9 @@ import { getCurrentAccountIdentity } from "@/lib/auth";
 import { operationalLabel } from "@/lib/product-terminology";
 import { createClient } from "@/lib/supabase/server";
 import { currentNoticeIds } from "@/lib/notices";
+import CollapsibleNav from "@/components/collapsible-nav";
+import OllieAlerts from "@/components/help/ollie-alerts";
+import { loadAssistantSettings } from "@/lib/assistant/settings";
 
 export default async function SiteHeader() {
   // The global header must reflect the authenticated account even when a
@@ -14,6 +17,7 @@ export default async function SiteHeader() {
   const contractorAdmin = identity && ["supervisor", "facility_manager", "administrator"].includes(identity.role);
   // D-38 (7 Nov 2026): unread notices for the bell. Missing before the database update; then shown without a number.
   let unreadNotices = 0;
+  let assistantName = "Ollie";
   if (identity) {
     try {
       const supabase = await createClient();
@@ -26,6 +30,7 @@ export default async function SiteHeader() {
       const statusOf = new Map(((orders ?? []) as Array<{ id: string; status: string }>).map((order) => [order.id, order.status]));
       const current = currentNoticeIds(rows, (id) => statusOf.get(id));
       unreadNotices = rows.filter((row) => !row.read_at && current.has(row.id)).length;
+      assistantName = (await loadAssistantSettings(supabase)).name;
     } catch {
       unreadNotices = 0;
     }
@@ -62,7 +67,8 @@ export default async function SiteHeader() {
           )}
         </div>
 
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Main navigation">
+        <CollapsibleNav>
+        <nav className="flex flex-col gap-1 md:flex-row md:flex-wrap md:items-center md:gap-2" aria-label="Main navigation">
           <Link href="/" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Home</Link>
           <Link href="/work-orders" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Work Orders</Link>
           {identity && <Link href="/notices" aria-label={unreadNotices ? `Notices, ${unreadNotices} new` : "Notices"} className="relative rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
@@ -113,6 +119,8 @@ export default async function SiteHeader() {
             </>
           )}
         </nav>
+        </CollapsibleNav>
+        {identity && <OllieAlerts unread={unreadNotices} name={assistantName} />}
       </div>
     </header>
   );

@@ -10,7 +10,7 @@ import PeopleOverview from "./PeopleOverview";
 import TimelineFeed, { type TimelineItem } from "./TimelineFeed";
 import CopilotPanel, { type MissionRecommendation } from "./CopilotPanel";
 import QuickActions from "./QuickActions";
-import FacilityLayoutPanel, { sampleFacilityLayoutConfig } from "./FacilityLayoutPanel";
+import FacilityDrawingsOverview from "./FacilityDrawingsOverview";
 import { roleLabel } from "@/lib/product-terminology";
 import TechnicianMissionControl from "./TechnicianMissionControl";
 
@@ -52,7 +52,8 @@ export default function MissionControl({ data }: { data: MissionControlData }) {
         </div>
       </div>
       <TimelineFeed items={data.timeline} />
-      <FacilityLayoutPanel config={sampleFacilityLayoutConfig} />
+      {/* UAT 16 Nov 2026: real facility drawings; the development sample layout only until a facility has drawings. */}
+      <FacilityDrawingsOverview />
     </main>
   );
 }

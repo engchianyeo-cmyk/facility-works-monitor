@@ -1139,6 +1139,44 @@ create the users when you're done."
 5. 15 Nov 23:54: `release:verify` PASS (third run; first two caught a Finance test missing its facility membership and
    a header drop-down that slowed pages and confused a browser test; the facility switch moved to the Work Orders list
    and the new checks were made lighter). 30 browser tests passed in 4.0 minutes.
+6. 15 Nov ~23:55: commit `2ae6ca3` pushed. 16 Nov 00:30: `out/preview-increment-m29.sql` built (sha256
+   `36959c53…bdb0433`) and rehearsed on a local copy; runbook `docs/releases/PREVIEW_M29_RUNBOOK.md`. Preview not yet
+   changed.
+
+### UAT fix 16 November 2026 — accounts for every role (M30, no owner decision needed)
+
+Owner (11:09): creating fmworks.notices@yahoo.com as Facility Administrator of Facility 2 failed with "The user
+provisioning request could not be prepared". Cause: the provisioning ticket table (`account_invitations`) still had
+role checks from October that did not list Facility Administrator (nor, in one of them, Facility Manager and Finance).
+Fix: migration `20261116100000_account_invitation_roles.sql` (M30) allows all nine roles; checked on a local copy and
+added to `facility_administrators.test.sql`. Until M30 is on Preview: create the person as Reviewer, change the role
+in the Users list, then add them to the facility's staff.
+Also fixed (11:48): after switching the role to Reviewer, the form still sent the Facility chosen earlier and was
+refused ("Only Technicians, ... join a facility"); a facility is now sent only with a role that joins one. Until this is
+on Preview: reload the Users page before creating the person as Reviewer.
+Also fixed (12:10): in the Users list, saving a person created since the page was opened failed with "Name, an
+active department and a valid role are required" (the row had no full editable copy, so only the changed role was
+sent; its Status also showed "Inactive" while ticked). New rows now get a full copy. The Actions column (Save,
+Archive, Permanent delete, Remove personal details) now stays visible at the right edge instead of needing a sideways
+scroll (owner's remark: a new user would not know to scroll). Until this is on Preview: reload the Users page before
+changing a new person's role.
+Also fixed (12:56): a Facility 2 Technician's Work Orders list did not say which facility it showed, and offered
+"4 test Work Orders hidden" that belong to Facility One. The list now names the person's facility when they have only
+one, warns when they are not yet staff of any facility, and counts only test Work Orders the person can see.
+
+Owner request (13:09): put the first three Facility 2 Work Orders (entry sheets F2-WO-20, F2-WO-04, F2-WO-01) on
+Preview. Claude does not sign in as users, so `scripts/rollout/preview-f2-first-three-work-orders-20261116.sql`
+creates them as Drafts through the app's own `create_work_order()` acting as Technician koi.kpr+1 (WO-20, WO-04) and
+koi.kpr+2 (WO-01): same checks and audit entry as pressing "+ New Work Order". Dry run by default; refuses without the
+Preview project setting, if either Technician is not Facility 2 Technician staff, or if the titles already exist.
+Rehearsed on a local copy (dry run, apply, refused re-run, refused non-member, refused wrong project). Photos, layout
+mark and quotations are still added in the app. Not yet run on Preview.
+13:25 dry run on Preview stopped safely: koi.kpr+2 had not yet changed his temporary password. Owner asked to
+proceed (13:46): the script now creates F2-WO-01 as koi.kpr+1 when koi.kpr+2 is not ready (rehearsed both ways);
+koi.kpr+2 can be named Technician 2 on it later.
+Applied on Preview 16 Nov 2026 ~14:15 by the owner (target checked: cli_login_postgres.pvajuywwwpjlikqjnvgv):
+FW-2026-0006 Battery charger BC-05 (in-house, koi.kpr+1), FW-2026-0007 Freezer RU-FZ-B (critical, koi.kpr+1),
+FW-2026-0008 CH-01 chiller service (koi.kpr+2), all Draft at Facility 2; no Area set (Facility 2 areas not yet loaded).
 
 ### Preview rollout record — 21 October 2026
 
@@ -1282,6 +1320,108 @@ deployment `f9bef5e` (branch `uat/claude-review`). Production untouched.
 | 10 Nov ~22:39 | Commit `d8a84bd` (D-49 Technician 2 named (M28); show-password button; timeline after approval) | Owner |
 | 10 Nov 22:41 | Target checked (`cli_login_postgres.pvajuywwwpjlikqjnvgv`, pooler aws-0-ap-southeast-1); backup `.git/preview-backup-20261110-pre-m28.sql` (2,891,736 bytes, `--role=postgres`) | Owner, guided |
 | 10 Nov 22:43 | Increment `out/preview-increment-m28.sql` (sha256 `ce67043bb18ac628…`) applied: `20261110100000` named Technician 2 (M28); preflight 77; ledger now 78; COMMIT | Owner, guided |
+
+
+### Preview rollout record — 16 November 2026
+
+| Time (SGT) | Change on Preview (pvajuywwwpjlikqjnvgv) | By |
+| --- | --- | --- |
+| 15 Nov 23:54 | `release:verify` PASS (SQL gate incl. `facility_administrators.test.sql`, 30 browser tests) | Owner |
+| 15 Nov ~23:55 | Commit `2ae6ca3` pushed to `uat/claude-review` (M29 build) | Owner |
+| 16 Nov 09:04 | Target checked (`cli_login_postgres.pvajuywwwpjlikqjnvgv`, pooler aws-0-ap-southeast-1); read-only check: ledger 78 entries, latest `20261110100000`. `psql`/`pg_dump` run through Docker (`postgres:17`), since they are not installed on Windows | Owner, guided |
+| 16 Nov 09:05 | First backup attempt refused at login (EAUTHQUERY: the temporary login had expired); nothing changed. Login reloaded | Owner, guided |
+| 16 Nov 09:06 | Backup `.git/preview-backup-20261116-pre-m29.sql` (2,925,626 bytes, `--role=postgres`, `public` + `supabase_migrations`) | Owner, guided |
+| 16 Nov ~09:11 | Increment `out/preview-increment-m29.sql` (sha256 `36959c53…bdb0433`) applied: `20261115120000` Facility Administrators, Finance per facility, Remove personal details (M29); preflight 78; ledger now 79; COMMIT | Owner, guided |
+
+### UAT change 16 November 2026 — location mark is a star (owner, 14:37)
+
+Owner asked for the location mark on drawings to be a star instead of a circle, and whether a wrong mark can be
+deleted. The "Pin" tool is now "★ Location star" and draws a red star (blue when selected), kept star-shaped on wide
+drawings. Deleting already existed (select the mark, press Delete; the audit record is kept); the toolbar now says so
+in a line under the drawing. File: `components/work-orders/drawing-markup-editor.tsx`. Existing marks redraw as stars.
+
+### UAT change 16 November 2026 — Home page shows facility and open work only (owner, 16:03)
+
+Owner (Super-Administrator view): the Home page "did not look right": "Active facility work" mixed Facility One and
+Facility 2 Work Orders with no facility shown, and listed Closed and Cancelled ones. Changed: each entry now shows its
+facility name, and Closed / Cancelled are left out of that list (still in Work Orders). Files: `app/page.tsx`,
+`components/mission-control/OperationsSummary.tsx`. Noted, not changed: the role chip reads "Administrator" because a
+company wording saved under Roles & Stages overrides "Super-Administrator"; the Facility Overview at the bottom is
+the development sample layout, not a real facility (proposal to replace it with the facility's own drawings pending).
+
+### D-58 — In-app assistant: built-in Help guide first, AI assistant later (16 Nov 2026)
+
+Owner (13:14–13:20): FMWorks should have an assistant that guides new users around the app. Options set out:
+A) an AI assistant inside the app (needs a paid AI service key, billed per question); B) a built-in Help guide with
+prepared answers (no running cost); C) B now and A later as an on/off switch. **Owner chose C, starting with B.**
+
+Built (option B): a "Help" button on every page for signed-in people opens "Help on this page": steps for the
+person's role on that page; on an open Work Order, its stage and what that person does next; and a question box that
+matches prepared answers (drawn from knowledge pack v3.2). No AI service is called and nothing typed is sent anywhere.
+Files: `lib/help/guide-content.ts`, `components/help/help-panel.tsx`, `components/help/help-context.tsx`, mounted in
+`app/layout.tsx`; stage fed by `app/work-orders/[id]/page.tsx`; tests `tests/help-guide.test.ts`.
+Option A later: same content as the assistant's knowledge; it will explain and guide only (no actions, no passwords,
+only what that person may see), switched on only when a paying client supplies its own AI service key.
+
+Owner (16:54): "build the assistant now". Built option A behind its switch (off until a key is provided):
+`app/api/assistant/route.ts`, `lib/assistant/config.ts`, `lib/assistant/prompt.ts`, `lib/help/knowledge-pack.ts`
+(from `docs/assistant/FMWorks_Knowledge_Pack.md`, v3.2 plus an updates note). When the server has
+`FMW_ASSISTANT_AI=on` and `ANTHROPIC_API_KEY`, the Help panel shows "Ask the AI assistant": the question, the person's
+role, the page and the open Work Order's number and status go to the AI service with the assistant rules (guide only,
+no actions, no passwords, safety first, people decide approvals and payments); the answer is shown as "AI answer —
+check it against the app". Refused before sending: text that looks like a password, code or card number. Limit 30
+questions per person per hour; questions are not stored. Model `FMW_ASSISTANT_MODEL` (default claude-haiku-5-5).
+Tests: `tests/assistant.test.ts`. Not switched on anywhere yet; the key is billed per question.
+
+Also (16:54, owner's go-ahead to the Home page proposal): the Home page's "Facility Overview" development sample is
+replaced by "Facility drawings": each facility the person can see, its lead plan drawing, links to all its drawings and
+its open Work Order count (`components/mission-control/FacilityDrawingsOverview.tsx`). The sample layout component is
+kept and still shows when no facility has drawings.
+Test `tests/mission-control.test.ts` updated to match (17 Nov, release:verify run 1): the Home page must show
+"Facility drawings" after the operational panels, with the sample overview as the fallback.
+
+Owner (17:40): the assistant should have a mascot. Added "Ollie", an original drawing for FMWorks (a blue owl in a
+yellow hard hat and orange hi-vis vest), as an SVG component (`components/help/mascot.tsx`) on the Help button
+("Help · Ollie"), in the Help panel header and on AI answers; the AI introduces itself as Ollie.
+
+### D-59a — Fault library: the app learns from finished jobs; assistant sounds, voice, picture; phone menu (16–17 Nov 2026)
+
+Owner (14:53–18:00, 16 Nov): the assistant should help Technicians troubleshoot and get smarter from past experience;
+the app should ask users for learning tips after every Work Order; the assistant (Ollie) should chime when it wants to
+learn and when something urgent needs attention, with a test button, an off switch and a reminder to turn sound back on
+after a day; it should speak English; the Administrator can change its picture; the app must work on a phone or tablet.
+Owner said "Let's start" (17:59); work resumed 17 Nov.
+
+Built (migration M31 `20261116130000_fault_library_and_assistant_settings.sql`, test `tests/sql/fault_library.test.sql`):
+1. **What we learnt** (`work_order_learnings`, `share_work_order_learning`): when a Work Order is Submitted for Review,
+   Completed or Closed, the people on it (Technician 1 and 2, the preparer, the facility's approvers) are asked —
+   highlighted box and a chime — for the Confirmed cause, the Fix that worked, a Tip, and whether an AI suggestion
+   helped. One entry per person per job (can be updated); audited. Seen by whoever may see the Work Order.
+2. **Fixed before** (`work_order_learning_matches`, runs with the person's own rights): open Work Orders show
+   learnings from similar jobs (same asset first, then shared words such as the tag BC-05). "Proven fix" = Completed
+   or Closed and no new Work Order on the same asset within 30 days; otherwise "Fault came back within 30 days".
+3. **Hiding** (`hide_work_order_learning`): the Super-Administrator, the facility's Facility Administrator or Facility
+   Manager can hide a wrong entry with a reason; it is kept for the record.
+4. **Ollie uses it**: when the AI assistant is switched on, the site's learnings on similar jobs are given to it first.
+   The app does not learn by itself without people sharing; it ranks and checks what they share automatically.
+5. **Sounds and voice** (`lib/help/ollie-voice.ts`, browser only, nothing sent anywhere): a soft chime when asking for
+   a tip, a brighter three-note alert when new notices arrive; "Speak in English" reads alerts and answers aloud with
+   the device's English voice; "Read aloud" buttons; Test sound / Test alert / Test voice; on/off per device; after
+   sound has been off for a day, a reminder offers to turn it on (once a day). Browsers play sound only after the page
+   has been tapped once.
+6. **Name and picture** (`assistant_settings`, `set_assistant_settings`, page Administration > Assistant): the
+   Super-Administrator renames the assistant or uploads a PNG, JPEG, WebP or SVG (≤300 KB; served with a locked-down
+   policy); "Use Ollie again" restores the default. Audited.
+7. **Phone and tablet**: header links fold under a Menu button below tablet width; the Help panel opens as a bottom
+   sheet on phones.
+Rehearsed on a local copy: M31 applies after M30; fault_library and facility_administrators tests pass.
+release:verify PASSED on the owner's PC, 17 Nov 2026 ~14:19 (typecheck, lint, 980 unit tests, Docker SQL runners
+including fault_library, build, 30 browser tests in 4.2 min, diff hygiene). Next: commit, Preview increment M30 + M31
+(backup first), then push.
+Increment built: `out/preview-increment-m31.sql` (`build-preview-increment.mjs ... 20261115120000`), sha256
+`9263c7771ddd48488645fe62e0abc912718bf50496083c38fe7ab9d557f3614e`. Rehearsed on a local copy at M29 with a stand-in
+ledger ending 20261115120000: refused without the Preview assertion; applied and committed; a second run refused
+("ledger ends at 20261116130000"); fault_library and facility_administrators tests then passed.
 
 ## D. Decisions still open (not recoverable locally)
 

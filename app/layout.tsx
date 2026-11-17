@@ -6,6 +6,10 @@ import { getBuildInfo } from "@/lib/build-info";
 import TerminologyBootstrap from "@/components/terminology-bootstrap";
 import { loadTerminology } from "@/lib/terminology";
 import { getCurrentIdentity } from "@/lib/auth";
+import HelpPanel from "@/components/help/help-panel";
+import { assistantAiEnabled } from "@/lib/assistant/config";
+import { DEFAULT_ASSISTANT_SETTINGS, loadAssistantSettings } from "@/lib/assistant/settings";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: {
@@ -29,6 +33,7 @@ export default async function RootLayout({
   const build = getBuildInfo();
   const terminology = await loadTerminology();
   const identity = await getCurrentIdentity();
+  const assistant = identity ? await loadAssistantSettings(await createClient()) : DEFAULT_ASSISTANT_SETTINGS;
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
@@ -37,6 +42,9 @@ export default async function RootLayout({
         <SiteHeader />
 
         <main>{children}</main>
+
+        {/* D-58: Help guide (prepared answers) plus the AI assistant when switched on. Signed-in people only. */}
+        {identity && <HelpPanel role={identity.role} aiEnabled={assistantAiEnabled()} name={assistant.name} pictureUrl={assistant.pictureUrl} />}
 
         <footer className="mt-16 border-t border-slate-200 bg-white">
           <div className="mx-auto max-w-7xl px-6 py-6 text-center text-xs text-slate-500">

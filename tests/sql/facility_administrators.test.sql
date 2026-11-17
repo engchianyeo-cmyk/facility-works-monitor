@@ -114,4 +114,11 @@ do $t$ declare r jsonb; ok boolean; begin
   perform pg_temp.assert_true(public.admin_remove_personal_details(pg_temp.u(1),'m29.1@example.test','x')->>'code'='VALIDATION_ERROR','cannot remove one''s own details');
 end $t$;
 
+-- M30: the provisioning ticket accepts every role, including Facility Manager, Finance and Facility Administrator
+reset role;
+insert into public.account_invitations(email,display_name,department,assigned_role,is_active,token_hash,expires_at,created_by)
+select 'm30.'||r||'@example.test','M30 '||r,'Facility',r,true,md5(r),now()+interval '10 minutes',pg_temp.u(1)
+from unnest(array['facility_manager','finance','facility_administrator']) r;
+select pg_temp.assert_true((select count(*) from public.account_invitations where email like 'm30.%@example.test')=3,'tickets for every role');
+
 rollback;

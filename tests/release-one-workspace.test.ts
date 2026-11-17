@@ -19,7 +19,7 @@ describe("Release 1 markup and commercial workspace", () => {
     expect(migration).toContain("source_type in ('drawing','pdf')");
     expect(migration).toContain("x_percent between 0 and 100");
     expect(migration).toContain("work_order_markup_recorded");
-    for (const tool of ["Pin", "Arrow", "Circle", "Rectangle", "Freehand", "Text / Note", "Undo", "Redo", "Delete", "Save markup"]) expect(markupEditor).toContain(tool);
+    for (const tool of ["Location star", "Arrow", "Circle", "Rectangle", "Freehand", "Text / Note", "Undo", "Redo", "Delete", "Save markup"]) expect(markupEditor).toContain(tool);
     expect(controls).toContain("drawing_revision");
     expect(controls).toContain("annotation_type");
     expect(controls).toContain("geometry jsonb");

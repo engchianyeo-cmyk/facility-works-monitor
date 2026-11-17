@@ -1,4 +1,8 @@
 import type { ReactNode } from "react";
+import FixedBefore, { type LearningMatch } from "@/components/fault-library/fixed-before";
+import ShareLearning, { type SharedLearning } from "@/components/fault-library/share-learning";
+import { loadAssistantSettings } from "@/lib/assistant/settings";
+import HelpContext from "@/components/help/help-context";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import WorkOrderDrawings from "@/components/work-order-drawings";
@@ -572,9 +576,24 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       </div>
   );
 
+  // D-59a: what the team learnt on similar jobs, and what was learnt on this one.
+  const [matchResult, learningResult, assistantSettings] = await Promise.all([
+    status === "cancelled" ? Promise.resolve({ data: [] as LearningMatch[] }) : supabase.rpc("work_order_learning_matches", { p_work_order_id: id, p_limit: 3 }),
+    supabase.from("work_order_learnings").select("id,shared_by,shared_by_name,confirmed_cause,fix_that_worked,tip,ai_suggestion,hidden_at,created_at").eq("work_order_id", id).order("created_at"),
+    loadAssistantSettings(supabase),
+  ]);
+  const learningMatches = ((matchResult as { data: unknown }).data ?? []) as LearningMatch[];
+  const sharedLearnings = ((learningResult as { data: unknown }).data ?? []) as SharedLearning[];
+  const workDone = ["completed", "reviewed", "closed"].includes(status);
+  const onThisJob = [order.assigned_technician_id, (order as { second_technician_id?: string | null }).second_technician_id, order.requested_by].includes(identity.userId)
+    || ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role);
+  const canShareLearning = workDone && onThisJob;
+  const canHideLearning = ["administrator", "facility_administrator", "facility_manager"].includes(identity.role);
+
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
       <Link href="/work-orders" className="text-sm font-medium text-blue-700 hover:underline">← All work orders</Link>
+      <HelpContext id={id} reference={order.work_order_number ?? "Work Order"} status={status} inHouse={Boolean(order.in_house_work)} />
 
       <WorkOrderDecisionHeader
         reference={order.work_order_number}
@@ -593,6 +612,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           draftToFinish: status === "draft" && isPreparer(context) && approvalReadiness?.ready === false,
         }}
       />
+
+      {!workDone && <FixedBefore matches={learningMatches} />}
 
       {financeSummaryEl}
 
@@ -781,6 +802,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
 
       {/* The reviewer's decision comes last, after the costs, evidence and records above. */}
       {(endorsementRequired || endorsements.length > 0) && <TechnicianEndorsement workOrderId={id} required={endorsementRequired} canEndorse={canEndorse} endorsements={endorsements} stageSetting={endorsementStage} blocked={status === "completed" ? endorsementStatus?.blocked ?? null : null} superseded={Boolean(endorsementStatus?.superseded)} finalCost={status === "completed" ? endorsementStatus?.final_cost ?? null : null} stage={status === "draft" ? "submission" : "review"} inHouse={Boolean(order.in_house_work)} quotations={checkerQuotations} />}
+      <ShareLearning workOrderId={id} canShare={canShareLearning} canHide={canHideLearning} userId={identity.userId} learnings={sharedLearnings} assistantName={assistantSettings.name} />
       {!workStage && actionsEl}
     </main>
   );

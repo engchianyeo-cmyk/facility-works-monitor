@@ -114,6 +114,13 @@ export default function UserManagement({
             (result.users as ManagedUser[]).map((user) => [user.id, user]),
           ),
         );
+      } else {
+        // UAT fix 16 Nov 2026: a user added since the page loaded gets an editable copy too.
+        setEditing((current) => {
+          const next = { ...current };
+          for (const user of result.users as ManagedUser[]) if (!next[user.id]) next[user.id] = user;
+          return next;
+        });
       }
     } catch (loadError) {
       setError(
@@ -194,7 +201,10 @@ export default function UserManagement({
   ) {
     setEditing((current) => ({
       ...current,
-      [userId]: { ...current[userId], [field]: value },
+      [userId]: {
+        ...(current[userId] ?? users.find((user) => user.id === userId)),
+        [field]: value,
+      } as ManagedUser,
     }));
   }
 
@@ -420,7 +430,7 @@ export default function UserManagement({
                   <th className="px-3 py-3">Recorded activity</th>
                   <th className="px-3 py-3">Activity / Sign-in</th>
                   <th className="px-3 py-3">Created</th>
-                  <th className="px-3 py-3">Actions</th>
+                  <th className="sticky right-0 bg-slate-50 px-3 py-3 shadow-[-6px_0_6px_-6px_rgba(15,23,42,0.25)]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -602,7 +612,7 @@ export default function UserManagement({
                         <td className="px-3 py-4 text-xs text-slate-500">
                           {formatDate(user.created_at)}
                         </td>
-                        <td className="space-y-2 px-3 py-4">
+                        <td className="sticky right-0 space-y-2 bg-white px-3 py-4 shadow-[-6px_0_6px_-6px_rgba(15,23,42,0.25)]">
                           <button
                             type="button"
                             disabled={submitting || !provisioningConfigured}
