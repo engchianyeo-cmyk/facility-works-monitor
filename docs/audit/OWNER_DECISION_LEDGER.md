@@ -1422,6 +1422,12 @@ Increment built: `out/preview-increment-m31.sql` (`build-preview-increment.mjs .
 `9263c7771ddd48488645fe62e0abc912718bf50496083c38fe7ab9d557f3614e`. Rehearsed on a local copy at M29 with a stand-in
 ledger ending 20261115120000: refused without the Preview assertion; applied and committed; a second run refused
 ("ledger ends at 20261116130000"); fault_library and facility_administrators tests then passed.
+Applied on Preview by the owner, 17 Nov 2026 ~16:19 SGT: target checked (`cli_login_postgres.pvajuywwwpjlikqjnvgv`
+at aws-0-ap-southeast-1.pooler.supabase.com); read-only check 79 entries, latest 20261115120000; backups
+`.git/preview-backup-20261117-pre-m31.sql` and `-b.sql` (3,005,353 bytes each); increment sha256 `9263c777…`
+"Preflight passed: 79 ledger entries" and COMMIT; ledger now 81, latest 20261116130000. Production untouched.
+Lesson: a fresh Supabase CLI temporary login needs about a minute before the pooler accepts it, and expires a few
+minutes later; connect, wait 60 s, then run the step.
 
 ## D. Decisions still open (not recoverable locally)
 
