@@ -21,7 +21,7 @@ export default async function SiteSlaPage() {
   if (!identity) redirect("/login?next=/sla");
   const supabase = await createClient();
   const { data, error } = await supabase.from("sla_rules")
-    .select("id,priority_class,work_order_priority,acknowledgement_minutes,response_minutes,attendance_minutes,make_safe_minutes,rectification_minutes,kpi_target_percent,source_clause,service_category:service_categories(code,name),version:sla_agreement_versions(version_number,effective_from,effective_to,agreement:sla_agreements(name,counterparty))")
+    .select("id,priority_class,work_order_priority,acknowledgement_minutes,response_minutes,attendance_minutes,make_safe_minutes,rectification_minutes,kpi_target_percent,source_clause,service_category:service_categories(code,name),version:sla_agreement_versions(version_number,effective_from,effective_to,agreement:sla_agreements(name,counterparty,facility_id,facility:sites(name)))")
     .eq("is_active", true);
   const rules = (error ? [] : (data ?? [])) as unknown as SlaRuleRow[];
   const groups = groupRules(rules);
@@ -34,7 +34,7 @@ export default async function SiteSlaPage() {
       <header>
         <p className="text-sm font-black uppercase tracking-widest text-blue-700">For everyone on site</p>
         <h1 className="text-3xl font-black">Site SLA — how fast we must act</h1>
-        <p className="mt-2 max-w-3xl text-slate-600">The service levels agreed with the facility owner. The clock starts when a Work Order is submitted. Each Work Order shows its own countdown against these times.</p>
+        <p className="mt-2 max-w-3xl text-slate-600">The service levels agreed with the facility owner. The standard applies to every facility unless a facility has its own SLA below. Each Work Order shows its own countdown against these times.</p>{identity.role === "administrator" && <p className="mt-2"><Link href="/administration/sla" className="font-semibold text-blue-700 underline">Change the SLA times</Link></p>}
       </header>
       {error && <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">The Site SLA is not available in this environment yet (database update D-45 not applied).</p>}
       {!error && rules.length === 0 && <section className="rounded-xl border border-dashed p-6 text-slate-700">

@@ -26,6 +26,8 @@ type RawOrder = {
   assigned_technician_id: string | null;
   assigned_vendor_id: string | null;
   assigned_team_id: string | null;
+  second_technician_id?: string | null;
+  facility?: { name: string } | Array<{ name: string }> | null;
   due_date: string | null;
   completion_notes: string | null;
   completed_at: string | null;
@@ -66,7 +68,7 @@ export default async function OperationsPage() {
   if (!identity) redirect("/login?next=/operations");
 
   const supabase = await createClient();
-  const orderQuery = supabase.from("work_orders").select("id,work_order_number,title,location,site,asset_id,asset:assets(asset_tag,name),priority,status,assigned_to,assigned_technician_id,assigned_vendor_id,assigned_team_id,due_date,completion_notes,completed_at,created_at,updated_at,categories(name)").order("priority_rank", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
+  const orderQuery = supabase.from("work_orders").select("id,work_order_number,title,location,site,asset_id,asset:assets(asset_tag,name),priority,status,assigned_to,assigned_technician_id,assigned_vendor_id,assigned_team_id,second_technician_id,facility:sites(name),due_date,completion_notes,completed_at,created_at,updated_at,categories(name)").order("priority_rank", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
 
   const teamAllowed = ["approver", "supervisor", "administrator"].includes(identity.role);
   const [orderResult, incidentResult, teamResult, evidenceResult] = await Promise.all([
@@ -127,9 +129,35 @@ export default async function OperationsPage() {
   }
 
   const profiles = (teamResult.error ? [] : teamResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null; department: string | null; last_active_at: string | null }>;
+  // UAT 17 Nov 2026 (owner): each Technician's facility, standby (on-call roster) and every open Work Order they hold.
+  const [membershipResult, rosterResult] = teamAllowed ? await Promise.all([
+    supabase.from("facility_memberships").select("profile_id,facility:sites(name)").eq("membership_role", "technician").eq("active", true),
+    supabase.rpc("get_emergency_roster"),
+  ]) : [{ data: [], error: null }, { data: [], error: null }];
+  const facilitiesOf = new Map<string, string[]>();
+  for (const row of ((membershipResult.error ? [] : membershipResult.data ?? []) as unknown as Array<{ profile_id: string; facility: { name: string } | Array<{ name: string }> | null }>)) {
+    const name = (Array.isArray(row.facility) ? row.facility[0]?.name : row.facility?.name) ?? null;
+    if (name) facilitiesOf.set(row.profile_id, [...(facilitiesOf.get(row.profile_id) ?? []), name]);
+  }
+  const now = Date.now();
+  const standbyOf = new Map<string, string>();
+  for (const row of ((rosterResult.error ? [] : rosterResult.data ?? []) as Array<{ profile_id: string | null; active: boolean; receive_emergency_alerts: boolean; escalation_order: number | null; active_from: string | null; active_to: string | null }>)) {
+    if (!row.profile_id || !row.active || !row.receive_emergency_alerts) continue;
+    if ((row.active_from && Date.parse(row.active_from) > now) || (row.active_to && Date.parse(row.active_to) < now)) continue;
+    if (!standbyOf.has(row.profile_id)) standbyOf.set(row.profile_id, `On standby (on-call roster${row.escalation_order ? `, call order ${row.escalation_order}` : ""})`);
+  }
+  const facilityName = (order: RawOrder) => (Array.isArray(order.facility) ? order.facility[0]?.name : order.facility?.name) ?? null;
   const team: TeamMember[] = profiles.map((profile) => {
-    const assigned = rawOrders.filter((order) => order.assigned_technician_id === profile.id && ["assigned", "in_progress"].includes(order.status));
-    return { id: profile.id, name: profile.display_name, discipline: profile.trade_discipline ?? profile.department ?? "Discipline not recorded", lastRecordedActivity: profile.last_active_at ? `${elapsed(profile.last_active_at)} ago` : "Not recorded", workload: assigned.length, currentAssignment: assigned[0] ? `${assigned[0].work_order_number} · ${assigned[0].title}` : null };
+    const held = rawOrders.filter((order) => OPEN.has(order.status) && (order.assigned_technician_id === profile.id || order.second_technician_id === profile.id));
+    const active = held.filter((order) => ["assigned", "in_progress"].includes(order.status));
+    return {
+      id: profile.id, name: profile.display_name, discipline: profile.trade_discipline ?? profile.department ?? "Discipline not recorded",
+      lastRecordedActivity: profile.last_active_at ? `${elapsed(profile.last_active_at)} ago` : "Not recorded",
+      workload: held.length, currentAssignment: active[0] ? `${active[0].work_order_number} · ${active[0].title}` : null,
+      facilities: facilitiesOf.get(profile.id) ?? [], standby: standbyOf.get(profile.id) ?? null,
+      responsibilities: held.map((order) => ({ id: order.id, number: order.work_order_number, title: order.title, status: order.status, priority: order.priority,
+        as: order.assigned_technician_id === profile.id ? "Technician 1" : "Technician 2", facility: facilityName(order) })),
+    };
   });
 
   const data: OperationsWorkspaceData = { role: identity.role, name: identity.displayName, work, attention, team, availability: { work: !orderResult.error, incidents: !incidentResult.error, team: !teamResult.error } };

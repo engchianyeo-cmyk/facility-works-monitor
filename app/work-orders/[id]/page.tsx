@@ -365,6 +365,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     .maybeSingle();
   const evidenceCanMutate = canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, correctionOpen: Boolean(openDocumentCorrection), creatorId: order.user_id, requesterId: order.requested_by });
   const assetLabel = assetReferenceLabel(order.asset_id, order.asset as { asset_tag: string; name: string } | null);
+  // M34: the O&M manual and other documents filed with the asset, for the Technician to cross-reference.
+  const { data: assetDocuments } = order.asset_id ? await supabase.from("asset_documents").select("id,title,kind").eq("asset_id", order.asset_id).eq("active", true).order("uploaded_at", { ascending: false }) : { data: [] as Array<{ id: string; title: string; kind: string }> };
   const assetLinkAllowed = canLinkWorkOrderAsset(identity.role) && !["closed", "cancelled"].includes(status);
   const assetOptionsResult = assetLinkAllowed
     ? await supabase.from("assets").select("id,asset_tag,name,asset_type,criticality,lifecycle_status,site,location,system:asset_systems(name,system_code)").neq("lifecycle_status", "decommissioned").order("asset_tag")
@@ -679,6 +681,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
 
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-800">Physical Asset</p>{assetLabel ? order.asset ? <Link href={`/assets/${order.asset_id}`} className="mt-1 inline-block text-lg font-black text-emerald-950 hover:underline">{assetLabel}</Link> : <p className="mt-1 text-lg font-black text-amber-900">Asset unavailable</p> : <p className="mt-1 text-lg font-black text-slate-700">No Asset linked</p>}<p className="mt-1 text-sm text-emerald-800">The Work Order location remains its historical operational snapshot.</p></div>{order.asset && <div className="text-right text-sm"><p className="font-bold">{order.asset.system?.name ?? "Engineering System: Not configured"}</p><p>{order.asset.location}</p><p>{operationalLabel(order.asset.lifecycle_status)} · {operationalLabel(order.asset.criticality)}</p></div>}</div>
+        {(assetDocuments ?? []).length > 0 && <div className="mt-4 border-t border-emerald-200 pt-4"><p className="text-xs font-black uppercase tracking-widest text-emerald-800">O&amp;M manual and documents</p><ul className="mt-1 space-y-1">{(assetDocuments ?? []).map(d => <li key={d.id}><a href={`/api/asset-documents/${d.id}/file`} target="_blank" rel="noopener" className="text-sm font-bold text-emerald-950 underline">{d.title}</a></li>)}</ul></div>}
         {assetLinkAllowed && <div className="mt-4 border-t border-emerald-200 pt-4"><AssetLinkControl parent="work-orders" parentId={id} assets={assetOptions} currentAssetId={order.asset_id} unavailable={Boolean(order.asset_id && !order.asset)} /></div>}
       </section>
 

@@ -225,6 +225,91 @@ export const PAGE_GUIDES: readonly PageGuide[] = [
     roleStepsOnly: true,
   },
   {
+    id: "incidents",
+    paths: ["/incidents"],
+    title: "Emergency incidents",
+    intro: "The Incident Operations Board: emergencies happening now (fire, flood, lift entrapment, gas leak and so on) and how the response is going. An incident is for the response; the repair afterwards is a Work Order.",
+    steps: {
+      all: [
+        "Press Report emergency to start a response for something happening now.",
+        "Red cards are unacknowledged: the on-call responder must acknowledge before the deadline.",
+        "Open an incident to see its phase, responder, timeline and linked corrective Work Orders.",
+      ],
+    },
+    related: ["incident-what", "incident-vs-work-order", "incident-steps"],
+  },
+  {
+    id: "incident-new",
+    paths: ["/incidents/new"],
+    title: "Report Emergency Incident",
+    intro: "Activates an emergency response at once and alerts the on-call responders. Make people safe and call 995 or site security first if lives are at risk.",
+    steps: {
+      all: [
+        "Choose the Incident type (for example Fire, Flood, Lift entrapment, Gas leak, Electrical failure).",
+        "Choose the Severity: Emergency or Critical for danger to people or a key service stopped.",
+        "Type the exact Location and, if known, the affected Asset.",
+        "Under What is happening?, say what you see, who is affected and what has been done so far.",
+        "Press Report emergency incident. The incident appears on the board and responders are notified.",
+      ],
+    },
+    related: ["incident-what", "incident-vs-work-order", "emergency"],
+  },
+  {
+    id: "incident",
+    paths: ["/incidents/"],
+    title: "Incident",
+    intro: "One emergency and its response. Only the next allowed response step is offered.",
+    steps: {
+      all: [
+        "Current phase shows where the response is: Reported, Acknowledged, Mobilising, On Site, Rescue In Progress, Safe, Recovery, Closed.",
+        "Use Response action for the next step (for example Acknowledge, Mobilise, Arrive, Make safe).",
+        "Response timeline records who did what and when.",
+        "Corrective Work: once safe, create and link a Work Order for the repair.",
+      ],
+    },
+    related: ["incident-steps", "incident-vs-work-order"],
+  },
+  {
+    id: "assets",
+    paths: ["/assets"],
+    title: "Assets",
+    intro: "The equipment register: each asset's tag, type, location and history. Linking a Work Order to its asset lets the team see past faults and fixes.",
+    steps: { all: ["Search by tag or name and open an asset to see its Work Orders.", "New asset adds equipment (Administrators and managers)."] },
+  },
+  {
+    id: "maintenance",
+    paths: ["/maintenance"],
+    title: "Preventive maintenance",
+    intro: "Planned servicing (for example quarterly chiller service): what is due and when.",
+    steps: { all: ["Open a plan to see its schedule and the Work Orders it created.", "Due servicing becomes a Work Order like any other job."] },
+  },
+  {
+    id: "maintenance-plan",
+    paths: ["/maintenance-plan"],
+    title: "Maintenance plan",
+    intro: "Equipment by daily, weekly, monthly, quarterly, six-monthly and annual checks, the Technician responsible for each task, and the O&M manual to cross-reference.",
+    steps: {
+      all: ["Pick a tab (Daily, Weekly, …) or search for the equipment.", "Open the O&M manual link to read the manufacturer's instructions before the check.", "Tick Only my tasks to see what you are responsible for."],
+      supervisor: ["Choose the Technician in the Technician responsible box; new Work Orders from that task go to them.", "Upload O&M manual (PDF) files the manual with the equipment for everyone at the facility."],
+      facility_manager: ["Choose the Technician in the Technician responsible box; new Work Orders from that task go to them.", "Upload O&M manual (PDF) files the manual with the equipment."],
+      administrator: ["Assign Technicians and file O&M manuals for any facility.", "Daily checks marked Draft are proposed and wait for your decision."],
+    },
+  },
+  {
+    id: "assistant-admin",
+    paths: ["/administration/assistant"],
+    title: "Assistant",
+    intro: "Change the assistant's name or picture. Everyone sees the change.",
+    steps: { all: ["Type the name, choose a picture (PNG, JPEG, WebP or SVG, up to 300 KB) and press Save.", "Use Ollie again restores the original."] },
+  },
+  {
+    id: "administration",
+    paths: ["/administration"],
+    title: "Administration",
+    intro: "Set-up pages for the Super-Administrator and managers: users, facilities, departments, contractors, approval limits, roster and wording.",
+    steps: { all: ["Choose the page from the header menu.", "Changes are recorded with your name and the time."] },
+  },
+  {
     id: "password",
     paths: ["/account/password"],
     title: "Password",
@@ -323,6 +408,11 @@ export const FAQS: readonly Faq[] = [
   { id: "area-codes", question: "What area code should I use?", answer: "2–20 capital letters, numbers or dashes, no dots. Room 1.01 of Facility 2 becomes F2-1-01.", keywords: ["area code", "code", "dots", "area"], roles: [...SETUP] },
   { id: "remove-personal", question: "How do I remove a tester after testing?", answer: "Super-Administrator: Users › the person's row › Remove personal details. Their name, email and contact number are deleted and the email is freed; their records stay as \"Former user NNNN\".", keywords: ["delete", "remove", "tester", "personal details", "email"], roles: ["administrator"] },
   { id: "save-hidden", question: "I can't find the Save button in the Users list.", answer: "Save is in the Actions column at the right-hand side of each row. If the table is wider than your screen, scroll it sideways.", keywords: ["save", "users", "button", "scroll", "actions"], roles: [...SETUP] },
+  { id: "incident-what", question: "What is Report Emergency Incident?", answer: "It starts an emergency response for something happening now — fire, flood, lift entrapment, gas leak, chemical spill, electrical failure, medical or security emergency. It alerts the on-call responders at once and tracks the response on the Incident Operations Board. Make people safe and call 995 or site security first if lives are at risk. The repair afterwards is done through a Work Order linked to the incident.", keywords: ["report emergency incident", "emergency incident", "incident", "report emergency", "fire", "flood", "lift entrapment", "gas leak", "995"] },
+  { id: "incident-vs-work-order", question: "Incident or Work Order — which do I use?", answer: "Incident: an emergency happening now that needs people to respond (danger, a key service stopped). Work Order: work to be done — a repair, servicing or an emergency fix already done (Emergency work done). After an incident is made safe, the repair is raised as a corrective Work Order linked to it.", keywords: ["incident", "work order", "difference", "which", "versus", "vs"] },
+  { id: "incident-steps", question: "What are the steps of an incident response?", answer: "Reported → Acknowledged (the responder accepts it, before the deadline) → Mobilising → On Site → Rescue In Progress (if people are trapped) → Safe → Recovery → Closed. Only the next step is offered under Response action. Each step is recorded in the Response timeline.", keywords: ["incident", "steps", "acknowledge", "mobilise", "on site", "safe", "recovery", "response", "phase"] },
+  { id: "on-call", question: "Who gets alerted for an emergency incident?", answer: "The on-call responders on the Emergency roster (Administration › On-call Roster). Keep the roster up to date so the right people are alerted.", keywords: ["on-call", "roster", "alert", "who", "notified", "responder"] },
+  { id: "sla", question: "What is an SLA?", answer: "SLA (service level agreement) is the time the facility promises to respond to and fix a fault, set per priority: time to acknowledge, respond, attend, make safe and fix. FMWorks starts the clock when a Work Order is submitted and shows a countdown on it: green on track, amber when 75 % of the time is used, red when missed. Site SLA lists the approved times; managers see the results under SLA.", keywords: ["sla", "service level", "response time", "countdown", "deadline", "overdue", "kpi"] },
   { id: "who-acts", question: "Whose turn is it on this Work Order?", answer: "The Workflow timeline at the top of the Work Order names the next person, and the section they must act on is outlined in red for them.", keywords: ["whose turn", "next", "who", "timeline", "waiting"] },
 ];
 
@@ -366,17 +456,31 @@ export function stageAdvice(status: string, role: UserRole | null | undefined, i
   return { label: stage.label, meaning: stage.meaning, advice };
 }
 
-const STOP = new Set(["the", "a", "an", "i", "my", "is", "to", "of", "in", "on", "it", "do", "how", "can", "what", "and", "for", "this", "be", "not", "t"]);
+/** Every page guide can also answer "what is ..." questions, so a page's own words are searchable. */
+const PAGE_ANSWERS: readonly Faq[] = PAGE_GUIDES.map((guide) => ({
+  id: `page-${guide.id}`,
+  question: `About the ${guide.title} page`,
+  answer: [guide.intro, ...(guide.steps.all ?? Object.values(guide.steps)[0] ?? [])].join(" "),
+  keywords: [guide.title.toLowerCase()],
+}));
+
+const STOP = new Set(["the", "a", "an", "i", "my", "is", "to", "of", "in", "on", "it", "do", "how", "can", "what", "and", "for", "this", "be", "not", "t", "explain", "tell", "me", "about", "mean", "means", "please", "does", "you", "are", "why", "where", "when", "who", "which", "page", "work", "order", "orders", "app", "fmworks"]);
 function words(text: string): string[] {
   return text.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(" ").filter((word) => word.length > 1 && !STOP.has(word));
 }
 
 /** Simple keyword match over the prepared answers; best first. Role-relevant answers get a small lift. */
-export function searchHelp(query: string, role?: UserRole | null, limit = 5): Faq[] {
+/** M33: an answer written by the site team, matched like the built-in ones. */
+export type TeamAnswer = { id: string; question: string; answer: string; keywords: string[] };
+export function teamFaqs(answers: readonly TeamAnswer[]): Faq[] {
+  return answers.map((item) => ({ id: `team-${item.id}`, question: item.question, answer: item.answer, keywords: item.keywords.length ? item.keywords : words(item.question) }));
+}
+
+export function searchHelp(query: string, role?: UserRole | null, limit = 5, extra: readonly Faq[] = []): Faq[] {
   const terms = words(query);
   if (terms.length === 0) return [];
   const lowered = query.toLowerCase();
-  return FAQS.map((faq) => {
+  return [...extra, ...FAQS, ...PAGE_ANSWERS].map((faq) => {
     let score = 0;
     for (const keyword of faq.keywords) if (lowered.includes(keyword.toLowerCase())) score += 4;
     const questionWords = new Set(words(faq.question));

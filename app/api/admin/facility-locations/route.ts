@@ -15,7 +15,7 @@ export async function GET() {
   if (!identity) return NextResponse.json({ error: "Access denied." }, { status: 403 });
   const admin = createAdminClient();
   const [{ data: facilities, error: facilityError }, { data: areas, error: areaError }, { data: uploaded }] = await Promise.all([
-    admin.from("sites").select("id,code,name,is_active").eq("is_active", true).order("name"),
+    admin.from("sites").select("id,code,name,is_active,address").eq("is_active", true).order("name"),
     admin.from("facility_areas").select("id,facility_id,area_code,name,level,drawing_reference,map_x,map_y,active").eq("active", true).order("name"),
     admin.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("active", true).order("code"),
   ]);

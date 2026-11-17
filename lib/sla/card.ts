@@ -13,8 +13,14 @@ export type SlaRuleRow = {
   kpi_target_percent: number;
   source_clause: string;
   service_category: { code: string; name: string } | null;
-  version: { version_number: number; effective_from: string; effective_to: string | null; agreement: { name: string; counterparty: string | null } | null } | null;
+  version: { version_number: number; effective_from: string; effective_to: string | null; agreement: { name: string; counterparty: string | null; facility_id?: string | null; facility?: { name: string } | null } | null } | null;
 };
+
+/** M32: "Standard (all facilities)" or the facility's own SLA. */
+export function ruleScope(rule: Pick<SlaRuleRow, "version">): string {
+  const agreement = rule.version?.agreement;
+  return agreement?.facility_id ? `${agreement.facility?.name ?? "Facility"} — its own SLA` : "Standard SLA — all facilities";
+}
 
 export const SLA_STAGES = [
   { key: "acknowledgement", label: "Acknowledge", meaning: "Someone confirms the request has been seen and is being handled." },
@@ -46,10 +52,11 @@ export function ruleMinutes(rule: SlaRuleRow, stage: SlaStageKey): number | null
 export function groupRules(rules: SlaRuleRow[]): Array<{ category: string; rules: SlaRuleRow[] }> {
   const groups = new Map<string, SlaRuleRow[]>();
   for (const rule of rules) {
-    const name = rule.service_category?.name ?? "General";
+    const category = rule.service_category?.name ?? "General";
+    const name = rule.version?.agreement ? `${ruleScope(rule)}${category === "General" || category === "General Facilities Service" ? "" : ` · ${category}`}` : category;
     groups.set(name, [...(groups.get(name) ?? []), rule]);
   }
-  return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
+  return Array.from(groups.entries()).sort(([a], [b]) => (a.startsWith("Standard") ? -1 : b.startsWith("Standard") ? 1 : a.localeCompare(b)))
     .map(([category, list]) => ({ category, rules: list.sort((x, y) => (PRIORITY_ORDER[x.work_order_priority] ?? 9) - (PRIORITY_ORDER[y.work_order_priority] ?? 9)) }));
 }
 

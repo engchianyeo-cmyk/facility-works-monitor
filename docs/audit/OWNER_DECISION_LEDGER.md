@@ -1429,6 +1429,65 @@ at aws-0-ap-southeast-1.pooler.supabase.com); read-only check 79 entries, latest
 Lesson: a fresh Supabase CLI temporary login needs about a minute before the pooler accepts it, and expires a few
 minutes later; connect, wait 60 s, then run the step.
 
+UAT 17 Nov 2026 16:57 (owner): asked Ollie "What is Report Emergency Incident" and got no useful answer (AI not
+switched on; no prepared answer on incidents; the incident pages had no page guide). Added page guides for Emergency
+incidents, Report Emergency Incident, an incident, Assets, Preventive maintenance, Administration and the Assistant
+page; prepared answers on what an incident is, incident vs Work Order, the incident response steps and who is
+alerted. The best-matching answer now opens by itself, and an unmatched question explains that free questions need
+the AI assistant to be switched on.
+17:10 (owner): "Explain SLA" gave no answer and there was no button to press. Now an "Ask Ollie" button (and Enter)
+is always there; every page guide can also answer questions about its page; "What is an SLA?" added; words such as
+"explain", "what", "tell me about" are ignored when matching.
+17:17 (owner): on Site SLA › Check each clause found, the unlabelled number box beside "Approve for draft" was unclear.
+It is an optional correction of the clause's attend time in minutes; it now has a label and an example. (The owner had
+typed 1 and 2; those would have set an attend time of 1 or 2 minutes if approved.)
+
+### D-60 — SLA per facility, set by the Super-Administrator; the assistant learns from questions (17 Nov 2026)
+
+Owner (17:21–17:48): prepare an SLA for the facilities with slight variations (drafted as the Claude doc "Facility
+Services SLA — Facility One and Facility 2 (draft)"); the draft is the standard for all facilities and the
+Administrator must be able to edit the SLA criteria (for example the time to react to an emergency); the assistant
+must pick up questions and their answers to advise better next time; plus UAT findings on SLA clauses, planned
+maintenance, drawings and assets.
+
+Built:
+1. **M32 `20261117120000_sla_per_facility.sql`** (test `sla_per_facility.test.sql`): `sla_agreements.facility_id`
+   (null = standard for all facilities); a new Work Order's clock uses its facility's own SLA first, then the
+   standard; `admin_set_sla_times` (Super-Administrator only, reason required, all four priorities, times may not
+   run backwards) writes a new approved version and ends the old one (running clocks keep their times);
+   `admin_use_standard_sla` puts a facility back on the standard. Page **Administration > SLA times**
+   (`/administration/sla`) with minutes / hours / days per box; Site SLA groups "Standard" and each facility's own.
+2. **M33 `20261117130000_assistant_learning.sql`** (test `assistant_learning.test.sql`): questions asked in Help are
+   kept with role and page only (no person), what answered them and "Did this help?"; passwords and card numbers
+   refused. The Super-Administrator, Facility Administrators and Facility Managers write answers from those questions
+   under Administration > Assistant; the assistant matches them first and gives them to the AI first. Audited.
+3. **SLA clauses** (Management > SLA): the clause list refreshes by itself after reading a document, and reading the
+   same document again no longer adds a clause already waiting (the owner's duplicate "MOCK-1" came from pressing
+   the button twice; reject one). Button renamed "Find SLA clauses (test reader)"; e2e test updated.
+4. **Preventive maintenance:** "Due within 1 / 3 / 6 / 12 months" on Upcoming Maintenance; plain wording for the two
+   steps ("List servicing due up to this date", "Create Work Orders for what is due") with quick 1/3/6/12-month dates.
+   The list stays empty until PM requirements exist for the equipment.
+5. **Assets:** "Download asset list (Excel)" (CSV that Excel opens; current filters applied; row security applies).
+6. Script `scripts/rollout/preview-sla-standard-and-facility2-20261117.sql`: loads the draft's times (standard =
+   Facility One table, Facility 2 = its own) through `admin_set_sla_times`; working days counted as whole days.
+Rehearsed locally: M32 + M33 apply after M31 (increment `out/preview-increment-m33.sql`, sha256 `9d895e7d…`; refused
+without the Preview assertion; refused twice); sla_per_facility, assistant_learning, fault_library and site_sla
+tests pass; the SLA script's dry run and apply worked.
+Noted, not changed: an SLA clock starts when the Work Order is created as a Draft (not when submitted, as the Help
+text says); a Draft left for days uses up its SLA time. Owner to decide whether the clock should start on submission.
+Facility drawings page is empty because no drawings have been uploaded to Preview yet.
+
+UAT 17 Nov 2026 18:02–18:05 (owner):
+- **Operations › Team**: a "Standby Technicians by facility" table (on standby now = active on the on-call roster,
+  other Technicians, open Work Orders held), then each facility's Technicians with every open Work Order they hold
+  as Technician 1 or Technician 2 (number, title, stage, priority). Previously only Assigned / In progress counted, so
+  Drafts held by the Facility 2 Technicians showed "No active assignment recorded".
+- **Operations › Schedule**: Today, Tomorrow and Upcoming list open work only (Completed, Closed, Cancelled drop off;
+  Submitted for Review stays). The WO-TEST items there are Facility One test data: the D-52 script marks them.
+- **Facility drawings**: empty page now says what will appear and links the Administrator to Facilities to upload.
+- **Facility drawing locations**: choosing a facility shows its address on a Google Map (embedded, no key), with
+  "Open in Google Maps"; without an address it says where to add one.
+
 ## D. Decisions still open (not recoverable locally)
 
 1. ~~Emergency commercial exception (R1-003)~~ resolved by D-01.6 and D-03.3.
@@ -1443,3 +1502,34 @@ minutes later; connect, wait 60 s, then run the step.
    defect log (assumed all four unless told otherwise). Archive of closed and cancelled Work Orders: already decided by
    D-18 (Stage 2); recommendation is an in-app Archive view plus the off-site bundle, with the archive settings on the
    new facility form.
+
+### D-61 — Maintenance plan by frequency, Technician per task, O&M manuals (17 Nov 2026)
+
+Owner (18:14–18:40): "Under maintenance, list the equipment that are designated for daily maintenance, weekly
+maintenance, quarterly maintenance and annual maintenance. For each equipment the supervisor can assign the respective
+Technicians responsible … It also collect the O&M manual for each equipment for technicians to cross reference to."
+Reviewed as a Design mockup (Facility 2: 73 equipment, 97 tasks), then "Let's build all the requirements now".
+
+Built:
+1. **M34 `20261117140000_maintenance_plan.sql`** (test `maintenance_plan.test.sql`): `maintenance_requirements`
+   gains the Technician responsible (`assigned_technician_id`, by, at); `assign_pm_technician` (Supervisor or
+   Facility Manager who is staff of the asset's facility, or the Super-Administrator; Technician must be staff of that
+   facility; audited); a Work Order created from a planned-maintenance occurrence goes to that Technician unless one
+   is given; facility staff and the assigned Technician can read the plan. `asset_documents` (O&M manual, datasheet,
+   certificate, drawing, other; PDF or image up to 50 MB, private storage) with `register_asset_document` /
+   `retire_asset_document` (taken out of use with a reason, kept on record; not deleted).
+2. **Page Maintenance plan** (`/maintenance-plan`, header link, and a tab in Maintenance): tabs Daily / Weekly /
+   Monthly / Quarterly / Six-monthly / Annual with counts; search; Only my tasks; Only unassigned; Technician box for
+   planners; O&M manual open / download / upload / take out of use. Open to every signed-in role (Technicians
+   included; the /maintenance area stays planner-only). The O&M manual also shows on the Work Order's asset panel.
+3. **Script `scripts/rollout/preview-f2-maintenance-plan-20261117.sql`**: loads the reviewed Facility 2 plan — 73
+   assets tagged `F2-…` at Facility 2 and 97 tasks; daily checks stay **Draft (proposed)**, others Active; default
+   Technician as in the mockup (in-house / both: Electrical, Fire, Safety, Plumbing, Controls → Technician 1
+   koi.kpr+1, other → koi.kpr+2 if ready else Technician 1; contractor work → not assigned). Rehearsed: 73 assets,
+   97 tasks (85 active, 12 draft), 23 with a Technician; refuses a second run and runs without the Preview assertion.
+4. Increment `out/preview-increment-m34.sql` (M32 + M33 + M34 after 20261116130000), sha256 `3e6701a1…021d4`;
+   rehearsed on the M31 state: preflight passes, refused without the assertion and refused twice; maintenance_plan,
+   sla_per_facility and assistant_learning tests pass on the result. Supersedes `out/preview-increment-m33.sql`.
+
+Owner to decide: confirm the 12 daily checks (then activate them); whether contractor-serviced equipment should still
+have an in-house Technician for daily / weekly walk-round checks (default leaves them unassigned).

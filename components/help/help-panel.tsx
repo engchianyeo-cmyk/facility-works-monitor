@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { UserRole } from "@/lib/auth";
-import { guideForPath, relatedFaqs, searchHelp, stageAdvice, stepsFor, type Faq } from "@/lib/help/guide-content";
+import { guideForPath, relatedFaqs, searchHelp, stageAdvice, stepsFor, teamFaqs, type Faq, type TeamAnswer } from "@/lib/help/guide-content";
 import { subscribeHelpContext, type HelpWorkOrderContext } from "@/components/help/help-context";
 import { AssistantAvatar } from "@/components/help/mascot";
 import { canSpeak, playTune, readPrefs, shouldRemind, speak, stopSpeaking, writePrefs, type OlliePrefs } from "@/lib/help/ollie-voice";
@@ -20,6 +20,37 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [asked, setAsked] = useState(false);
+  // M33: questions are kept (role and page only) so the team can teach the assistant; the team's answers are used too.
+  const [team, setTeam] = useState<TeamAnswer[]>([]);
+  const [questionId, setQuestionId] = useState<string | null>(null);
+  const [rated, setRated] = useState<boolean | null>(null);
+  const [teamLoaded, setTeamLoaded] = useState(false);
+  useEffect(() => {
+    if (!open || teamLoaded) return;
+    setTeamLoaded(true);
+    fetch("/api/assistant/answers", { cache: "no-store" }).then((response) => response.json()).then((result: { answers?: TeamAnswer[] }) => setTeam(result.answers ?? [])).catch(() => undefined);
+  }, [open, teamLoaded]);
+
+  async function keepQuestion(answeredBy: "prepared" | "none", matched: string | null) {
+    setQuestionId(null); setRated(null);
+    try {
+      const response = await fetch("/api/assistant/questions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: query.trim(), path: pathname, answered_by: answeredBy, matched }) });
+      const result = (await response.json().catch(() => ({}))) as { id?: string | null };
+      setQuestionId(result.id ?? null);
+    } catch { /* keeping the question is best effort */ }
+  }
+  async function rate(helpful: boolean) {
+    if (!questionId) return;
+    setRated(helpful);
+    await fetch("/api/assistant/questions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: questionId, helpful }) }).catch(() => undefined);
+  }
+  function ask() {
+    if (query.trim().length < 2) return;
+    setAsked(true);
+    if (aiEnabled) void askAi();
+    else void keepQuestion(results.length ? "prepared" : "none", results[0]?.id ?? null);
+  }
   const [workOrder, setWorkOrder] = useState<HelpWorkOrderContext | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   // D-58 option A: the AI answer, only when the system has it switched on.
@@ -38,9 +69,11 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question: query.trim(), path: pathname, workOrder }),
       });
-      const result = (await response.json().catch(() => ({}))) as { answer?: string; error?: string };
+      const result = (await response.json().catch(() => ({}))) as { answer?: string; error?: string; questionId?: string | null };
       if (!response.ok || !result.answer) throw new Error(result.error ?? "The AI assistant could not answer just now.");
       setAiAnswer(result.answer);
+      setQuestionId(result.questionId ?? null);
+      setRated(null);
       speak(result.answer);
     } catch (error) {
       setAiError(error instanceof Error ? error.message : "The AI assistant could not answer just now.");
@@ -87,7 +120,8 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
   const guide = useMemo(() => guideForPath(pathname), [pathname]);
   const steps = guide ? stepsFor(guide, role) : [];
   const stage = workOrder ? stageAdvice(workOrder.status, role, workOrder.inHouse) : null;
-  const results = useMemo(() => searchHelp(query, role), [query, role]);
+  const teamList = useMemo(() => teamFaqs(team), [team]);
+  const results = useMemo(() => searchHelp(query, role, 5, teamList), [query, role, teamList]);
   const suggestions = relatedFaqs(guide, role);
   const answers: Faq[] = query.trim() ? results : suggestions;
 
@@ -170,20 +204,35 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setExpanded(null);
+                  setAsked(false);
+                  setQuestionId(null);
+                  setRated(null);
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && aiEnabled) {
+                  if (event.key === "Enter") {
                     event.preventDefault();
-                    void askAi();
+                    ask();
                   }
                 }}
                 placeholder="e.g. no approve button, quotation, password"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
-              {aiEnabled && (
-                <button type="button" onClick={() => void askAi()} disabled={aiBusy || query.trim().length < 3} className="mt-2 w-full rounded-lg bg-violet-700 px-3 py-2 font-semibold text-white hover:bg-violet-800 disabled:opacity-50">
-                  {aiBusy ? `${name} is thinking…` : `Ask ${name} (AI assistant)`}
-                </button>
+              <button
+                type="button"
+                onClick={() => ask()}
+                disabled={aiBusy || query.trim().length < 2}
+                className="mt-2 w-full rounded-lg bg-violet-700 px-3 py-2 font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+              >
+                {aiBusy ? `${name} is thinking…` : aiEnabled ? `Ask ${name} (AI assistant)` : `Ask ${name}`}
+              </button>
+              {asked && questionId && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  {rated === null ? <>
+                    <span>Did this help?</span>
+                    <button type="button" onClick={() => void rate(true)} className="rounded border border-emerald-300 px-2 py-0.5 font-semibold text-emerald-800">Yes</button>
+                    <button type="button" onClick={() => void rate(false)} className="rounded border border-red-300 px-2 py-0.5 font-semibold text-red-800">No</button>
+                  </> : <span>{rated ? "Thank you." : `Thank you — the team will see this question and can teach ${name} a better answer.`}</span>}
+                </div>
               )}
               {aiError && <p role="alert" className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2 text-red-800">{aiError}</p>}
               {aiAnswer && (
@@ -193,8 +242,8 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                   {canSpeak() && <button type="button" onClick={() => speak(aiAnswer, true)} className="mt-1 rounded border border-violet-300 px-2 py-0.5 text-xs font-semibold text-violet-900">🔊 Read aloud</button>}
                 </div>
               )}
-              {query.trim() && answers.length === 0 && !aiEnabled && (
-                <p className="mt-2 text-slate-600">No prepared answer matches. Try other words, or ask your Facility Administrator.</p>
+              {asked && query.trim() && answers.length === 0 && !aiEnabled && (
+                <p className="mt-2 rounded-lg bg-slate-50 p-2 text-slate-700">{name} has no prepared answer for that yet. Try a shorter question with key words (for example &quot;incident&quot;, &quot;quotation&quot;, &quot;approve&quot;), or ask your Facility Administrator. {name} answers any question in your own words once the AI assistant is switched on.</p>
               )}
               {answers.length > 0 && (
                 <div className="mt-2">
@@ -204,14 +253,14 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                       <li key={faq.id}>
                         <button
                           type="button"
-                          onClick={() => setExpanded(expanded === faq.id ? null : faq.id)}
-                          aria-expanded={expanded === faq.id}
+                          onClick={() => setExpanded((expanded ?? (query.trim() ? answers[0]?.id : null)) === faq.id ? "" : faq.id)}
+                          aria-expanded={(expanded ?? (query.trim() ? answers[0]?.id : null)) === faq.id}
                           className="flex w-full items-start justify-between gap-2 px-3 py-2 text-left font-medium text-slate-900 hover:bg-slate-50"
                         >
                           <span>{faq.question}</span>
-                          <span aria-hidden="true" className="text-slate-400">{expanded === faq.id ? "−" : "+"}</span>
+                          <span aria-hidden="true" className="text-slate-400">{(expanded ?? (query.trim() ? answers[0]?.id : null)) === faq.id ? "−" : "+"}</span>
                         </button>
-                        {expanded === faq.id && (
+                        {(expanded ?? (query.trim() ? answers[0]?.id : null)) === faq.id && (
                           <div className="px-3 pb-3 text-slate-700">
                             <p>{faq.answer}</p>
                             {canSpeak() && <button type="button" onClick={() => speak(faq.answer, true)} className="mt-1 rounded border border-slate-300 px-2 py-0.5 text-xs font-semibold">🔊 Read aloud</button>}
@@ -241,11 +290,12 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
             </details>
 
             <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+              {role && ["administrator", "facility_administrator", "facility_manager"].includes(role) && <><Link href="/administration/assistant#questions" className="font-semibold text-blue-700 underline" onClick={() => setOpen(false)}>Questions people asked {name}</Link>. </>}
               {role === "administrator" && <><Link href="/administration/assistant" className="font-semibold text-blue-700 underline" onClick={() => setOpen(false)}>Change {name}&apos;s name or picture</Link>. </>}
               Full guide: <Link href="/help/work-orders" className="font-semibold text-blue-700 underline" onClick={() => setOpen(false)}>How to fill in a Work Order</Link>.
               {aiEnabled
-                ? "Prepared answers stay on this device. \"Ask the AI assistant\" sends your question, your role and this page (not your data) to the AI service; never type passwords."
-                : "Prepared answers only; nothing you type here is sent anywhere."}
+                ? "Questions you ask are kept with your role and this page (not your name) so the team can improve the answers; AI questions also go to the AI service. Never type passwords."
+                : "Questions you ask are kept with your role and this page (not your name) so the team can improve the answers. Never type passwords."}
             </p>
           </div>
         </aside>

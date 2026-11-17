@@ -223,6 +223,9 @@ async function main() {
   sql("tests/sql/named_second_technician.test.sql");
   sql("tests/sql/facility_administrators.test.sql");
   sql("tests/sql/fault_library.test.sql");
+  sql("tests/sql/sla_per_facility.test.sql");
+  sql("tests/sql/assistant_learning.test.sql");
+  sql("tests/sql/maintenance_plan.test.sql");
   const env = {
     ...process.env,
     ...identities,

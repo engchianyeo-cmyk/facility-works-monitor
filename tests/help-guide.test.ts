@@ -40,6 +40,12 @@ describe("D-58 built-in Help guide", () => {
     expect(searchHelp("how many quotations")[0]?.id).toBe("quotations-how-many");
     expect(searchHelp("I keep getting signed out")[0]?.id).toBe("two-accounts");
     expect(searchHelp("email in spam")[0]?.id).toBe("email-missing");
+    expect(searchHelp("What is Report Emergency Incident")[0]?.id).toBe("incident-what");
+    expect(searchHelp("incident or work order")[0]?.id).toBe("incident-vs-work-order");
+    expect(guideForPath("/incidents/new")?.id).toBe("incident-new");
+    expect(searchHelp("Explain SLA")[0]?.id).toBe("sla");
+    expect(searchHelp("explain preventive maintenance")[0]?.id).toBe("page-maintenance");
+    expect(guideForPath("/administration/departments")?.id).toBe("administration");
     expect(searchHelp("")).toEqual([]);
     expect(searchHelp("zzzz qqqq")).toEqual([]);
   });
@@ -53,13 +59,15 @@ describe("D-58 built-in Help guide", () => {
     }
   });
 
-  it("is mounted for signed-in people and fed by the Work Order page; only the AI button calls out", () => {
+  it("is mounted for signed-in people, fed by the Work Order page, and keeps questions for the team", () => {
     const layout = readFileSync("app/layout.tsx", "utf8");
     expect(layout).toContain("identity && <HelpPanel role={identity.role} aiEnabled={assistantAiEnabled()} name={assistant.name} pictureUrl={assistant.pictureUrl} />");
     expect(readFileSync("app/work-orders/[id]/page.tsx", "utf8")).toContain("<HelpContext id={id} reference=");
     const panel = readFileSync("components/help/help-panel.tsx", "utf8");
-    expect(panel.match(/fetch\(/g)?.length).toBe(1);
     expect(panel).toContain('fetch("/api/assistant"');
+    expect(panel).toContain('fetch("/api/assistant/questions"');
+    expect(panel).toContain('fetch("/api/assistant/answers"');
+    expect(panel.match(/fetch\(/g)?.length).toBe(4);
     expect(panel).toContain("if (!aiEnabled");
   });
 });

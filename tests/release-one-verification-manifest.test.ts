@@ -18,7 +18,7 @@ describe("canonical non-Production Release-1 migration manifest", () => {
       ...migrations.map((name) => `supabase/migrations/${name}`),
     ]);
     expect(manifest.at(-1)).toBe(
-      "supabase/migrations/20261116130000_fault_library_and_assistant_settings.sql",
+      "supabase/migrations/20261117140000_maintenance_plan.sql",
     );
   });
 

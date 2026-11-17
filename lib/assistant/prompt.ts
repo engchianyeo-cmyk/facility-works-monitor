@@ -11,6 +11,7 @@ export type AssistantContext = {
   workOrder?: { reference: string; status: string; inHouse: boolean } | null;
   assistantName?: string;
   learnings?: readonly LearningForPrompt[];
+  teamAnswers?: ReadonlyArray<{ question: string; answer: string }>;
 };
 
 export const ASSISTANT_RULES = `You are {NAME}, the FMWorks assistant inside the FMWorks app (keep any personality light and never let it get in the way of the steps). You help the signed-in person find their way around FMWorks and do their part of a Work Order.
@@ -35,7 +36,9 @@ export function buildSystemPrompt(context: AssistantContext): string {
     `- ${item.work_order_number} "${item.work_order_title}"${item.proven ? " (proven fix)" : item.repeat_fault ? " (fault came back within 30 days)" : ""}: `
     + [item.confirmed_cause && `cause: ${item.confirmed_cause}`, item.fix_that_worked && `fix: ${item.fix_that_worked}`, item.tip && `tip: ${item.tip}`].filter(Boolean).join("; "),
   ).join("\n");
+  const team = (context.teamAnswers ?? []).slice(0, 60).map((item) => `- Q: ${item.question}\n  A: ${item.answer}`).join("\n");
   return `${ASSISTANT_RULES.replace("{NAME}", context.assistantName?.trim() || "Ollie")}
+${team ? `\nAnswers written by this site's team (use these first; they override the pack):\n${team}\n` : ""}
 ${learnt ? `\nWhat this site's team learnt on similar Work Orders:\n${learnt}\n` : ""}
 
 The person: role ${roleLabel(context.role)}. Page: ${guide?.title ?? context.path}. ${workOrder}

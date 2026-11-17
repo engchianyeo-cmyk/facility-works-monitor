@@ -26,7 +26,7 @@ export default async function DrawingsPage() {
       <p className="mt-1 text-slate-600">The current layout drawings of each facility, kept as PDF where available. View opens the drawing in a new tab; Download saves the file. Earlier revisions are kept under each facility for reference.</p>
     </div>
     {drawings.error && <p role="alert">Drawings are unavailable in this environment.</p>}
-    {!drawings.error && withDrawings.length === 0 && <p>No drawings have been uploaded yet.</p>}
+    {!drawings.error && withDrawings.length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5"><p className="font-semibold">No drawings have been uploaded yet.</p><p className="mt-1 text-sm text-slate-600">Drawings appear here once uploaded for a facility: plans, sections and 3D perspective views, one PDF per sheet.</p>{["administrator", "facility_administrator"].includes(identity.role) && <a href="/administration/facilities" className="mt-3 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Upload drawings in Facilities</a>}</div>}
     {withDrawings.map((facility) => <section key={facility.id} className="rounded-xl border bg-white p-5" aria-labelledby={`drawings-${facility.id}`}>
       <h2 id={`drawings-${facility.id}`} className="text-xl font-bold">{facility.name} <span className="text-sm font-normal text-slate-500">· {facility.code}</span></h2>
       <ul className="mt-3 divide-y rounded-lg border">{rows.filter((row) => row.facility_id === facility.id).map((drawing) => <li key={drawing.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">

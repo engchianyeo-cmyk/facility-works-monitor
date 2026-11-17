@@ -45,10 +45,12 @@ export async function POST(request: Request) {
   // D-59a: what the team learnt on similar jobs (row security: only Work Orders this person may see).
   const supabase = await createClient();
   const workOrderId = raw && typeof raw.id === "string" && /^[0-9a-f-]{36}$/i.test(raw.id) ? raw.id : null;
-  const [settings, matches] = await Promise.all([
+  const [settings, matches, team] = await Promise.all([
     loadAssistantSettings(supabase),
     workOrderId ? supabase.rpc("work_order_learning_matches", { p_work_order_id: workOrderId, p_limit: 5 }) : Promise.resolve({ data: [] }),
+    supabase.from("assistant_answers").select("question,answer").eq("active", true).order("updated_at", { ascending: false }).limit(60),
   ]);
+  const teamAnswers = ((team as { data: unknown }).data ?? []) as Array<{ question: string; answer: string }>;
   const learnings = (((matches as { data: unknown }).data ?? []) as LearningForPrompt[]).slice(0, 5);
 
   try {
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: assistantModel(),
         max_tokens: 700,
-        system: buildSystemPrompt({ role: identity.role, displayName: identity.displayName, path, workOrder, assistantName: settings.name, learnings }),
+        system: buildSystemPrompt({ role: identity.role, displayName: identity.displayName, path, workOrder, assistantName: settings.name, learnings, teamAnswers }),
         messages: [{ role: "user", content: question }],
       }),
       signal: AbortSignal.timeout(30_000),
@@ -73,7 +75,9 @@ export async function POST(request: Request) {
       console.warn("[assistant] AI service error", { status: response.status });
       return NextResponse.json({ error: "The AI assistant could not answer just now. Use the prepared answers or try again." }, { status: 502 });
     }
-    return NextResponse.json({ answer }, { headers: { "cache-control": "no-store" } });
+    // M33: keep the question and the AI's answer (role and page only) so the team can check and improve it.
+    const { data: kept } = await supabase.rpc("log_assistant_question", { p_question: question, p_path: path, p_answered_by: "ai", p_matched: null, p_ai_answer: answer.slice(0, 8000) });
+    return NextResponse.json({ answer, questionId: (kept as { id?: string } | null)?.id ?? null }, { headers: { "cache-control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "The AI assistant could not be reached. Use the prepared answers or try again." }, { status: 504 });
   }
