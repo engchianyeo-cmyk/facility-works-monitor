@@ -284,6 +284,13 @@ export const PAGE_GUIDES: readonly PageGuide[] = [
     steps: { all: ["Open a plan to see its schedule and the Work Orders it created.", "Due servicing becomes a Work Order like any other job."] },
   },
   {
+    id: "facility-team",
+    paths: ["/facility-team"],
+    title: "Our team",
+    intro: "Your facility's staffing structure: who is the Facility Administrator, Facility Manager, Supervisor and Technicians, with the Approver and Finance alongside.",
+    steps: { all: ["Find a person by role; Tel. numbers can be tapped on a phone.", "To change who is in a role, ask the Facility Administrator (Administration › Users)."] },
+  },
+  {
     id: "maintenance-plan",
     paths: ["/maintenance-plan"],
     title: "Maintenance plan",

@@ -153,3 +153,23 @@ describe("GET /api/admin/users", () => {
     expect(JSON.stringify(result)).not.toContain("raw database details");
   });
 });
+
+describe("UAT 18 Nov 2026: users by facility", () => {
+  test("adds each user's facilities and the facility list, and the page filters by them", async () => {
+    const { readFileSync } = await import("node:fs");
+    const route = readFileSync("app/api/admin/users/route.ts", "utf8");
+    expect(route).toContain('from("facility_memberships").select("profile_id, facility_id, effective_from, effective_to")');
+    expect(route).toContain("facilities: scope.facilities");
+    const page = readFileSync("components/user-management.tsx", "utf8");
+    expect(page).toContain('aria-label="Filter users by facility"');
+    expect(page).toContain("All facilities");
+    expect(page).toContain("Not in any facility");
+  });
+
+  test("still lists users if the facility lookup is unavailable", async () => {
+    const response = await GET();
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.users[0].facilities).toEqual([]);
+  });
+});

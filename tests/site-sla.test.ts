@@ -32,3 +32,13 @@ describe("D-45 Site SLA (UAT 9 Nov 2026)", () => {
     expect(management).toContain('replace(/<\\/?DOCUMENT_CONTENT>/g, "")');
   });
 });
+
+describe("UAT 18 Nov 2026: one clause shown once", () => {
+  it("groups the same clause from several copies or readings and folds rejected ones away", () => {
+    const management = readFileSync("app/management/sla/page.tsx", "utf8");
+    expect(management).toContain("const groups = new Map");
+    expect(management).toContain("{shown.map(({ x, copies })");
+    expect(management).toContain("Rejected clauses (");
+    expect(management).toContain("deciding here is enough");
+  });
+});

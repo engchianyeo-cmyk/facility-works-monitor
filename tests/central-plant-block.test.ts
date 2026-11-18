@@ -20,7 +20,7 @@ describe("D-47 Central Plant Block drawing", () => {
     expect(fw006).toBeDefined();
     expect(pngSize(`public${fw006!.src}`)).toEqual({ width: fw006!.width, height: fw006!.height });
     expect(validDrawingReference("FW-006")).toBe(true);
-    expect(markupDrawingsFor([]).map((drawing) => drawing.code)).toContain("FW-006");
+    expect(markupDrawingsFor([], { code: "UAT-FAC-001" }).map((drawing) => drawing.code)).toContain("FW-006");
   });
 
   test("FW-001 Rev B (one building, to scale) and FW-005 Rev B (3D and Utility Block) match their recorded sizes", () => {
@@ -40,7 +40,7 @@ describe("D-47 Central Plant Block drawing", () => {
   });
 
   test("the Work Order page shows every mock-up drawing, FW-001 to FW-008, in order", () => {
-    expect(markupDrawingsFor([]).map((drawing) => drawing.code)).toEqual(["FW-001", "FW-002", "FW-003", "FW-004", "FW-005", "FW-006", "FW-007", "FW-008"]);
+    expect(markupDrawingsFor([], { code: "UAT-FAC-001" }).map((drawing) => drawing.code)).toEqual(["FW-001", "FW-002", "FW-003", "FW-004", "FW-005", "FW-006", "FW-007", "FW-008"]);
     const fw005 = WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-005")!;
     expect(pngSize(`public${fw005.src}`)).toEqual({ width: fw005.width, height: fw005.height });
     const fw008 = WORK_ORDER_DRAWINGS.find((drawing) => drawing.code === "FW-008")!;

@@ -21,6 +21,7 @@ type Role = (typeof ROLES)[number];
 
 type ManagedUser = {
   id: string;
+  facilities?: Array<{ id: string; name: string }>;
   display_name: string;
   email: string | null;
   department: string | null;
@@ -86,6 +87,9 @@ export default function UserManagement({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  // UAT 18 Nov 2026: show the users of one facility.
+  const [facilityFilter, setFacilityFilter] = useState("all");
+  const [facilities, setFacilities] = useState<Array<{ id: string; name: string }>>([]);
   const [presenceFilter, setPresenceFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("last_activity");
   const [editing, setEditing] = useState<Record<string, ManagedUser>>({});
@@ -108,6 +112,7 @@ export default function UserManagement({
       setProvisioningConfigured(result.provisioning_configured === true);
       setAuthDirectoryAvailable(result.auth_directory_available === true);
       setFacilityScope(result.facility_scope === true);
+      setFacilities(result.facilities ?? []);
       if (!silent) {
         setEditing(
           Object.fromEntries(
@@ -157,6 +162,10 @@ export default function UserManagement({
           user.display_name.toLowerCase().includes(term) ||
           user.email?.toLowerCase().includes(term);
         const matchesRole = roleFilter === "all" || user.role === roleFilter;
+        const userFacilities = user.facilities ?? [];
+        const matchesFacility =
+          facilityFilter === "all" ||
+          (facilityFilter === "none" ? userFacilities.length === 0 : userFacilities.some((facility) => facility.id === facilityFilter));
         const matchesPresence =
           presenceFilter === "all" ||
           user.presence_status === presenceFilter;
@@ -168,6 +177,7 @@ export default function UserManagement({
         return (
           matchesSearch &&
           matchesRole &&
+          matchesFacility &&
           matchesPresence &&
           (statusFilter === "all" || statusFilter === status)
         );
@@ -185,6 +195,7 @@ export default function UserManagement({
         return secondActivity - firstActivity;
       });
   }, [
+    facilityFilter,
     presenceFilter,
     roleFilter,
     search,
@@ -352,7 +363,7 @@ export default function UserManagement({
       )}
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-6">
           <input
             type="search"
             aria-label="Search users by name or email"
@@ -361,6 +372,18 @@ export default function UserManagement({
             onChange={(event) => setSearch(event.target.value)}
             className={inputClass}
           />
+          <select
+            aria-label="Filter users by facility"
+            value={facilityFilter}
+            onChange={(event) => setFacilityFilter(event.target.value)}
+            className={inputClass}
+          >
+            <option value="all">All facilities</option>
+            {facilities.map((facility) => (
+              <option key={facility.id} value={facility.id}>{facility.name}</option>
+            ))}
+            {!facilityScope && <option value="none">Not in any facility</option>}
+          </select>
           <select
             aria-label="Filter users by role"
             value={roleFilter}
@@ -464,6 +487,11 @@ export default function UserManagement({
                                 Current account
                               </span>
                             )}
+                          </div>
+                          <div className="mt-1 text-xs font-semibold text-slate-700">
+                            {(user.facilities ?? []).length
+                              ? (user.facilities ?? []).map((facility) => facility.name).join(", ")
+                              : user.role === "administrator" ? "All facilities (Super-Administrator)" : "Not in any facility"}
                           </div>
                         </td>
                         <td className="px-3 py-4">

@@ -18,6 +18,42 @@ function isUserRole(value: unknown): value is AdminUserRole {
   return ADMIN_USER_ROLES.includes(value as AdminUserRole);
 }
 
+// UAT 18 Nov 2026: filter users by facility. Each user's current facilities (active memberships) and the facility list.
+type FacilityRef = { id: string; name: string };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function facilitiesFor(client: any, profileIds: string[], facilityIds?: string[]) {
+  try {
+    return await facilitiesLookup(client, profileIds, facilityIds);
+  } catch {
+    // The facility filter is a convenience; the user list still loads without it.
+    return { facilities: [] as FacilityRef[], byProfile: new Map<string, FacilityRef[]>() };
+  }
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function facilitiesLookup(client: any, profileIds: string[], facilityIds?: string[]) {
+  const now = Date.now();
+  let siteQuery = client.from("sites").select("id, name").eq("is_active", true).order("name");
+  if (facilityIds) siteQuery = siteQuery.in("id", facilityIds.length ? facilityIds : ["00000000-0000-0000-0000-000000000000"]);
+  const [{ data: sites }, { data: rows }] = await Promise.all([
+    siteQuery,
+    profileIds.length
+      ? client.from("facility_memberships").select("profile_id, facility_id, effective_from, effective_to").in("profile_id", profileIds).eq("active", true)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const siteList = (sites ?? []) as FacilityRef[];
+  const names = new Map(siteList.map((site) => [site.id, site.name]));
+  const byProfile = new Map<string, FacilityRef[]>();
+  for (const row of (rows ?? []) as Array<{ profile_id: string; facility_id: string; effective_from: string | null; effective_to: string | null }>) {
+    if ((row.effective_from && Date.parse(row.effective_from) > now) || (row.effective_to && Date.parse(row.effective_to) <= now)) continue;
+    const name = names.get(row.facility_id);
+    if (!name) continue;
+    const list = byProfile.get(row.profile_id) ?? [];
+    if (!list.some((item) => item.id === row.facility_id)) list.push({ id: row.facility_id, name });
+    byProfile.set(row.profile_id, list);
+  }
+  return { facilities: siteList, byProfile };
+}
+
 async function requireAdministrator() {
   const { getCurrentIdentity } = await import("@/lib/auth");
   const identity = await getCurrentIdentity();
@@ -126,11 +162,13 @@ export async function GET() {
       ]),
     );
 
+    const scope = await facilitiesFor(admin ?? supabase, (profiles ?? []).map((profile) => profile.id));
     const users = (profiles ?? []).map((profile) => {
       const presence = presenceFor(profile);
       return {
         ...profile,
         ...presence,
+        facilities: scope.byProfile.get(profile.id) ?? [],
         last_sign_in_at: authUsers.get(profile.id)?.lastSignInAt ?? null,
         email_confirmed_at:
           authUsers.get(profile.id)?.emailConfirmedAt ?? null,
@@ -143,6 +181,7 @@ export async function GET() {
       departments: departments ?? [],
       provisioning_configured: provisioningConfigured,
       auth_directory_available: provisioningConfigured && !authError,
+      facilities: scope.facilities,
     });
   } catch {
     return NextResponse.json(
@@ -179,8 +218,10 @@ async function facilityStaffDirectory(callerId: string) {
     return NextResponse.json({ error: "User management data could not be loaded.", code: "USER_MANAGEMENT_UNAVAILABLE" }, { status: 503 });
   }
   const users = ((profiles ?? []) as Array<{ is_active: boolean; deleted_at: string | null; last_active_at: string | null } & Record<string, unknown>>)
-    .map((profile) => ({ ...profile, ...presenceFor(profile), last_sign_in_at: null, email_confirmed_at: null }));
-  return NextResponse.json({ users, audit: [], departments: departments ?? [], provisioning_configured: true, auth_directory_available: false, facility_scope: true });
+    .map((profile) => profile);
+  const scope = await facilitiesFor(admin, ids, facilityIds);
+  const listed = users.map((profile) => ({ ...profile, ...presenceFor(profile), facilities: scope.byProfile.get(String(profile.id)) ?? [], last_sign_in_at: null, email_confirmed_at: null }));
+  return NextResponse.json({ users: listed, audit: [], departments: departments ?? [], provisioning_configured: true, auth_directory_available: false, facility_scope: true, facilities: scope.facilities });
 }
 
 export async function POST(request: Request) {

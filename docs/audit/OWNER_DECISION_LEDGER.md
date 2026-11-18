@@ -1553,3 +1553,38 @@ not answer it. Fixed (app only, no database change):
    "Found in your facilities"; for controlled drugs it adds a caution to follow the facility's controlled-drug procedures
    and ask the Facility Manager or Responsible Person. Facility 2 answers "M1.08 Controlled Drugs Vault" (from the
    intruder alarm IAS-CD at that location) even before its area list is loaded.
+
+### D-63 — Users list filtered by facility (18 Nov 2026)
+
+Owner (16:18): "include the facility name to filter users selected from that facility". Administration > Users now has
+a Facility filter (All facilities / each facility / Not in any facility) and shows each user's facilities under the
+email (the Super-Administrator shows "All facilities"). Facilities come from active memberships; a Facility
+Administrator sees only its own facilities. App only, no database change.
+
+### D-64 — Each facility's staff can see its staffing structure (18 Nov 2026)
+
+Owner (16:35): "for each facility, eg. Facility 2, all staff of this facility will have access to the staffing
+structure for Facility 2. The same goes for facility one". New page **Our team** (`/facility-team`, header link, all
+roles): per facility, the chain Super-Administrator → Facility Administrator → Facility Manager → Supervisor →
+Technicians, with Approver and Finance alongside; each role's duty in one line; name, trade/discipline and work phone
+(if recorded); no emails. The server checks the viewer's own active membership first; the Super-Administrator sees
+every facility. Built from facility memberships, so it follows Administration › Users. App only, no database change.
+
+### D-65 — SLA clauses: one clause shown once (18 Nov 2026)
+
+Owner (16:39): "Why are these clauses repeated under SLA page?" (four "Clause MOCK-1" cards). Cause: the same test
+agreement (FMWorks-Pilot-SLA.txt) is on file more than once and was read more than once before the 17 Nov fix; each
+reading kept its own copy of the clause. Section 3 now shows each clause once (the approved one if any, else the
+newest waiting one) with "also found N more times", names the agreement it came from, and folds rejected-only clauses
+into "Rejected clauses (n)". Approving the one shown settles it; the waiting copies stay hidden. App only.
+
+### D-66 — Facility One's drawings only for Facility One (18 Nov 2026)
+
+Owner (17:07): a Facility 2 Work Order (PM "Run pump 30 min…") showed Facility One's FW/PW drawings — "Please rectify!".
+Cause: when a facility had no uploaded drawings, the Work Order page fell back to the built-in FW-series drawings,
+which belong to Facility One. Fixed: the built-in set is used only for Facility One (code UAT-FAC-001, or a name
+starting "Facility One"); any other facility without uploads shows "No drawings have been uploaded for this facility
+yet" and none of Facility One's. The same rule applies to placing areas on drawings (Administration > Facilities).
+Facility 2's own drawings PB-001 to PB-304 (Rev P3) were handed to the owner to upload
+(`out/facility-2-drawings/`, with UPLOAD-LIST.txt). Until they are uploaded, Facility 2 Work Orders cannot be
+submitted (the location mark is required by the database). App only, no database change.

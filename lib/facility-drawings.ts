@@ -37,7 +37,17 @@ export function isImageDrawing(row: Pick<FacilityDrawingRow, "content_type" | "w
 }
 
 /** Drawings a Work Order or area pin can be placed on: the facility's own image drawings, or the mock-ups if it has none yet. */
-export function markupDrawingsFor(rows: readonly FacilityDrawingRow[]): WorkOrderDrawing[] {
+/**
+ * UAT 18 Nov 2026: the built-in FW-series drawings belong to Facility One (the original UAT facility, code
+ * UAT-FAC-001). Another facility with no uploaded drawings shows none, never Facility One's.
+ */
+export const BUILT_IN_DRAWINGS_FACILITY_CODE = "UAT-FAC-001";
+export function usesBuiltInDrawings(facility: { code?: string | null; name?: string | null } | null | undefined): boolean {
+  if (!facility) return false;
+  return facility.code === BUILT_IN_DRAWINGS_FACILITY_CODE || /^facility one\b/i.test(facility.name ?? "");
+}
+
+export function markupDrawingsFor(rows: readonly FacilityDrawingRow[], facility?: { code?: string | null; name?: string | null } | null): WorkOrderDrawing[] {
   const own = rows.filter((row) => isImageDrawing(row) || hasPinImage(row)).map((row) => {
     const pdf = hasPinImage(row);
     return {
@@ -50,7 +60,7 @@ export function markupDrawingsFor(rows: readonly FacilityDrawingRow[]): WorkOrde
       height: Number(pdf ? row.pin_height : row.height),
     };
   });
-  return own.length ? own : [...WORK_ORDER_DRAWINGS];
+  return own.length ? own : usesBuiltInDrawings(facility) ? [...WORK_ORDER_DRAWINGS] : [];
 }
 
 /** Uploaded drawings are served through a signed-URL route, so the image optimiser must not fetch them. */

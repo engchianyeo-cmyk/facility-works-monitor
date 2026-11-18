@@ -27,6 +27,21 @@ export default async function Page() {
     s.from("sla_agreement_versions").select("id,version_number").in("approval_status", ["draft", "pending_approval"]).order("version_number"),
   ]);
   const versions = v.data ?? [];
+  /* UAT 18 Nov 2026: the same clause read from several copies of one agreement (or read twice) is shown once.
+     Per clause: the approved one if any, else the newest waiting one; rejected-only clauses go to a folded list. */
+  const docTitle = new Map((d.data ?? []).map((doc) => [doc.id, `${doc.title}${doc.version_label ? ` — ${doc.version_label}` : ""}`]));
+  const groups = new Map<string, NonNullable<typeof p.data>>();
+  for (const x of p.data ?? []) {
+    const key = `${x.source_clause ?? ""}|${plainExcerpt(x.source_excerpt)}`;
+    groups.set(key, [...(groups.get(key) ?? []), x]);
+  }
+  const shown: Array<{ x: NonNullable<typeof p.data>[number]; copies: number }> = [];
+  const rejectedOnly: NonNullable<typeof p.data> = [];
+  for (const list of groups.values()) {
+    const pick = list.find((x) => x.human_approval_state === "approved" || x.human_approval_state === "modified") ?? list.find((x) => x.human_approval_state === "pending");
+    if (pick) shown.push({ x: pick, copies: list.filter((x) => x.id !== pick.id && x.human_approval_state !== "rejected").length });
+    else rejectedOnly.push(list[0]);
+  }
   const compliance = compliancePercent(m);
   const tiles: Array<[string, string | number, string]> = [
     ["SLA compliance", compliance === null ? "No data yet" : `${compliance}%`, "Share of Work Orders fixed within their SLA time"],
@@ -72,18 +87,22 @@ export default async function Page() {
           <h2 className="text-xl font-black">3. Check each clause found</h2>
           <p className="text-sm text-slate-600">Compare the suggestion with the document text, correct the minutes if needed, then approve or reject. Only approved clauses become SLA rules.</p>
           {(p.data ?? []).length === 0 && <p className="mt-3 text-sm text-slate-500">No clauses found yet. Read a document first.</p>}
-          {(p.data ?? []).map((x) => {
+          {shown.map(({ x, copies }) => {
             const excerpt = plainExcerpt(x.source_excerpt);
             const obligation = plainExcerpt(x.extracted_obligation);
             return <article key={x.id} className="my-3 rounded bg-slate-50 p-3">
               <strong>Clause {x.source_clause ?? "(not numbered)"}</strong> <span className="text-sm text-slate-600">· reader&apos;s confidence {Math.round(Number(x.confidence ?? 0) * 100)}% · {STATE[x.human_approval_state] ?? x.human_approval_state}{x.approved_rule_id ? " · in use as an SLA rule" : ""}</span>
-              <p className="mt-1 text-xs text-slate-500">From: {x.source_page ?? x.source_section ?? "the document"}</p>
+              <p className="mt-1 text-xs text-slate-500">From: {docTitle.get(x.document_id) ?? x.source_page ?? x.source_section ?? "the document"}</p>
+              {copies > 0 && <p className="mt-1 text-xs font-semibold text-slate-600">The same clause was also found {copies} more time{copies === 1 ? "" : "s"} (another copy of this agreement, or the document read again). It is shown once; deciding here is enough.</p>}
               <blockquote className="my-2 border-l-4 pl-2 text-sm">{excerpt || "No text captured."}</blockquote>
               {obligation && obligation !== excerpt && <p className="text-sm"><b>Suggested obligation:</b> {obligation}</p>}
               {x.ambiguity_warning && <p className="text-sm text-amber-700">Check: {x.ambiguity_warning}</p>}
               <ProposalActions id={x.id} reviewState={x.human_approval_state} versions={versions} />
             </article>;
           })}
+          {rejectedOnly.length > 0 && <details className="mt-3 text-sm"><summary className="cursor-pointer font-semibold text-slate-600">Rejected clauses ({rejectedOnly.length})</summary>
+            <ul className="mt-2 space-y-1 text-slate-600">{rejectedOnly.map((x) => <li key={x.id}>Clause {x.source_clause ?? "(not numbered)"} · {plainExcerpt(x.source_excerpt).slice(0, 120)}</li>)}</ul>
+          </details>}
         </div>
       </section>
     </main>

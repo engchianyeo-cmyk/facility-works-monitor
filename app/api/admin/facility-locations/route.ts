@@ -22,7 +22,7 @@ export async function GET() {
   if (facilityError || areaError) return NextResponse.json({ error: "Facility locations could not be loaded." }, { status: 503 });
   const rows = (uploaded ?? []) as FacilityDrawingRow[];
   const drawingsByFacility = Object.fromEntries((facilities ?? []).map((facility) => [facility.id,
-    markupDrawingsFor(rows.filter((row) => row.facility_id === facility.id)).map(({ code, title, src, width, height }) => ({ code, title, src, width, height }))]));
+    markupDrawingsFor(rows.filter((row) => row.facility_id === facility.id), facility).map(({ code, title, src, width, height }) => ({ code, title, src, width, height }))]));
   return NextResponse.json({ facilities, areas, drawings: WORK_ORDER_DRAWINGS.map(({ code, title, src, width, height }) => ({ code, title, src, width, height })), drawings_by_facility: drawingsByFacility });
 }
 
@@ -38,8 +38,11 @@ export async function PATCH(request: Request) {
   }
 
   const admin = createAdminClient();
-  const { data: uploaded } = await admin.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", facilityId).eq("active", true);
-  if (!validDrawingReference(body.drawing_reference, markupDrawingsFor((uploaded ?? []) as FacilityDrawingRow[]))) {
+  const [{ data: uploaded }, { data: site }] = await Promise.all([
+    admin.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", facilityId).eq("active", true),
+    admin.from("sites").select("code,name").eq("id", facilityId).maybeSingle(),
+  ]);
+  if (!validDrawingReference(body.drawing_reference, markupDrawingsFor((uploaded ?? []) as FacilityDrawingRow[], site))) {
     return NextResponse.json({ error: "Choose one of this facility's drawings." }, { status: 400 });
   }
   const { data: area, error: loadError } = await admin.from("facility_areas")

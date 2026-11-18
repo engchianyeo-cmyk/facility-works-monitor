@@ -196,6 +196,12 @@ export default function WorkOrderDrawings({ canMutateMarkup = false, drawings = 
         </p>
       )}
 
+      {drawings.length === 0 && (
+        <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-sm font-medium text-amber-900">
+          No drawings have been uploaded for this facility yet, so the location cannot be marked. The Administrator uploads them under Administration › Facilities (choose the facility, then Upload a drawing); until then this Work Order cannot be submitted (the location mark is required).
+        </p>
+      )}
+
       <ul className="mt-4 grid gap-4 sm:grid-cols-2">
         {drawings.map((drawing) => {
           const isLocationDrawing = locationDrawing?.code === drawing.code;

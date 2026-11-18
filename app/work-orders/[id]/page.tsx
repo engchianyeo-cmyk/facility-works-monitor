@@ -281,6 +281,9 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     order.facility_id ? supabase.from("facility_drawings").select(FACILITY_DRAWING_COLUMNS).eq("facility_id", order.facility_id).eq("active", true).order("code") : Promise.resolve({ data: [], error: null }),
   ]);
   const facilityDrawings = (facilityDrawingsResult.error ? [] : facilityDrawingsResult.data ?? []) as FacilityDrawingRow[];
+  // UAT 18 Nov 2026: Facility One's built-in drawings are shown only for Facility One.
+  const { data: drawingFacility } = order.facility_id ? await supabase.from("sites").select("code,name").eq("id", order.facility_id).maybeSingle() : { data: null };
+  const markupDrawings = markupDrawingsFor(facilityDrawings, drawingFacility as { code: string | null; name: string | null } | null);
   const finalCost = finalCostResult.error ? null : (finalCostResult.data as { confirmed_actual_cost: number } | null)?.confirmed_actual_cost ?? null;
   const approvedAmount = financialControlResult.error ? null : (financialControlResult.data as { approved_budget: number | null } | null)?.approved_budget ?? null;
   const copiedIds = (copiedResult.error ? [] : copiedResult.data ?? []).map((row) => String(row.profile_id));
@@ -800,7 +803,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
       </section>}
 
       <div className={needsLocation ? "rounded-xl border-4 border-red-600 p-3" : undefined}>{needsLocation && <p className="mb-2 inline-block rounded bg-red-600 px-3 py-1 text-sm font-black uppercase tracking-wide text-white">Action needed — mark the location on the layout plan</p>}
-      <WorkOrderDrawings drawings={markupDrawingsFor(facilityDrawings)} canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
+      <WorkOrderDrawings drawings={markupDrawings} canMutateMarkup={canMutateWorkOrderEvidence({ role: identity.role, userId: identity.userId, assignedTechnicianId: order.assigned_technician_id, status, hasActiveFacilityMembership: fieldFacilityPermission.data === true, creatorId: order.user_id, requesterId: order.requested_by }) || (status === "completed" && order.assigned_technician_id === identity.userId)} />
       </div>
 
       {/* The reviewer's decision comes last, after the costs, evidence and records above. */}

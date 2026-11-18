@@ -104,7 +104,7 @@ describe("D-17 facility setup", () => {
   });
 
   it("uses a facility's own image drawings for markup and pins, falling back to the mock-ups", () => {
-    expect(markupDrawingsFor([]).map((d) => d.code)).toContain("FW-001");
+    expect(markupDrawingsFor([], { code: "UAT-FAC-001" }).map((d) => d.code)).toContain("FW-001");
     const own = markupDrawingsFor([row(), row({ id: "pdf", code: "TPY-PDF", content_type: "application/pdf", width: null, height: null })]);
     expect(own.map((d) => d.code)).toEqual(["TPY-L1-001"]);
     expect(own[0].src).toBe(facilityDrawingSrc(drawingId));
@@ -116,7 +116,7 @@ describe("D-17 facility setup", () => {
   it("puts facility setup on the Facilities page and drawings where staff work", () => {
     const page = read("app/administration/facilities/page.tsx");
     for (const text of ["Add a new facility", "Areas (", "Drawings (", "Staff ("]) expect(page).toContain(text);
-    expect(read("app/work-orders/[id]/page.tsx")).toContain("drawings={markupDrawingsFor(facilityDrawings)}");
+    expect(read("app/work-orders/[id]/page.tsx")).toContain("drawings={markupDrawings}");
     expect(read("components/site-header.tsx")).toContain('href="/drawings"');
   });
 });
@@ -607,5 +607,14 @@ describe("Payment records Finance can trust (D-41, UAT 7 Nov 2026)", () => {
     const access = readFileSync("app/api/work-orders/[id]/commercial-documents/[documentId]/access/route.ts", "utf8");
     expect(access).toContain('identity.role === "finance" && commercial.data) await supabase.rpc("record_invoice_opened"');
     expect(readFileSync("app/api/work-orders/[id]/release-1/route.ts", "utf8")).toContain("invoice_opened_at");
+  });
+});
+
+describe("UAT 18 Nov 2026: Facility One's drawings only for Facility One", () => {
+  it("another facility without uploads shows no drawings, not Facility One's", () => {
+    expect(markupDrawingsFor([], { code: "F2", name: "Facility 2 — Pharma Warehouse" })).toEqual([]);
+    expect(markupDrawingsFor([], null)).toEqual([]);
+    expect(markupDrawingsFor([], { code: "X", name: "Facility One" }).length).toBeGreaterThan(0);
+    expect(readFileSync("components/work-order-drawings.tsx", "utf8")).toContain("No drawings have been uploaded for this facility yet");
   });
 });
