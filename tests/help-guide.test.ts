@@ -48,6 +48,8 @@ describe("D-58 built-in Help guide", () => {
     expect(guideForPath("/administration/departments")?.id).toBe("administration");
     expect(searchHelp("")).toEqual([]);
     expect(searchHelp("zzzz qqqq")).toEqual([]);
+    // UAT 18 Nov 2026: one shared word is not an answer.
+    expect(searchHelp("Is there a room to store morphine?")).toEqual([]);
   });
 
   it("keeps the content complete and ids unique", () => {
@@ -67,7 +69,7 @@ describe("D-58 built-in Help guide", () => {
     expect(panel).toContain('fetch("/api/assistant"');
     expect(panel).toContain('fetch("/api/assistant/questions"');
     expect(panel).toContain('fetch("/api/assistant/answers"');
-    expect(panel.match(/fetch\(/g)?.length).toBe(4);
+    expect(panel.match(/fetch\(/g)?.length).toBe(5);
     expect(panel).toContain("if (!aiEnabled");
   });
 });

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { FoundArea, FoundPlace } from "@/lib/help/places";
 import type { UserRole } from "@/lib/auth";
 import { guideForPath, relatedFaqs, searchHelp, stageAdvice, stepsFor, teamFaqs, type Faq, type TeamAnswer } from "@/lib/help/guide-content";
 import { subscribeHelpContext, type HelpWorkOrderContext } from "@/components/help/help-context";
@@ -45,9 +46,19 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
     setRated(helpful);
     await fetch("/api/assistant/questions", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: questionId, helpful }) }).catch(() => undefined);
   }
+  // UAT 18 Nov 2026: places in the person's facilities (equipment locations and areas) that match the question.
+  const [places, setPlaces] = useState<{ places: FoundPlace[]; areas: FoundArea[]; note: string | null } | null>(null);
+  async function findPlaces() {
+    setPlaces(null);
+    try {
+      const response = await fetch(`/api/assistant/places?q=${encodeURIComponent(query.trim())}`, { cache: "no-store" });
+      if (response.ok) setPlaces(await response.json());
+    } catch { /* places are a best-effort extra */ }
+  }
   function ask() {
     if (query.trim().length < 2) return;
     setAsked(true);
+    void findPlaces();
     if (aiEnabled) void askAi();
     else void keepQuestion(results.length ? "prepared" : "none", results[0]?.id ?? null);
   }
@@ -207,6 +218,7 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                   setAsked(false);
                   setQuestionId(null);
                   setRated(null);
+                  setPlaces(null);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -242,7 +254,18 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                   {canSpeak() && <button type="button" onClick={() => speak(aiAnswer, true)} className="mt-1 rounded border border-violet-300 px-2 py-0.5 text-xs font-semibold text-violet-900">🔊 Read aloud</button>}
                 </div>
               )}
-              {asked && query.trim() && answers.length === 0 && !aiEnabled && (
+              {asked && places && (places.places.length > 0 || places.areas.length > 0) && (
+                <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Found in your facilities</p>
+                  <ul className="mt-1 space-y-1.5">
+                    {places.places.map((place) => <li key={`${place.facility}|${place.location}`} className="text-slate-800"><span className="font-semibold">{place.location}</span>{place.facility ? ` · ${place.facility}` : ""}<span className="block text-xs text-slate-600">Equipment there: {place.equipment.join("; ")}</span></li>)}
+                    {places.areas.map((area) => <li key={`${area.facility}|${area.code}`} className="text-slate-800"><span className="font-semibold">{area.name}</span> ({area.code}){area.facility ? ` · ${area.facility}` : ""}</li>)}
+                  </ul>
+                  {places.note && <p className="mt-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">{places.note}</p>}
+                  <p className="mt-1 text-xs text-slate-600">From the facility&apos;s equipment and area lists. Check on the facility drawings.</p>
+                </div>
+              )}
+              {asked && query.trim() && answers.length === 0 && !aiEnabled && !(places && (places.places.length > 0 || places.areas.length > 0)) && (
                 <p className="mt-2 rounded-lg bg-slate-50 p-2 text-slate-700">{name} has no prepared answer for that yet. Try a shorter question with key words (for example &quot;incident&quot;, &quot;quotation&quot;, &quot;approve&quot;), or ask your Facility Administrator. {name} answers any question in your own words once the AI assistant is switched on.</p>
               )}
               {answers.length > 0 && (

@@ -1533,3 +1533,23 @@ Built:
 
 Owner to decide: confirm the 12 daily checks (then activate them); whether contractor-serviced equipment should still
 have an in-house Technician for daily / weekly walk-round checks (default leaves them unassigned).
+
+**Preview rollout (17–18 Nov 2026, owner ran it):** `release:verify` PASS after three test fixes; commit `11555c3`
+pushed to `uat/claude-review`. Preview database (host and user checked as `pvajuywwwpjlikqjnvgv`): backup
+`.git/preview-backup-20261117-pre-m34.sql`; increment `out/preview-increment-m34.sql` (sha256 `3e6701a1…021d4`)
+applied — preflight 81 entries at 20261116130000, COMMIT, ledger 84 entries ending 20261117140000. Data scripts
+(dry run checked first; backup `.git/preview-backup-20261117-pre-data-scripts.sql`) all COMMITTED: SLA standard +
+Facility 2 times; D-52 (14 WO-TEST Work Orders marked as test data; FW-2026-0004 to 0008 untouched); Facility 2
+maintenance plan (73 assets, 97 tasks, 85 active, 12 daily drafts, 23 with a Technician).
+
+### D-62 — Ollie finds places in the facility; no false matches on one shared word (18 Nov 2026)
+
+Owner (14:46): asked Ollie "Is there a room to store morphine?" and got "My room is not in the Area list", which does
+not answer it. Fixed (app only, no database change):
+1. Prepared answers now need at least half of the question's own words; one shared word ("room") no longer counts.
+2. "Ask Ollie" also looks in the facility's equipment locations and area list, with the person's own access, using
+   everyday words (morphine / opioid / narcotic / CD → Controlled Drugs Vault; vaccine / insulin / fridge → cold rooms;
+   freezer; dangerous goods; quarantine / returns; lift; toilet; first aid / AED; eyewash; generator; docks). Shown as
+   "Found in your facilities"; for controlled drugs it adds a caution to follow the facility's controlled-drug procedures
+   and ask the Facility Manager or Responsible Person. Facility 2 answers "M1.08 Controlled Drugs Vault" (from the
+   intruder alarm IAS-CD at that location) even before its area list is loaded.

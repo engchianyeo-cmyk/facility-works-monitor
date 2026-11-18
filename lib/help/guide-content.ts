@@ -464,7 +464,7 @@ const PAGE_ANSWERS: readonly Faq[] = PAGE_GUIDES.map((guide) => ({
   keywords: [guide.title.toLowerCase()],
 }));
 
-const STOP = new Set(["the", "a", "an", "i", "my", "is", "to", "of", "in", "on", "it", "do", "how", "can", "what", "and", "for", "this", "be", "not", "t", "explain", "tell", "me", "about", "mean", "means", "please", "does", "you", "are", "why", "where", "when", "who", "which", "page", "work", "order", "orders", "app", "fmworks"]);
+const STOP = new Set(["the", "a", "an", "i", "my", "is", "to", "of", "in", "on", "it", "do", "how", "can", "what", "and", "for", "this", "be", "not", "t", "explain", "tell", "me", "about", "mean", "means", "please", "does", "you", "are", "why", "where", "when", "who", "which", "page", "work", "order", "orders", "app", "fmworks", "there", "any", "or", "we", "our"]);
 function words(text: string): string[] {
   return text.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(" ").filter((word) => word.length > 1 && !STOP.has(word));
 }
@@ -482,7 +482,8 @@ export function searchHelp(query: string, role?: UserRole | null, limit = 5, ext
   const lowered = query.toLowerCase();
   return [...extra, ...FAQS, ...PAGE_ANSWERS].map((faq) => {
     let score = 0;
-    for (const keyword of faq.keywords) if (lowered.includes(keyword.toLowerCase())) score += 4;
+    const covered = new Set<string>();
+    for (const keyword of faq.keywords) if (lowered.includes(keyword.toLowerCase())) { score += 4; for (const w of words(keyword)) covered.add(w); }
     const questionWords = new Set(words(faq.question));
     const keywordWords = new Set(faq.keywords.flatMap(words));
     const answerWords = new Set(words(faq.answer));
@@ -490,9 +491,13 @@ export function searchHelp(query: string, role?: UserRole | null, limit = 5, ext
       if (keywordWords.has(term)) score += 3;
       if (questionWords.has(term)) score += 2;
       if (answerWords.has(term)) score += 1;
+      if (keywordWords.has(term) || questionWords.has(term) || answerWords.has(term)) covered.add(term);
     }
     if (score > 0 && role && faq.roles?.includes(role)) score += 1;
-    return { faq, score };
+    // UAT 18 Nov 2026: one shared word ("room") is not an answer to "Is there a room to store morphine?".
+    // At least half of the question's own words must be found in the answer.
+    const coverage = terms.filter((term) => covered.has(term)).length;
+    return { faq, score: coverage * 2 >= terms.length ? score : 0 };
   })
     .filter((entry) => entry.score >= 2)
     .sort((a, b) => b.score - a.score)
