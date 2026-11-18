@@ -1,5 +1,6 @@
 \set ON_ERROR_STOP on
 -- M34: maintenance plan — Technician responsible per requirement, generated Work Orders assigned, O&M documents. Rolls back.
+-- Dates use public.pm_business_date() (Singapore), not current_date (UTC): between 00:00 and 08:00 SGT they differ.
 begin;
 create function pg_temp.assert_true(value boolean,message text) returns void language plpgsql as $$
 begin if value is not true then raise exception 'Maintenance plan regression: %',message; end if; end;$$;
@@ -23,7 +24,7 @@ insert into public.assets(id,asset_tag,name,asset_type,criticality,lifecycle_sta
 values (pg_temp.u(201),'M34-F2-FP-01','M34 sprinkler pump','Pump','critical','active','M34 Facility 2','Pump room',pg_temp.u(102),pg_temp.u(1),pg_temp.u(1));
 
 select pg_temp.act(pg_temp.u(1));
-select public.create_pm_requirement(jsonb_build_object('asset_id',pg_temp.u(201),'title','Weekly — sprinkler pump run','scope','Run pump 30 min; check pressure','maintenance_type','inspection','interval_value',1,'interval_unit','week','first_due_date',current_date)) as req \gset
+select public.create_pm_requirement(jsonb_build_object('asset_id',pg_temp.u(201),'title','Weekly — sprinkler pump run','scope','Run pump 30 min; check pressure','maintenance_type','inspection','interval_value',1,'interval_unit','week','first_due_date',public.pm_business_date())) as req \gset
 select pg_temp.assert_true(((:'req')::jsonb->>'ok')::boolean,'a requirement is created');
 select set_config('m34.req',(:'req')::jsonb->'requirement'->>'id',true);
 select pg_temp.assert_true((public.activate_pm_requirement(current_setting('m34.req')::uuid)->>'ok')::boolean,'the requirement is active');
@@ -48,7 +49,7 @@ reset role;
 
 -- A generated Work Order goes to the Technician responsible.
 select pg_temp.act(pg_temp.u(1));
-select public.materialize_pm_occurrences(current_date+7) as mat \gset
+select public.materialize_pm_occurrences(public.pm_business_date()+7) as mat \gset
 select pg_temp.assert_true(((:'mat')::jsonb->>'ok')::boolean,'occurrences are listed');
 select public.generate_pm_work_order((select id from public.pm_occurrences where requirement_id=current_setting('m34.req')::uuid order by current_due_date limit 1)) as gen \gset
 select pg_temp.assert_true(((:'gen')::jsonb->>'ok')::boolean,'a Work Order is generated: '||(:'gen'));

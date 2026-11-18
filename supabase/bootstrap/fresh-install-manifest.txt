@@ -96,3 +96,4 @@ supabase/migrations/20261116130000_fault_library_and_assistant_settings.sql
 supabase/migrations/20261117120000_sla_per_facility.sql
 supabase/migrations/20261117130000_assistant_learning.sql
 supabase/migrations/20261117140000_maintenance_plan.sql
+supabase/migrations/20261118120000_pm_automation.sql

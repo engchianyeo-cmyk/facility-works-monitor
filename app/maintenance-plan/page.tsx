@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { planFrequency, type PlanDocument, type PlanTask, type PlanTechnician } from "@/lib/maintenance/plan";
 import { recurrenceLabel } from "@/lib/maintenance/presentation";
 import MaintenancePlanBoard from "@/components/maintenance-plan/maintenance-plan-board";
+import PmModeBanner from "@/components/maintenance/pm-mode-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,8 @@ export default async function MaintenancePlanPage() {
     facilityId: r.asset!.facility_id, technicianId: r.assigned_technician_id, documents: docsByAsset.get(r.asset!.id) ?? [],
   }));
   const facilityIds = [...new Set(tasks.map(t => t.facilityId).filter((v): v is string => Boolean(v)))];
+  const { data: settingRows } = facilityIds.length ? await supabase.from("facility_settings").select("facility_id,pm_mode").in("facility_id", facilityIds) : { data: [] as Array<{ facility_id: string; pm_mode: string }> };
+  const modeOf = new Map((settingRows ?? []).map((row) => [row.facility_id as string, row.pm_mode as string]));
   const [{ data: sites }, planner, editor, technicians] = await Promise.all([
     facilityIds.length ? supabase.from("sites").select("id,name").in("id", facilityIds) : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
     Promise.all(facilityIds.map(async f => [f, (await supabase.rpc("pm_planner_for", { p_facility_id: f })).data === true] as const)),
@@ -54,6 +57,7 @@ export default async function MaintenancePlanPage() {
       <h1 className="mt-1 text-3xl font-black text-slate-950">Maintenance plan</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-600">Equipment by how often it is checked and serviced, the Technician responsible for each task, and the O&amp;M manual to cross-reference. Supervisors and Facility Managers of a facility, and the Super-Administrator, assign Technicians and file manuals.</p>
       {error && <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">The maintenance plan could not be loaded. Please refresh.</p>}
+      <div className="mt-4"><PmModeBanner facilities={(sites ?? []).map((site) => ({ id: site.id, name: site.name, mode: modeOf.get(site.id) ?? "plan_only" }))} canChange={identity.role === "administrator"} /></div>
       <MaintenancePlanBoard
         tasks={tasks}
         facilities={(sites ?? []).map(s => ({ id: s.id, name: s.name }))}

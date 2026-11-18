@@ -1588,3 +1588,51 @@ yet" and none of Facility One's. The same rule applies to placing areas on drawi
 Facility 2's own drawings PB-001 to PB-304 (Rev P3) were handed to the owner to upload
 (`out/facility-2-drawings/`, with UPLOAD-LIST.txt). Until they are uploaded, Facility 2 Work Orders cannot be
 submitted (the location mark is required by the database). App only, no database change.
+
+### D-67 — Planned maintenance dates, daily round, contractor safety documents, staff availability (18 Nov 2026)
+
+Owner decisions (21:54 and 23:03), Facility 2 first; every item is to be asked again when a new facility starts
+operations (facility onboarding):
+- **A. Date windows** agreed: weekly ±1 day, monthly ±3, quarterly ±7, six-monthly ±14, annual ±21, counted from the
+  planned date. Dates are proposed by the app's own rules (not AI); no monthly "confirm" chore — dates stand unless a
+  Supervisor moves one. Owner asked that the feature can be switched off if paperwork slows the team: per-facility
+  setting Off / Plan only / Full (Super-Administrator, with reason). Ollie reminds and warns only.
+- **B. Beyond the window**: Super-Administrator or the facility's Facility Administrator approves (per-facility,
+  asked at onboarding).
+- **C. Weekends**: a planned date on a weekend moves to Friday or Monday, whichever has more manpower available.
+- **D. Daily checks**: all 12 confirmed, listed for Technicians daily; each check has a tick-off checklist, and items
+  can be added for daily walks. Approver, Supervisor or Facility Manager assigns them to Technicians.
+- **E. Days**: every day (all 7).
+- **F. One "Daily round" Work Order per day** for Facility 2; routine type — no work permit, method statement or
+  risk assessment.
+- **G. Facility 2**: Technician 2 does the daily round, Technician 1 covers. Facility One: in-house or contractor is
+  chosen on the Work Order (existing option kept).
+- **Contractor work**: work permit, method statement and risk assessment are required before a contractor proceeds;
+  needed once for the "first of its kind" job; a work permit may cover the whole year when the servicing repeats;
+  method statement and risk assessment can be reused.
+- **H. H1 for now** (in-house Technician by trade for contractor tasks); more than two Technicians may share the work;
+  asked again at start of operations.
+- **Staff availability**: everyone enters availability in advance, prompted at the start of each month; where no
+  superior has assigned a task, the roster decides; tasks with nobody on duty that day are flagged on the dashboards
+  of Administrator, Facility Manager, Approver and Supervisor; urgent leave is entered in the app and that person's
+  jobs are flagged for reassignment to someone of equal or lower position.
+Status: recorded; build to be phased (owner to confirm order).
+Owner answers (23:05): build order left to Claude (1 automatic PM → 2 daily round → 3 contractor safety documents →
+4 availability and leave → 5 new-facility questions); Facility 2 starts on **Full for critical equipment only**
+(Work Orders for critical equipment, the rest shown as a plan); Daily round ready **07:00, done by 10:00**; work permit,
+method statement and risk assessment approved by the facility's **Supervisor or Facility Manager**.
+
+**D-67 part 1 built (18 Nov 2026): M35 `20261118120000_pm_automation.sql`** (test `pm_automation.test.sql`):
+per-facility `pm_mode` (off / plan_only default / full_critical / full) set by `admin_set_pm_mode` (Super-Administrator,
+reason, history); `pm_window_days` and `reschedule_pm_occurrence` (inside the window: Supervisor / Facility Manager /
+planners; beyond: Super-Administrator or the facility's Facility Administrator; earlier moves now allowed, at most 21
+days); `defer_pm_occurrence` refuses beyond-window deferrals for others; `materialize_pm_occurrences` skips "off"
+facilities and `process_due_pm_work` creates Work Orders only where the setting allows; `pm_daily_run()` (scheduler
+only) lists 31 days, moves weekend dates to Friday or Monday with fewer tasks (inside the window; recorded as automatic)
+and creates due Work Orders. App: Maintenance shows each facility's setting (Super-Administrator changes it), "Change
+the date" on Upcoming, no overdue exceptions where the setting creates no Work Orders; Maintenance plan shows the
+setting; `/api/cron/pm-daily` (CRON_SECRET) with `vercel.json` daily 22:00 UTC for Production; Preview uses pg_cron
+(`preview-pm-daily-schedule-20261118.sql`). Script `preview-pm-automation-f2-20261118.sql`: Facility 2 → Full for
+critical only, H1 Technicians for contractor tasks (rehearsed: 63 tasks; Technician 1 38, Technician 2 47 active), one
+daily run. Weekend choice uses "fewer tasks that day" until staff availability (part 4) exists; public holidays not yet.
+Increment `out/preview-increment-m35.sql` sha256 `85de91fc…42969`, rehearsed on the M34 state.
