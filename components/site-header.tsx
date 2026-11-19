@@ -77,6 +77,7 @@ export default async function SiteHeader() {
           {identity && <Link href="/assets" className="rounded-lg px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">Assets</Link>}
           {identity && <Link href="/drawings" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Drawings</Link>}
           {identity && <Link href="/facility-team" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Our team</Link>}
+          {identity && <Link href="/daily-round" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Daily round</Link>}
           {identity && <Link href="/maintenance-plan" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Maintenance plan</Link>}
           {identity && <Link href="/sla" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Site SLA</Link>}
           {identity && <Link href="/operations" className="rounded-lg px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Operations</Link>}

@@ -227,6 +227,7 @@ async function main() {
   sql("tests/sql/assistant_learning.test.sql");
   sql("tests/sql/maintenance_plan.test.sql");
   sql("tests/sql/pm_automation.test.sql");
+  sql("tests/sql/daily_round.test.sql");
   const env = {
     ...process.env,
     ...identities,

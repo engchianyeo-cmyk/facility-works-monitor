@@ -792,6 +792,11 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         </details>
       </section>
 
+      {order.daily_round_date && <section className="rounded-xl border-2 border-blue-300 bg-blue-50 p-5 shadow-sm">
+        <h2 className="text-lg font-black text-blue-950">Daily round</h2>
+        <p className="mt-1 text-sm text-blue-900">Routine daily checks: no permit, method statement, risk assessment or quotation. Record each item on the Daily round page; the round closes when every item is recorded.</p>
+        <Link href={`/daily-round?facility=${order.facility_id}&date=${order.daily_round_date}`} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-blue-700 px-4 text-sm font-black text-white">Open the checklist</Link>
+      </section>}
       {facilityDrawings.length > 0 && <section aria-labelledby="facility-drawing-files-heading" className="rounded-xl border bg-white p-5 shadow-sm">
         <h2 id="facility-drawing-files-heading" className="text-lg font-bold">Facility drawings</h2>
         <p className="mt-1 text-sm text-slate-600">Layout drawings uploaded by the Administrator for this facility.</p>

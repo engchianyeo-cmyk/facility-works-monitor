@@ -1636,3 +1636,27 @@ setting; `/api/cron/pm-daily` (CRON_SECRET) with `vercel.json` daily 22:00 UTC f
 critical only, H1 Technicians for contractor tasks (rehearsed: 63 tasks; Technician 1 38, Technician 2 47 active), one
 daily run. Weekend choice uses "fewer tasks that day" until staff availability (part 4) exists; public holidays not yet.
 Increment `out/preview-increment-m35.sql` sha256 `85de91fc…42969`, rehearsed on the M34 state.
+
+**M35 Preview rollout (19 Nov 2026, owner ran it):** `release:verify` PASS (after making two SQL tests use Singapore
+dates); commit `f8b422d`. Preview (host and user checked as `pvajuywwwpjlikqjnvgv`): backup
+`.git/preview-backup-20261118-pre-m35.sql`; `out/preview-increment-m35.sql` (sha256 `85de91fc…42969`) applied —
+preflight 84 entries at 20261117140000, COMMIT, ledger 85 ending 20261118120000. Data (dry run checked first; backup
+`.git/preview-backup-20261118-pre-m35-data.sql`) COMMITTED: Facility 2 → Full for critical only, Facility One stays
+Plan only; 63 contractor tasks given a Technician (koi.kpr+2 47, Technician 1 38 active tasks); daily run listed 0 and
+moved 0 (the month was already listed and its Work Orders created before M35); pg_cron job `fmworks-pm-daily`
+at 22:00 UTC (06:00 SGT) active.
+
+**D-67 part 2 built (19 Nov 2026): M36 `20261119120000_daily_round.sql`** (test `daily_round.test.sql`): facility
+settings for the Daily round (on/off, ready 07:00, due 10:00, Technician, cover); checklist tables (checks, items with
+optional reading unit) editable by the facility's Approver, Supervisor, Facility Manager, Facility Administrator or the
+Super-Administrator; one Daily round Work Order per facility per day (`work_orders.daily_round_date`, unique), created
+`approved`, in-house, assigned to the Technician (cover if the Technician is not an active member), with no SLA clock and
+no permit / method statement / risk assessment / quotation; `record_daily_round_item` (Technician, cover or editor;
+reading required where a unit is set; Not OK needs a reason; first item starts the work) and `complete_daily_round`
+(all items recorded → closed, faults counted). `pm_daily_run` now also creates each enabled facility's round where the
+planned maintenance setting creates Work Orders. App: header "Daily round" (`/daily-round`: today's checklist, OK / Not
+OK, readings, Complete, late after the due time, last 14 rounds; "Start today's round now" for editors), set-up page
+(`/daily-round/setup`), Work Order page links to the checklist. Script `preview-f2-daily-round-20261119.sql`:
+Facility 2's 12 checks with 42 items (16 readings), switched on with Technician 2 and Technician 1 as cover, the 12 Draft
+daily tasks taken out of use, today's round created (rehearsed). Increment `out/preview-increment-m36.sql` sha256
+`35a50206…45159`, rehearsed on the M35 state. Leave and availability (part 4) will choose the cover automatically.

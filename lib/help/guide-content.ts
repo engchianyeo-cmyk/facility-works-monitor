@@ -284,6 +284,18 @@ export const PAGE_GUIDES: readonly PageGuide[] = [
     steps: { all: ["Open a plan to see its schedule and the Work Orders it created.", "Due servicing becomes a Work Order like any other job."] },
   },
   {
+    id: "daily-round",
+    paths: ["/daily-round"],
+    title: "Daily round",
+    intro: "Today's routine checks, one Work Order a day: tick each item OK or Not OK and write down readings where asked.",
+    steps: {
+      all: ["Press OK or Not OK for each item; it is saved straight away.", "Not OK needs a short reason; report the fault as its own Work Order.", "When every item is recorded, press Complete the round."],
+      supervisor: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items."],
+      facility_manager: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items."],
+      approver: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items."],
+    },
+  },
+  {
     id: "facility-team",
     paths: ["/facility-team"],
     title: "Our team",
