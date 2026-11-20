@@ -18,7 +18,7 @@ describe("canonical non-Production Release-1 migration manifest", () => {
       ...migrations.map((name) => `supabase/migrations/${name}`),
     ]);
     expect(manifest.at(-1)).toBe(
-      "supabase/migrations/20261119120000_daily_round.sql",
+      "supabase/migrations/20261120120000_daily_round_on_plan_only.sql",
     );
   });
 

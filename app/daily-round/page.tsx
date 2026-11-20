@@ -61,7 +61,7 @@ export default async function DailyRoundPage({ searchParams }: { searchParams: S
             {closed && progress.faults > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-black text-amber-900">{progress.faults} Not OK</span>}
           </div>
         ) : settings.enabled && date === today ? (
-          <div className="mt-3 space-y-2 text-sm text-slate-600"><p>Today&apos;s round has not been created yet. The app creates it each morning where the facility&apos;s planned maintenance setting creates Work Orders.</p>{editor === true && <StartRound facilityId={facility.id} />}</div>
+          <div className="mt-3 space-y-2 text-sm text-slate-600"><p>Today&apos;s round has not been created yet. The app creates it each morning unless the facility&apos;s planned maintenance is switched Off.</p>{editor === true && <StartRound facilityId={facility.id} />}</div>
         ) : <p className="mt-3 text-sm text-slate-600">No round on this day.</p>}
       </section>
 

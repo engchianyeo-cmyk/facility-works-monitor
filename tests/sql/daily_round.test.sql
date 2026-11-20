@@ -71,14 +71,17 @@ select pg_temp.act(pg_temp.u(5));
 select pg_temp.assert_true((select count(*) from public.daily_round_checks)=0,'another facility does not');
 reset role;
 
--- Plan only: no round is created.
+-- M37: on Plan only the daily run still creates the round; Off stops it.
 select pg_temp.act(pg_temp.u(1));
 select public.admin_set_pm_mode(pg_temp.u(102),'plan_only','Back to plan only') as m2 \gset
-select pg_temp.act(pg_temp.u(2));
-select pg_temp.assert_true((public.create_daily_round(pg_temp.u(102),public.pm_business_date()+1)->>'ok')::boolean,'an editor can still start a round by hand');
 select set_config('request.jwt.claim.sub','',true), set_config('request.jwt.claims','',true);
 select public.pm_daily_run(public.pm_business_date()+1) as run3 \gset
-select pg_temp.assert_true(((:'run3')::jsonb->>'daily_rounds')::int=0,'plan only: the daily run creates no round');
+select pg_temp.assert_true(((:'run3')::jsonb->>'daily_rounds')::int=1,'plan only: the daily run still creates the round');
+select pg_temp.act(pg_temp.u(1));
+select public.admin_set_pm_mode(pg_temp.u(102),'off','Pause everything') as m3 \gset
+select set_config('request.jwt.claim.sub','',true), set_config('request.jwt.claims','',true);
+select public.pm_daily_run(public.pm_business_date()-1) as run4 \gset
+select pg_temp.assert_true(((:'run4')::jsonb->>'daily_rounds')::int=0,'off: no round');
 
 select 'daily_round tests passed' as result;
 rollback;

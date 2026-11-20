@@ -1660,3 +1660,18 @@ OK, readings, Complete, late after the due time, last 14 rounds; "Start today's 
 Facility 2's 12 checks with 42 items (16 readings), switched on with Technician 2 and Technician 1 as cover, the 12 Draft
 daily tasks taken out of use, today's round created (rehearsed). Increment `out/preview-increment-m36.sql` sha256
 `35a50206…45159`, rehearsed on the M35 state. Leave and availability (part 4) will choose the cover automatically.
+
+### D-68 — Slow down the trial: at most 10 open Work Orders, Facility 2 on Plan only (20 Nov 2026)
+
+Owner (11:41): "this is not a real facility in operation yet and my contact will not be able to manage such a high load
+without full staff ... reduce to 10 or less work orders ... retain only the interesting ones." Preview had about 590
+Work Orders, almost all planned maintenance created before the setting existed (M35).
+- **M37 `20261120120000_daily_round_on_plan_only.sql`**: the daily run creates the Daily round on Plan only too (only
+  Off stops it), so the routine round keeps going while no other planned-maintenance Work Orders are created.
+- **Script `preview-reduce-work-orders-20261120.sql`**: Facility 2 → Plan only; keeps at most 10 open Work Orders (today's
+  Daily round; Work Orders raised by staff, newest first; then planned maintenance, one per trade, critical equipment
+  first) and cancels every other open one with the reason "Trial load reduced: the facility is not yet fully staffed",
+  cancelling its planned date too so it is not created again. Nothing deleted; history kept; test data (D-52) not
+  counted. Rehearsed on a copy with 199 open: 10 kept, 189 cancelled; a second run changes nothing.
+- Future planned dates stay as a plan (Upcoming, Maintenance plan) and can be turned into Work Orders by switching the
+  setting back when the facility is staffed.
