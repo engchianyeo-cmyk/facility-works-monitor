@@ -618,3 +618,14 @@ describe("UAT 18 Nov 2026: Facility One's drawings only for Facility One", () =>
     expect(readFileSync("components/work-order-drawings.tsx", "utf8")).toContain("No drawings have been uploaded for this facility yet");
   });
 });
+
+describe("UAT 21 Nov 2026: Facility One's built-in drawings can be found", () => {
+  it("lists FW-001 to FW-008 under Administration › Facilities and on the Drawings page", () => {
+    expect(readFileSync("components/administration/facility-setup.tsx", "utf8")).toContain("This facility uses the app&apos;s built-in drawings.");
+    expect(readFileSync("app/administration/facilities/page.tsx", "utf8")).toContain("builtIn={usesBuiltInDrawings(facility) ? WORK_ORDER_DRAWINGS : []}");
+    expect(readFileSync("app/drawings/page.tsx", "utf8")).toContain("builtInFacilities.map((facility)");
+  });
+  it("clears the previous upload message when a new file is chosen", () => {
+    expect(readFileSync("components/administration/facility-setup.tsx", "utf8")).toContain("setFile(e.target.files?.[0] ?? null); clear();");
+  });
+});

@@ -1675,3 +1675,18 @@ Work Orders, almost all planned maintenance created before the setting existed (
   counted. Rehearsed on a copy with 199 open: 10 kept, 189 cancelled; a second run changes nothing.
 - Future planned dates stay as a plan (Upcoming, Maintenance plan) and can be turned into Work Orders by switching the
   setting back when the facility is staffed.
+
+**D-68 Preview rollout (20 Nov 2026, owner ran it):** `release:verify` PASS; commit `7aa38d1` pushed; M37 applied
+(backup `.git/preview-backup-20261120-pre-m37.sql`; increment `out/preview-increment-m37.sql` sha256 `180c50bf…46c6`).
+Clean-up (dry run checked first; backup `.git/preview-backup-20261120-pre-m37-data.sql`) COMMITTED: 589 open Work
+Orders → 10 kept (Daily round FW-2026-0594; staff-raised FW-2026-0006/0007/0008; planned maintenance FW-2026-0009,
+0012, 0018, 0023, 0051, 0242), 579 cancelled with their planned dates; Facility 2 and Facility One on Plan only.
+
+### D-69 — Facility One's built-in drawings listed; upload message cleared (21 Nov 2026)
+
+Owner (19:06–19:26): could not find Facility One's drawings; an upload as FW-001 failed. FW-001 to FW-008 are the
+built-in drawings (reserved numbers since D-47/D-48) and stay in use on Facility One's Work Orders, location marks and
+34 area pins; Claude's earlier advice to upload them under those numbers was wrong and withdrawn. App only: they are now
+listed, with View and Download, under Administration › Facilities (Facility One) and on the Drawings page, with a note
+that the numbers are reserved and that uploading another number replaces them on Work Orders. The upload form clears
+its previous message when a new file is chosen (the stale "Drawing uploaded" line misled during Facility 2 uploads).

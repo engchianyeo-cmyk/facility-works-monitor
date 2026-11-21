@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentIdentity } from "@/lib/auth";
-import { FACILITY_DRAWING_COLUMNS, facilityDrawingSrc, hasPinImage, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import { FACILITY_DRAWING_COLUMNS, facilityDrawingSrc, hasPinImage, usesBuiltInDrawings, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import { WORK_ORDER_DRAWINGS } from "@/lib/work-order-drawings";
 import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 0;
@@ -20,13 +21,24 @@ export default async function DrawingsPage() {
   const kind = (row: FacilityDrawingRow) => row.content_type === "application/pdf" ? (hasPinImage(row) ? "PDF · pins ✓" : "PDF") : "Image · pins ✓";
   const rows = (drawings.error ? [] : drawings.data ?? []) as FacilityDrawingRow[];
   const withDrawings = (facilities.data ?? []).filter((facility) => rows.some((row) => row.facility_id === facility.id));
+  // UAT 21 Nov 2026: Facility One uses the built-in drawings FW-001 to FW-008 until it has uploads of its own.
+  const builtInFacilities = (facilities.data ?? []).filter((facility) => !rows.some((row) => row.facility_id === facility.id) && usesBuiltInDrawings(facility));
   return <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-8">
     <div>
       <h1 className="text-3xl font-black">Facility drawings</h1>
       <p className="mt-1 text-slate-600">The current layout drawings of each facility, kept as PDF where available. View opens the drawing in a new tab; Download saves the file. Earlier revisions are kept under each facility for reference.</p>
     </div>
     {drawings.error && <p role="alert">Drawings are unavailable in this environment.</p>}
-    {!drawings.error && withDrawings.length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5"><p className="font-semibold">No drawings have been uploaded yet.</p><p className="mt-1 text-sm text-slate-600">Drawings appear here once uploaded for a facility: plans, sections and 3D perspective views, one PDF per sheet.</p>{["administrator", "facility_administrator"].includes(identity.role) && <a href="/administration/facilities" className="mt-3 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Upload drawings in Facilities</a>}</div>}
+    {!drawings.error && withDrawings.length === 0 && builtInFacilities.length === 0 && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5"><p className="font-semibold">No drawings have been uploaded yet.</p><p className="mt-1 text-sm text-slate-600">Drawings appear here once uploaded for a facility: plans, sections and 3D perspective views, one PDF per sheet.</p>{["administrator", "facility_administrator"].includes(identity.role) && <a href="/administration/facilities" className="mt-3 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Upload drawings in Facilities</a>}</div>}
+    {builtInFacilities.map((facility) => <section key={facility.id} className="rounded-xl border bg-white p-5" aria-labelledby={`drawings-${facility.id}`}>
+      <h2 id={`drawings-${facility.id}`} className="text-xl font-bold">{facility.name} <span className="text-sm font-normal text-slate-500">· {facility.code}</span></h2>
+      <p className="mt-1 text-sm text-slate-600">Built-in drawings, used on this facility&apos;s Work Orders for location marks.</p>
+      <ul className="mt-3 divide-y rounded-lg border">{WORK_ORDER_DRAWINGS.map((drawing) => <li key={drawing.code} className="flex flex-wrap items-center gap-3 p-3 text-sm">
+        <span className="min-w-0 flex-1"><strong>{drawing.code}</strong> — {drawing.title} <span className="text-slate-500">· {drawing.revision} · Built-in</span></span>
+        <a href={drawing.src} target="_blank" rel="noopener" className="min-h-11 rounded border px-3 py-2 font-semibold text-blue-700">View</a>
+        <a href={drawing.src} download={`${drawing.code}${drawing.src.slice(drawing.src.lastIndexOf("."))}`} className="min-h-11 rounded border px-3 py-2 font-semibold text-blue-700">Download</a>
+      </li>)}</ul>
+    </section>)}
     {withDrawings.map((facility) => <section key={facility.id} className="rounded-xl border bg-white p-5" aria-labelledby={`drawings-${facility.id}`}>
       <h2 id={`drawings-${facility.id}`} className="text-xl font-bold">{facility.name} <span className="text-sm font-normal text-slate-500">· {facility.code}</span></h2>
       <ul className="mt-3 divide-y rounded-lg border">{rows.filter((row) => row.facility_id === facility.id).map((drawing) => <li key={drawing.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">

@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import FacilitySettingsForm from "@/components/administration/facility-settings";
 import { AddAreaForm, AddFacilityForm, DrawingList, DrawingUploadForm, FacilityDetailsForm, FacilityStaff } from "@/components/administration/facility-setup";
 import { getCurrentIdentity } from "@/lib/auth";
-import { FACILITY_DRAWING_COLUMNS, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import { FACILITY_DRAWING_COLUMNS, usesBuiltInDrawings, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import { WORK_ORDER_DRAWINGS } from "@/lib/work-order-drawings";
 import { DEFAULT_ENDORSEMENT_STAGE, endorsementStageLabel, type EndorsementStage } from "@/lib/facility-settings";
 import { createClient } from "@/lib/supabase/server";
 
@@ -119,8 +120,8 @@ export default async function FacilitiesPage() {
             </ul>}
             {facility.is_active && <AddAreaForm facilityId={facility.id} />}
           </div></details>
-        <details className="rounded-lg border p-4"><summary className="cursor-pointer font-semibold">Drawings ({facilityDrawings.length})</summary>
-          <div className="mt-3 space-y-4"><DrawingList drawings={facilityDrawings} canRemove />{facility.is_active && <DrawingUploadForm facilityId={facility.id} />}</div></details>
+        <details className="rounded-lg border p-4"><summary className="cursor-pointer font-semibold">Drawings ({facilityDrawings.length || (usesBuiltInDrawings(facility) ? `${WORK_ORDER_DRAWINGS.length} built-in` : 0)})</summary>
+          <div className="mt-3 space-y-4"><DrawingList drawings={facilityDrawings} canRemove builtIn={usesBuiltInDrawings(facility) ? WORK_ORDER_DRAWINGS : []} />{facility.is_active && <DrawingUploadForm facilityId={facility.id} />}</div></details>
         <details className="rounded-lg border p-4"><summary className="cursor-pointer font-semibold">Staff ({members.length})</summary>
           <div className="mt-3"><FacilityStaff facilityId={facility.id} staff={staff} /></div></details>
         {recent.length > 0 && <div>

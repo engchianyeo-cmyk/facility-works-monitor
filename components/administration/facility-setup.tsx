@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { roleLabel } from "@/lib/product-terminology";
 import { facilityDrawingSrc, hasPinImage, MAX_DRAWING_BYTES, type FacilityDrawingRow } from "@/lib/facility-drawings";
+import type { WorkOrderDrawing } from "@/lib/work-order-drawings";
 import { pdfFirstPageToPng } from "@/lib/pdf-pin-image";
 
 /** D-17: Administrator screens for facility setup — new facility, details, areas, drawings and staff. */
@@ -35,7 +36,9 @@ function useSubmit() {
     setOutcome(result); setBusy(false);
     if (result.ok) { after?.(); router.refresh(); }
   }
-  return { busy, outcome, run };
+  // UAT 21 Nov 2026: a new choice clears the previous message, so an old "uploaded" line is not mistaken for this one.
+  const clear = () => setOutcome(null);
+  return { busy, outcome, run, clear };
 }
 
 export function AddFacilityForm() {
@@ -103,7 +106,7 @@ function imageSize(file: File): Promise<{ width: number; height: number } | null
 }
 
 export function DrawingUploadForm({ facilityId }: { facilityId: string }) {
-  const { busy, outcome, run } = useSubmit();
+  const { busy, outcome, run, clear } = useSubmit();
   const [file, setFile] = useState<File | null>(null); const [code, setCode] = useState(""); const [title, setTitle] = useState(""); const [revision, setRevision] = useState("");
   const [formKey, setFormKey] = useState(0);
   return <form key={formKey} className="grid gap-3 sm:grid-cols-2" aria-label="Upload a drawing" onSubmit={(event) => {
@@ -134,7 +137,7 @@ export function DrawingUploadForm({ facilityId }: { facilityId: string }) {
     }, () => { setFile(null); setCode(""); setTitle(""); setRevision(""); setFormKey((k) => k + 1); });
   }}>
     <label className="font-semibold sm:col-span-2">Drawing file (PNG, JPEG, WebP or PDF, up to 50 MB)
-      <input required type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className={input} />
+      <input required type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => { setFile(e.target.files?.[0] ?? null); clear(); }} className={input} />
     </label>
     <label className="font-semibold">Drawing number<input required pattern="[A-Za-z0-9][A-Za-z0-9-]{0,23}" maxLength={24} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. TPY-L1-001" className={input} /></label>
     <label className="font-semibold">Revision<input maxLength={40} value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="e.g. Rev A" className={input} /></label>
@@ -144,10 +147,22 @@ export function DrawingUploadForm({ facilityId }: { facilityId: string }) {
   </form>;
 }
 
-export function DrawingList({ drawings, canRemove }: { drawings: FacilityDrawingRow[]; canRemove: boolean }) {
+export function DrawingList({ drawings, canRemove, builtIn = [] }: { drawings: FacilityDrawingRow[]; canRemove: boolean; builtIn?: readonly WorkOrderDrawing[] }) {
   const { busy, outcome, run } = useSubmit();
   const [removing, setRemoving] = useState<string | null>(null); const [reason, setReason] = useState("");
-  if (drawings.length === 0) return <p className="text-sm text-slate-600">No drawings uploaded yet. Work Orders at this facility use the mock-up drawings until you upload one.</p>;
+  // UAT 21 Nov 2026: Facility One's built-in drawings (FW-001 to FW-008) are listed here too, so they can be found.
+  if (drawings.length === 0 && builtIn.length > 0) return <div className="space-y-2">
+    <p className="text-sm text-slate-600">This facility uses the app&apos;s built-in drawings. Its Work Orders mark locations on them and its areas are pinned on them. The numbers FW-001 to FW-008 are reserved for them. Uploading a drawing with another number replaces all of them on Work Orders, so only do that with a full new set.</p>
+    <ul className="divide-y rounded-lg border">
+      {builtIn.map((drawing) => <li key={drawing.code} className="flex flex-wrap items-center gap-3 p-3">
+        <span className="min-w-0 flex-1"><span className="block font-semibold">{drawing.code} — {drawing.title}</span>
+          <span className="block text-sm text-slate-600">{drawing.revision} · Built-in · pins ✓</span></span>
+        <a href={drawing.src} target="_blank" rel="noopener" className="min-h-11 rounded border px-3 py-2 text-sm font-semibold text-blue-700">View</a>
+        <a href={drawing.src} download={`${drawing.code}${drawing.src.slice(drawing.src.lastIndexOf("."))}`} className="min-h-11 rounded border px-3 py-2 text-sm font-semibold text-blue-700">Download</a>
+      </li>)}
+    </ul>
+  </div>;
+  if (drawings.length === 0) return <p className="text-sm text-slate-600">No drawings uploaded yet, so Work Orders at this facility show no drawings. Upload its plans below.</p>;
   return <div className="space-y-2">
     <ul className="divide-y rounded-lg border">
       {drawings.map((drawing) => <li key={drawing.id} className="flex flex-wrap items-center gap-3 p-3">
