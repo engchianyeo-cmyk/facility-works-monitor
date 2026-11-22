@@ -75,11 +75,13 @@ insert into auth.users(id,email,raw_user_meta_data) values (pg_temp.u(5),'m38.5@
 select set_config('fmworks.profile_admin_rpc','on',true),set_config('fmworks.password_change_completion','on',true);
 update public.profiles set role='facility_manager',is_active=true,password_change_required=false where id=pg_temp.u(5);
 select set_config('fmworks.profile_admin_rpc','off',true),set_config('fmworks.password_change_completion','off',true);
+-- (M39: each entry belongs to a facility, and the Facility Manager manages his own facility's roster.)
+insert into public.facility_memberships(facility_id,profile_id,membership_role,created_by) values (pg_temp.u(102),pg_temp.u(5),'facility_manager',pg_temp.u(1));
 select pg_temp.act(pg_temp.u(5));
-select public.upsert_emergency_roster(null,jsonb_build_object('profile_id',pg_temp.u(3),'escalation_order',7)) as fmr \gset
+select public.upsert_emergency_roster(null,jsonb_build_object('facility_id',pg_temp.u(102),'profile_id',pg_temp.u(3),'escalation_order',7)) as fmr \gset
 select pg_temp.assert_true(((:'fmr')::jsonb->>'ok')::boolean,'the Facility Manager adds an on-call entry: '||:'fmr');
 select pg_temp.assert_true(exists(select 1 from public.get_emergency_roster() where profile_id=pg_temp.u(3)),'the Facility Manager sees the roster');
 select pg_temp.act(pg_temp.u(3));
-select pg_temp.assert_true((public.upsert_emergency_roster(null,jsonb_build_object('profile_id',pg_temp.u(3),'escalation_order',8))->>'code')='ACCESS_DENIED','a Technician still cannot');
+select pg_temp.assert_true((public.upsert_emergency_roster(null,jsonb_build_object('facility_id',pg_temp.u(102),'profile_id',pg_temp.u(3),'escalation_order',8))->>'code')='ACCESS_DENIED','a Technician still cannot');
 select 'planned_work_ready tests passed' as result;
 rollback;

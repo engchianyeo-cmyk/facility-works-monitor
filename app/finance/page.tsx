@@ -1,3 +1,5 @@
+import FacilityButtons from "@/components/facility-buttons";
+import { facilityScope } from "@/lib/facility-scope-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentIdentity } from "@/lib/auth";
@@ -23,16 +25,23 @@ const STATUS: Record<string, { label: string; tone: string }> = {
 const money = (value: number | null) => value === null ? "—" : `S$${new Intl.NumberFormat("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
 const day = (value: string | null) => value ? new Intl.DateTimeFormat("en-SG", { dateStyle: "medium", timeZone: "Asia/Singapore" }).format(new Date(value)) : "—";
 
-export default async function FinancePage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ status?: string; facility?: string }> }) {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/finance");
   scheduleEmailDispatch(); // D-42: also sends the daily payment reminder from 8 am
   if (!["finance", "administrator"].includes(identity.role)) return <main className="p-8"><h1 className="text-2xl font-bold">Access denied</h1><p>The payment tracker is available to Finance and the Administrator.</p></main>;
-  const { status } = await searchParams;
+  const { status, facility } = await searchParams;
   const supabase = await createClient();
+  // D-82 (22 Nov 2026): the shared facility buttons (Finance sees the facilities it is staff of).
+  const scope = await facilityScope(supabase, identity, facility ?? null);
   const [{ data, error }, inHouseResult] = await Promise.all([supabase.rpc("work_order_finance_tracker"), supabase.rpc("work_order_in_house_cost_register")]);
-  const inHouse = (inHouseResult.error ? [] : (inHouseResult.data ?? []) as InHouseRow[]);
-  const rows = (error ? [] : (data ?? []) as Row[]);
+  const chosenName = scope.current === "all" ? null : scope.facilities.find((site) => site.id === scope.current)?.name ?? null;
+  const inHouse = (inHouseResult.error ? [] : (inHouseResult.data ?? []) as InHouseRow[]).filter((row) => !chosenName || row.facility_name === chosenName);
+  const allRows = (error ? [] : (data ?? []) as Row[]);
+  const payableIds = allRows.map((row) => row.work_order_id);
+  const { data: payableFacilities } = scope.current !== "all" && payableIds.length ? await supabase.from("work_orders").select("id,facility_id").in("id", payableIds) : { data: [] };
+  const facilityOfPayable = new Map(((payableFacilities ?? []) as Array<{ id: string; facility_id: string | null }>).map((row) => [row.id, row.facility_id]));
+  const rows = scope.current === "all" ? allRows : allRows.filter((row) => facilityOfPayable.get(row.work_order_id) === scope.current);
   const shown = status && STATUS[status] ? rows.filter((row) => row.payment_status === status) : rows;
   const counts = Object.fromEntries(Object.keys(STATUS).map((key) => [key, rows.filter((row) => row.payment_status === key).length]));
   return <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
@@ -41,6 +50,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <p className="mt-2 text-slate-600">Completed Work Orders with an approved payable. Payment terms run from the date Finance receives the invoice. Open a Work Order to confirm receipt or record payment.</p>
       <p className="mt-3"><Link href="/finance/register" className="inline-block rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800">Completed work register — in-house and contractor, due dates, CSV →</Link></p>
     </div>
+    <FacilityButtons facilities={scope.facilities} current={scope.current} />
     {error && <p role="alert" className="rounded border border-red-300 bg-red-50 p-4 text-red-800">The payment tracker could not be loaded.</p>}
     <nav aria-label="Filter by payment status" className="flex flex-wrap gap-2">
       <Link href="/finance" className={`rounded-full px-4 py-2 text-sm font-bold ${!status ? "bg-slate-900 text-white" : "bg-white border"}`}>All ({rows.length})</Link>

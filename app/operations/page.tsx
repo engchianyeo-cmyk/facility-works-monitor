@@ -1,3 +1,5 @@
+import FacilityButtons from "@/components/facility-buttons";
+import { facilityScope } from "@/lib/facility-scope-server";
 import { redirect } from "next/navigation";
 import OperationsWorkspace, {
   type AttentionItem,
@@ -63,14 +65,18 @@ const nextAction = (status: string, assigned: boolean) => {
   return ({ draft: "Complete and submit request", submitted: "Review authorization", approved: "Allocate resources", assigned: "Accept and start work", in_progress: "Continue work and record completion", completed: "Review completed work", reviewed: "Close work order" })[status] ?? "Review work order";
 };
 
-export default async function OperationsPage() {
+export default async function OperationsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/operations");
 
   const supabase = await createClient();
-  const orderQuery = supabase.from("work_orders").select("id,work_order_number,title,location,site,asset_id,asset:assets(asset_tag,name),priority,status,assigned_to,assigned_technician_id,assigned_vendor_id,assigned_team_id,second_technician_id,facility:sites(name),due_date,completion_notes,completed_at,created_at,updated_at,categories(name)").order("priority_rank", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
+  const requested = (await searchParams).facility;
+  // D-82 (22 Nov 2026): the shared facility buttons; work and team narrow to the chosen facility.
+  const scope = await facilityScope(supabase, identity, typeof requested === "string" ? requested : null);
+  const baseOrderQuery = supabase.from("work_orders").select("id,work_order_number,title,location,site,asset_id,asset:assets(asset_tag,name),priority,status,assigned_to,assigned_technician_id,assigned_vendor_id,assigned_team_id,second_technician_id,facility:sites(name),due_date,completion_notes,completed_at,created_at,updated_at,categories(name)").order("priority_rank", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
+  const orderQuery = scope.current === "all" ? baseOrderQuery : baseOrderQuery.eq("facility_id", scope.current);
 
-  const teamAllowed = ["approver", "supervisor", "administrator"].includes(identity.role);
+  const teamAllowed = ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role);
   const [orderResult, incidentResult, teamResult, evidenceResult] = await Promise.all([
     orderQuery,
     supabase.from("incidents").select("id,incident_number,incident_type,severity,status,location,assigned_technician_id,assigned_team_id,reported_at").not("status", "in", "(closed,cancelled)").order("reported_at", { ascending: false }),
@@ -131,13 +137,18 @@ export default async function OperationsPage() {
   const profiles = (teamResult.error ? [] : teamResult.data ?? []) as Array<{ id: string; display_name: string; trade_discipline: string | null; department: string | null; last_active_at: string | null }>;
   // UAT 17 Nov 2026 (owner): each Technician's facility, standby (on-call roster) and every open Work Order they hold.
   const [membershipResult, rosterResult] = teamAllowed ? await Promise.all([
-    supabase.from("facility_memberships").select("profile_id,facility:sites(name)").eq("membership_role", "technician").eq("active", true),
+    // Read as the signed-in person (D-72): the facilities each Technician is on staff of.
+    supabase.rpc("visible_facility_memberships"),
     supabase.rpc("get_emergency_roster"),
   ]) : [{ data: [], error: null }, { data: [], error: null }];
   const facilitiesOf = new Map<string, string[]>();
-  for (const row of ((membershipResult.error ? [] : membershipResult.data ?? []) as unknown as Array<{ profile_id: string; facility: { name: string } | Array<{ name: string }> | null }>)) {
-    const name = (Array.isArray(row.facility) ? row.facility[0]?.name : row.facility?.name) ?? null;
+  const facilityIdsOf = new Map<string, string[]>();
+  const nameOfFacility = new Map(scope.facilities.map((facility) => [facility.id, facility.name]));
+  for (const row of ((membershipResult.error ? [] : membershipResult.data ?? []) as unknown as Array<{ profile_id: string; facility_id: string; membership_role: string }>)) {
+    if (row.membership_role !== "technician") continue;
+    const name = nameOfFacility.get(row.facility_id);
     if (name) facilitiesOf.set(row.profile_id, [...(facilitiesOf.get(row.profile_id) ?? []), name]);
+    facilityIdsOf.set(row.profile_id, [...(facilityIdsOf.get(row.profile_id) ?? []), row.facility_id]);
   }
   const now = Date.now();
   const standbyOf = new Map<string, string>();
@@ -147,7 +158,7 @@ export default async function OperationsPage() {
     if (!standbyOf.has(row.profile_id)) standbyOf.set(row.profile_id, `On standby (on-call roster${row.escalation_order ? `, call order ${row.escalation_order}` : ""})`);
   }
   const facilityName = (order: RawOrder) => (Array.isArray(order.facility) ? order.facility[0]?.name : order.facility?.name) ?? null;
-  const team: TeamMember[] = profiles.map((profile) => {
+  const team: TeamMember[] = profiles.filter((profile) => scope.current === "all" || (facilityIdsOf.get(profile.id) ?? []).includes(scope.current)).map((profile) => {
     const held = rawOrders.filter((order) => OPEN.has(order.status) && (order.assigned_technician_id === profile.id || order.second_technician_id === profile.id));
     const active = held.filter((order) => ["assigned", "in_progress"].includes(order.status));
     return {
@@ -161,5 +172,8 @@ export default async function OperationsPage() {
   });
 
   const data: OperationsWorkspaceData = { role: identity.role, name: identity.displayName, work, attention, team, availability: { work: !orderResult.error, incidents: !incidentResult.error, team: !teamResult.error } };
-  return <OperationsWorkspace data={data} />;
+  return <>
+    {scope.showButtons && <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6"><FacilityButtons facilities={scope.facilities} current={scope.current} /></div>}
+    <OperationsWorkspace data={data} />
+  </>;
 }

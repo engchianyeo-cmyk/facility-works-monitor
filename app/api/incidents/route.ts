@@ -85,7 +85,10 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const assetId = String(body.asset_id ?? "").trim();
     if (assetId && !UUID_PATTERN.test(assetId)) return errorResponse("VALIDATION_ERROR", "Asset selection is invalid.");
-    const { data, error } = await supabase.rpc("create_incident_with_asset", { p_payload: { incident_type: incidentType, severity, location, description, asset_id: assetId || null } });
+    const facilityId = String(body.facility_id ?? "").trim();
+    if (facilityId && !UUID_PATTERN.test(facilityId)) return errorResponse("VALIDATION_ERROR", "Facility selection is invalid.");
+    // M39 (D-81): the incident's facility decides whose on-call list is alerted.
+    const { data, error } = await supabase.rpc("create_incident_with_asset", { p_payload: { incident_type: incidentType, severity, location, description, asset_id: assetId || null, facility_id: facilityId || null } });
     if (error) return incidentTransportFailure("create");
     const result = data as IncidentRpcResult | null;
     if (!result?.ok || !result.incident) return errorResponse(String(result?.code ?? "INTERNAL_ERROR"), String(result?.message ?? "Unable to create the emergency incident."), result?.code === "ACCESS_DENIED" ? 403 : 400);

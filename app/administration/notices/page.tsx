@@ -1,3 +1,5 @@
+import FacilityButtons from "@/components/facility-buttons";
+import { facilityScope } from "@/lib/facility-scope-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentIdentity } from "@/lib/auth";
@@ -12,20 +14,28 @@ const STATUS: Record<string, string> = { pending: "Queued (not sent)", processin
 const sgt = (value: string | null) => value ? new Intl.DateTimeFormat("en-SG", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Singapore" }).format(new Date(value)) : "—";
 
 // D-38 (7 Nov 2026): every notice the app has queued, who it is for, and whether it was delivered or read.
-export default async function AllNoticesPage({ searchParams }: { searchParams: Promise<{ status?: string; event?: string }> }) {
+export default async function AllNoticesPage({ searchParams }: { searchParams: Promise<{ status?: string; event?: string; facility?: string }> }) {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/administration/notices");
   if (identity.role !== "administrator") return <main className="p-8"><h1 className="text-2xl font-bold">Access denied</h1><p>This page is for Administrators.</p></main>;
   scheduleEmailDispatch();
-  const { status, event } = await searchParams;
+  const { status, event, facility } = await searchParams;
   const supabase = await createClient();
+  // D-82 (22 Nov 2026): by facility, with the notices not yet read in the app counted on each facility button.
+  const scope = await facilityScope(supabase, identity, facility ?? null);
   let query = supabase.from("notification_outbox")
     .select("id,work_order_id,event_type,recipient_profile_id,recipient_email,delivery_status,attempts,last_error,created_at,read_at,result_code,sent_at")
     .order("created_at", { ascending: false }).limit(500);
   if (status) query = query.eq("delivery_status", status);
   if (event) query = query.eq("event_type", event);
   const [{ data, error }, { data: all }] = await Promise.all([query, supabase.from("notification_outbox").select("delivery_status,event_type").limit(5000)]);
-  const rows = (data ?? []) as Array<{ id: string; work_order_id: string | null; event_type: string; recipient_profile_id: string | null; recipient_email: string | null; delivery_status: string; attempts: number; last_error: string | null; created_at: string; read_at: string | null; result_code: string | null; sent_at: string | null }>;
+  const allRows = (data ?? []) as Array<{ id: string; work_order_id: string | null; event_type: string; recipient_profile_id: string | null; recipient_email: string | null; delivery_status: string; attempts: number; last_error: string | null; created_at: string; read_at: string | null; result_code: string | null; sent_at: string | null }>;
+  const orderIdsAll = Array.from(new Set(allRows.map((row) => row.work_order_id).filter(Boolean))) as string[];
+  const { data: facilityOrders } = orderIdsAll.length ? await supabase.from("work_orders").select("id,facility_id").in("id", orderIdsAll) : { data: [] };
+  const facilityOfOrder = new Map(((facilityOrders ?? []) as Array<{ id: string; facility_id: string | null }>).map((row) => [row.id, row.facility_id]));
+  const unreadByFacility: Record<string, number> = {};
+  for (const row of allRows) { const f = row.work_order_id ? facilityOfOrder.get(row.work_order_id) : null; if (f && !row.read_at) unreadByFacility[f] = (unreadByFacility[f] ?? 0) + 1; }
+  const rows = scope.current === "all" ? allRows : allRows.filter((row) => { const f = row.work_order_id ? facilityOfOrder.get(row.work_order_id) : null; return !f || f === scope.current; });
   const profileIds = Array.from(new Set(rows.map((row) => row.recipient_profile_id).filter(Boolean))) as string[];
   const orderIds = Array.from(new Set(rows.map((row) => row.work_order_id).filter(Boolean))) as string[];
   const [{ data: people }, { data: orders }] = await Promise.all([
@@ -46,6 +56,7 @@ export default async function AllNoticesPage({ searchParams }: { searchParams: P
         <p className="mt-2 max-w-3xl text-slate-600">Every notice the app has queued. Notices that ask the reader to act are emailed from the app&apos;s mail account once email is switched on (decision D-42); the rest are &quot;in app only&quot;. Notices older than a day when email was switched on stay &quot;Queued&quot;. Each person sees theirs on <Link href="/notices" className="font-semibold text-blue-700 underline">My notices</Link> and the bell in the header.</p>
       </header>
       {error && <p role="alert" className="rounded border border-red-300 bg-red-50 p-4 text-red-800">Notices could not be loaded.</p>}
+      <FacilityButtons facilities={scope.facilities} current={scope.current} counts={unreadByFacility} countLabel="not read in the app" />
       <nav aria-label="Filter by delivery status" className="flex flex-wrap gap-2">
         <Link href="/administration/notices" className={chip(!status)}>All</Link>
         {Object.entries(counts).map(([key, count]) => <Link key={key} href={`/administration/notices?status=${key}`} className={chip(status === key)}>{STATUS[key] ?? key} ({count})</Link>)}

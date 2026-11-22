@@ -35,8 +35,10 @@ describe("D-50 / D-53 / D-54 / D-55: facilities, Facility Administrators and rem
 
   it("narrows the Work Orders list to the facility chosen above it", () => {
     const page = read("app/work-orders/page.tsx");
-    expect(page).toContain("FACILITY_COOKIE");
-    expect(page).toContain("<FacilitySwitch");
+    // D-82: the shared facility buttons (cookie fmw_facility) replace the drop-down.
+    expect(page).toContain("facilityScope(supabase, identity");
+    expect(page).toContain("<FacilityButtons");
+    expect(read("lib/facility-scope-server.ts")).toContain("FACILITY_COOKIE");
   });
 
   it("emails each Finance person only their facilities' payments", () => {

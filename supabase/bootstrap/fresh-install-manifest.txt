@@ -100,3 +100,4 @@ supabase/migrations/20261118120000_pm_automation.sql
 supabase/migrations/20261119120000_daily_round.sql
 supabase/migrations/20261120120000_daily_round_on_plan_only.sql
 supabase/migrations/20261121120000_planned_work_ready_to_approve.sql
+supabase/migrations/20261122120000_facility_on_call.sql

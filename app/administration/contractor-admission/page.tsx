@@ -1,3 +1,5 @@
+import FacilityButtons from "@/components/facility-buttons";
+import { facilityScope } from "@/lib/facility-scope-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentIdentity } from "@/lib/auth";
@@ -7,10 +9,13 @@ import ContractorAdmissionBoard, { type AdmissionView, type RequestView } from "
 export const revalidate = 0;
 
 // D-37 (6 Nov 2026): Contractor needed requests, recommendation, pre-qualification, owner's approval, trial and admission.
-export default async function ContractorAdmissionPage() {
+export default async function ContractorAdmissionPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/administration/contractor-admission");
   const supabase = await createClient();
+  const requested = (await searchParams).facility;
+  // D-82 (22 Nov 2026): the shared facility buttons — the facilities this person manages or is staff of.
+  const scope = await facilityScope(supabase, identity, typeof requested === "string" ? requested : null);
   const { data: myDesignations } = await supabase.from("procurement_managers").select("facility_id").eq("profile_id", identity.userId).eq("active", true);
   const procurementScopes = (myDesignations ?? []).map((row) => (row as { facility_id: string | null }).facility_id);
   const management = ["administrator", "facility_manager", "supervisor"].includes(identity.role);
@@ -89,6 +94,7 @@ export default async function ContractorAdmissionPage() {
           trial jobs scored after completion, then admission. Steps waiting for you are outlined in red. See also <Link href="/administration/contractors" className="font-semibold text-blue-700 underline">Contractors &amp; Agreed Rates</Link>.
         </p>
       </header>
+      <FacilityButtons facilities={scope.facilities} current={scope.current} />
       {unavailable
         ? <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950"><p className="font-black">Contractor admission is not available in this environment yet.</p><p className="mt-1 text-sm">Its database update (D-37) must be applied first.</p></div>
         : <ContractorAdmissionBoard
@@ -96,8 +102,8 @@ export default async function ContractorAdmissionPage() {
             canRecommendAnywhere={identity.role === "administrator" || procurementScopes.includes(null)}
             recommendFacilities={(sites.data ?? []).map((row) => row as { id: string; name: string }).filter((site) => identity.role === "administrator" || identity.role === "facility_manager" || isPm(site.id))}
             vendors={(vendors.data ?? []).map((row) => row as { id: string; name: string; trade: string | null })}
-            requests={requestViews}
-            admissions={admissionViews}
+            requests={requestViews.filter((row) => scope.current === "all" || row.facilityId === scope.current)}
+            admissions={admissionViews.filter((row) => scope.current === "all" || row.facilityId === scope.current)}
             people={(people.data ?? []).map((row) => row as { id: string; display_name: string | null; role: string })}
             managers={(managers.data ?? []).map((raw) => { const row = raw as { id: string; profile_id: string; facility_id: string | null }; return { id: row.id, profileId: row.profile_id, person: nameOf.get(row.profile_id) ?? "—", scope: row.facility_id ? siteName.get(row.facility_id) ?? "Facility" : "Company-wide (all facilities)", facilityId: row.facility_id }; })}
             sites={(sites.data ?? []).map((row) => row as { id: string; name: string })}

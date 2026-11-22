@@ -6,7 +6,7 @@ import { incidentTypeLabel, operationalLabel } from "@/lib/product-terminology";
 import AssetSelector from "@/components/assets/asset-selector";
 import type { AssetSummary } from "@/lib/assets/types";
 
-export default function IncidentForm({ assets }: { assets: AssetSummary[] }) {
+export default function IncidentForm({ assets, facilities = [], defaultFacility = "" }: { assets: AssetSummary[]; facilities?: Array<{ id: string; name: string }>; defaultFacility?: string }) {
   const router = useRouter(); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   async function submit(formData: FormData) {
     if (busy) return; setBusy(true); setError("");
@@ -20,6 +20,8 @@ export default function IncidentForm({ assets }: { assets: AssetSummary[] }) {
   return <form action={submit} className="space-y-5 rounded-xl border-2 border-red-200 bg-white p-6 shadow-sm">
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-medium">Incident type<select name="incident_type" required defaultValue="" className="mt-1 w-full rounded-lg border p-2.5"><option value="" disabled>Select type</option>{INCIDENT_TYPES.map(x=><option key={x} value={x}>{incidentTypeLabel(x)}</option>)}</select></label><label className="text-sm font-medium">Severity<select name="severity" defaultValue="emergency" className="mt-1 w-full rounded-lg border p-2.5">{INCIDENT_SEVERITIES.map(x=><option key={x} value={x}>{operationalLabel(x)}</option>)}</select></label></div>
+    {/* M39 (D-81): the facility decides whose on-call list is alerted. */}
+    {facilities.length > 0 && <label className="block text-sm font-medium">Facility<select name="facility_id" defaultValue={defaultFacility} className="mt-1 w-full rounded-lg border p-2.5">{facilities.length > 1 && <option value="">Work it out from the Asset (or choose)</option>}{facilities.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select><span className="mt-1 block text-xs text-slate-500">The on-call Technicians, Supervisors and Facility Manager of this facility are alerted.</span></label>}
     <label className="block text-sm font-medium">Location<input name="location" required maxLength={200} className="mt-1 w-full rounded-lg border p-2.5" /></label>
     <AssetSelector assets={assets} label="Primary affected Asset" />
     <label className="block text-sm font-medium">What is happening?<textarea name="description" required maxLength={4000} rows={5} className="mt-1 w-full rounded-lg border p-2.5" /></label>

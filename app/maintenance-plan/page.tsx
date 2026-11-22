@@ -5,6 +5,8 @@ import { planFrequency, type PlanDocument, type PlanTask, type PlanTechnician } 
 import { recurrenceLabel } from "@/lib/maintenance/presentation";
 import MaintenancePlanBoard from "@/components/maintenance-plan/maintenance-plan-board";
 import PmModeBanner from "@/components/maintenance/pm-mode-banner";
+import FacilityButtons from "@/components/facility-buttons";
+import { facilityScope } from "@/lib/facility-scope-server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +18,13 @@ type Row = {
 
 /** M34 (UAT 17 Nov 2026): equipment by daily / weekly / monthly / quarterly / annual maintenance, the Technician
  *  responsible for each, and the O&M manual to cross-reference. Open to every signed-in role; only planners change it. */
-export default async function MaintenancePlanPage() {
+export default async function MaintenancePlanPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/maintenance-plan");
   const supabase = await createClient();
+  const requested = (await searchParams).facility;
+  // D-82 (22 Nov 2026): choose the facility with the shared buttons.
+  const scope = await facilityScope(supabase, identity, typeof requested === "string" ? requested : null);
   const [{ data: rows, error }, { data: docs }] = await Promise.all([
     supabase.from("maintenance_requirements")
       .select("id,requirement_number,state,assigned_technician_id,asset:assets(id,asset_tag,name,location,criticality,facility_id),current_revision:maintenance_requirement_revisions!maintenance_requirements_current_revision_fkey(title,scope,interval_value,interval_unit)")
@@ -28,7 +33,7 @@ export default async function MaintenancePlanPage() {
   ]);
   const docsByAsset = new Map<string, PlanDocument[]>();
   for (const d of (docs ?? []) as Array<PlanDocument & { asset_id: string }>) docsByAsset.set(d.asset_id, [...(docsByAsset.get(d.asset_id) ?? []), d]);
-  const tasks: PlanTask[] = ((rows ?? []) as unknown as Row[]).filter(r => r.asset && r.current_revision).map(r => ({
+  const tasks: PlanTask[] = ((rows ?? []) as unknown as Row[]).filter(r => r.asset && r.current_revision && (scope.current === "all" || r.asset.facility_id === scope.current)).map(r => ({
     id: r.id, number: r.requirement_number, state: r.state, title: r.current_revision!.title, scope: r.current_revision!.scope,
     frequency: planFrequency(r.current_revision!.interval_value, r.current_revision!.interval_unit), every: recurrenceLabel(r.current_revision!),
     assetId: r.asset!.id, assetTag: r.asset!.asset_tag, assetName: r.asset!.name, location: r.asset!.location ?? "", criticality: r.asset!.criticality,
@@ -62,6 +67,7 @@ export default async function MaintenancePlanPage() {
       <h1 className="mt-1 text-3xl font-black text-slate-950">Maintenance plan</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-600">Equipment by how often it is checked and serviced, the Technician responsible for each task, and the O&amp;M manual to cross-reference. Supervisors and Facility Managers of a facility, and the Super-Administrator, assign Technicians and file manuals.</p>
       {error && <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">The maintenance plan could not be loaded. Please refresh.</p>}
+      <div className="mt-4"><FacilityButtons facilities={scope.facilities} current={scope.current} /></div>
       <div className="mt-4"><PmModeBanner facilities={(sites ?? []).map((site) => ({ id: site.id, name: site.name, mode: modeOf.get(site.id) ?? "plan_only" }))} canChange={identity.role === "administrator"} /></div>
       <MaintenancePlanBoard
         tasks={tasks}

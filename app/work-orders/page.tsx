@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { FACILITY_COOKIE } from "@/lib/facility-scope";
-import FacilitySwitch from "@/components/facility-switch";
+import { facilityScope } from "@/lib/facility-scope-server";
+import FacilityButtons from "@/components/facility-buttons";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentIdentity } from "@/lib/auth";
 import WorkOrderFilters from "@/components/work-orders/work-order-filters";
@@ -65,15 +64,11 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   if (values.department) query = query.eq("department_id", values.department);
   // D-50 / D-54: the facility switch above the list (or ?facility=) narrows it; "all" shows every facility the person
   // may see. The Super-Administrator sees every facility; others see theirs (switch shown when they have several).
-  const { data: siteRows } = await supabase.from("sites").select("id,name").eq("is_active", true).order("name");
-  const { data: ownRows } = identity.role === "administrator" ? { data: null }
-    : await supabase.from("facility_memberships").select("facility_id").eq("profile_id", identity.userId).eq("active", true);
-  const mine = new Set(((ownRows ?? []) as Array<{ facility_id: string }>).map((row) => row.facility_id));
-  const switchFacilities = ((siteRows ?? []) as Array<{ id: string; name: string }>).filter((site) => identity.role === "administrator" || mine.has(site.id));
-  const requestedFacility = values.facility ?? (await cookies()).get(FACILITY_COOKIE)?.value ?? "all";
-  const chosenFacility = switchFacilities.some((site) => site.id === requestedFacility) ? requestedFacility : "all";
+  // D-82 (22 Nov 2026): the same facility buttons on every page.
+  const scope = await facilityScope(supabase, identity, values.facility ?? null);
+  const switchFacilities = scope.facilities;
+  const chosenFacility = scope.current;
   if (chosenFacility !== "all") query = query.eq("facility_id", chosenFacility);
-  const showFacilitySwitch = switchFacilities.length > 1;
   if (values.assignment === "mine") query = query.eq("assigned_technician_id", identity.userId);
   else if (values.assignment === "unassigned") query = query.is("assigned_technician_id", null).is("assigned_vendor_id", null).is("assigned_team_id", null);
   else if (values.assignment === "technician") query = query.not("assigned_technician_id", "is", null);
@@ -95,9 +90,8 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
     <main className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold tracking-tight text-slate-900">Work Orders</h1><p className="mt-1 text-sm text-slate-500">Plan, authorize, assign, execute, review, and close maintenance work.</p></div>{identity.role !== "technician" && <Link href="/work-orders/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">New work order</Link>}</div>
       {myDrafts && <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950" aria-labelledby="my-drafts-heading"><h2 id="my-drafts-heading" className="text-base font-bold">My Drafts</h2><p className="mt-1">Work Orders you started and have not yet submitted. Open one to add photos, mark the location and attach the quotation — on your phone or computer — then submit it for approval. <Link href="/work-orders" className="font-semibold underline">Show all Work Orders</Link></p></section>}
-      {showFacilitySwitch && <FacilitySwitch facilities={switchFacilities} current={chosenFacility} allowAll />}
-      {/* UAT fix 16 Nov 2026: with one facility there is no switch, so name the facility the list belongs to. */}
-      {!showFacilitySwitch && switchFacilities.length === 1 && <p className="text-sm text-slate-600">Facility: <span className="font-semibold text-slate-900">{switchFacilities[0].name}</span></p>}
+      {/* With one facility, FacilityButtons names the facility the list belongs to (UAT fix 16 Nov 2026). */}
+      <FacilityButtons facilities={switchFacilities} current={chosenFacility} />
       {identity.role !== "administrator" && switchFacilities.length === 0 && <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are not yet staff of any facility, so no facility work is shown. Ask your Facility Administrator or the Super-Administrator to add you under Facilities → Add a staff member.</p>}
       <WorkOrderFilters values={values} departments={departments ?? []} />
       {error && <p className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">Work orders could not be loaded.</p>}
