@@ -289,10 +289,10 @@ export const PAGE_GUIDES: readonly PageGuide[] = [
     title: "Daily round",
     intro: "Today's routine checks, one Work Order a day: tick each item OK or Not OK and write down readings where asked.",
     steps: {
-      all: ["Press OK or Not OK for each item; it is saved straight away.", "Not OK needs a short reason; report the fault as its own Work Order.", "When every item is recorded, press Complete the round."],
-      supervisor: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items."],
-      facility_manager: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items."],
-      approver: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items."],
+      all: ["Press OK or Not OK for each item; it is saved straight away.", "Compare each reading with its Normal range shown beside it; the box turns green within it and amber outside it.", "Outside the range, choose Not OK and say what is wrong — or, if it is still OK, say why (OK needs that reason).", "Read the grey guide line under an item: it says what OK looks like.", "Not OK needs a short reason; report the fault as its own Work Order.", "When every item is recorded, press Complete the round."],
+      supervisor: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items.", "Give each reading its normal range (Set range), and any item a guide, from the equipment manual or GMP limits."],
+      facility_manager: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items.", "Give each reading its normal range (Set range), and any item a guide, from the equipment manual or GMP limits."],
+      approver: ["Set up the round and checklist: who does it, the cover, the times, and the checks and items.", "Give each reading its normal range (Set range), and any item a guide, from the equipment manual or GMP limits."],
     },
   },
   {

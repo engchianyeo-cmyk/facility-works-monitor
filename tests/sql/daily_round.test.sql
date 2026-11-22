@@ -53,6 +53,21 @@ select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.
 select pg_temp.act(pg_temp.u(3));
 select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i1')::uuid,true,'',null)->>'code')='VALIDATION_ERROR','the reading is required');
 select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i1')::uuid,true,'5.1',null)->>'ok')::boolean,'Technician 2 records a reading');
+-- M38: a normal range (2–8 °C) helps the Technician decide; outside it, OK needs a reason; the range is kept with the result.
+select pg_temp.act(pg_temp.u(6));
+select pg_temp.assert_true((public.save_daily_round_item(current_setting('m36.i1')::uuid,null,'Room temperature on the EMS','°C',10,true,8,2,null)->>'code')='VALIDATION_ERROR','low above high is refused');
+select pg_temp.assert_true((public.save_daily_round_item(current_setting('m36.i1')::uuid,null,'Room temperature on the EMS','°C',10,true,2,8,'Product cold room')->>'ok')::boolean,'the Approver sets the normal range');
+select pg_temp.assert_true((public.save_daily_round_item(current_setting('m36.i2')::uuid,null,'Units running, alarms clear',null,20,true,1,2,'x y')->>'ok')::boolean,'a tick-only item saves');
+select pg_temp.assert_true((select reading_min is null and reading_max is null and reading_guide='x y' from public.daily_round_items where id=current_setting('m36.i2')::uuid),'a tick-only item keeps no range but may have a guide');
+select pg_temp.assert_true(public.daily_round_range_text(2,8,'°C')='2 – 8 °C' and public.daily_round_range_text(null,500,'ppb')='at most 500 ppb' and public.daily_round_number('−20')=-20 and public.daily_round_number('7,5')=7.5 and public.daily_round_number('abc') is null,'range text and number reading');
+select pg_temp.act(pg_temp.u(3));
+select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i1')::uuid,true,'cold',null)->>'code')='VALIDATION_ERROR','a ranged reading must be a number');
+select public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i1')::uuid,true,'9.5',null) as oor \gset
+select pg_temp.assert_true((:'oor')::jsonb->>'code'='OUT_OF_RANGE' and (:'oor')::jsonb->>'message' like '%2 – 8 °C%','OK outside the range needs a reason: '||:'oor');
+select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i1')::uuid,true,'9.5','Door open for loading; back to 6 °C in 10 min')->>'ok')::boolean,'OK outside the range with a reason');
+select pg_temp.assert_true((select out_of_range and reading_min=2 and reading_max=8 from public.daily_round_results where work_order_id=current_setting('m36.wo')::uuid and item_id=current_setting('m36.i1')::uuid),'the result keeps the range and the out-of-range flag');
+select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i1')::uuid,true,'5.1',null)->>'ok')::boolean,'within the range, OK needs no reason');
+select pg_temp.assert_true((select not out_of_range from public.daily_round_results where work_order_id=current_setting('m36.wo')::uuid and item_id=current_setting('m36.i1')::uuid),'and is not flagged');
 select pg_temp.assert_true((select status from public.work_orders where id=current_setting('m36.wo')::uuid)='in_progress','the first item starts the round');
 select pg_temp.assert_true((public.complete_daily_round(current_setting('m36.wo')::uuid,null)->>'code')='INCOMPLETE','it cannot complete with items missing');
 select pg_temp.assert_true((public.record_daily_round_item(current_setting('m36.wo')::uuid,current_setting('m36.i2')::uuid,false,null,'')->>'code')='VALIDATION_ERROR','Not OK needs a reason');

@@ -332,6 +332,7 @@ export default function WorkOrderActions(props: Props) {
             <h3 className="mt-1 font-black">{props.status === "draft" && !props.canEdit ? (props.approvalReadiness.ready ? "Ready — waiting for Technician 1 to submit it" : "Waiting for Technician 1 (or whoever created the Draft, if no Technician is chosen yet) to complete and submit it") : props.approvalReadiness.ready ? (props.status === "draft" ? "Ready to submit for approval" : "Ready for approval") : (props.status === "draft" ? "Complete these items before submitting" : "Not ready for approval")}</h3>
             {props.approvalReadiness.proposed_cost > 0 && <p className="mt-2 text-sm">Quotation: S${Number(props.approvalReadiness.proposed_cost).toLocaleString("en-SG", { minimumFractionDigits: 2 })} · Lowest approval level: {roleLabel(props.approvalReadiness.required_authority)}</p>}
             {props.approvalReadiness.missing_requirements.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm">{props.approvalReadiness.missing_requirements.map((item) => <li key={item}>{item.replaceAll("_", " ")}</li>)}</ul>}
+            {props.status === "submitted" && !props.approvalReadiness.ready && <p className="mt-2 text-sm font-semibold">The Approve button appears when the items above are in place. To get them added, press Return to Draft below and write what is needed; Technician 1 adds them and submits again.</p>}
           </section>
         )}
 

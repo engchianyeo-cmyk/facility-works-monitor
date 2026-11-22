@@ -5,15 +5,18 @@ import { useState } from "react";
 /**
  * Owner, 10 Nov 2026: a password box with an eye button on the right, so people can see what they typed
  * (useful on phones). The button's label avoids the word "password" so the box keeps a unique accessible name.
+ * 21 Nov 2026: also works as a controlled box (value + onChange), e.g. the temporary password when creating a user.
  */
-export default function PasswordInput({ id, name, autoComplete, minLength, required = true, className = "" }: {
+export default function PasswordInput({ id, name, autoComplete, minLength, required = true, className = "", value, onChange }: {
   id: string; name: string; autoComplete: string; minLength?: number; required?: boolean; className?: string;
+  value?: string; onChange?: (value: string) => void;
 }) {
   const [visible, setVisible] = useState(false);
   return (
     <div className="relative">
       <input id={id} name={name} type={visible ? "text" : "password"} autoComplete={autoComplete} minLength={minLength} required={required}
-        autoCapitalize="none" autoCorrect="off" spellCheck={false} className={`${className} pr-12`} />
+        autoCapitalize="none" autoCorrect="off" spellCheck={false} className={`${className} pr-12`}
+        {...(onChange ? { value: value ?? "", onChange: (event: React.ChangeEvent<HTMLInputElement>) => onChange(event.target.value) } : {})} />
       <button type="button" onClick={() => setVisible((value) => !value)} aria-pressed={visible} aria-controls={id}
         aria-label={visible ? "Hide the characters typed" : "Show the characters typed"} title={visible ? "Hide" : "Show"}
         className="absolute inset-y-0 right-0 mt-1 flex w-11 items-center justify-center rounded-r-lg text-slate-500 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">

@@ -350,7 +350,12 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
     const more = draftOutstanding.length > 1 ? ` (${draftOutstanding.length} items to do)` : "";
     return { ...responsibility, action: `finish the Draft first — ${first.label}${more} — then submit it for approval`, href: first.href ?? "#next-steps", section: "what is missing" };
   };
-  const nextResponsibility = nextKey ? pointToOutstanding(nextKey, responsibilityFor(nextKey as TimelineStepKey, responsibilityContext)) : null;
+  const baseResponsibility = nextKey ? pointToOutstanding(nextKey, responsibilityFor(nextKey as TimelineStepKey, responsibilityContext)) : null;
+  // UAT 21 Nov 2026: "approve" with no Approve button confused the Approver. When the Work Order is not ready, say what is missing.
+  const approvalMissingNow = status === "submitted" && approvalSummary && approvalSummary.can_approve !== true && !approvalReasonRequired ? (approvalSummary.missing_requirements ?? []) : [];
+  const nextResponsibility = baseResponsibility && nextKey === "approved" && approvalMissingNow.length > 0
+    ? { ...baseResponsibility, action: `not ready to approve yet — ${approvalMissingNow.length} item(s) missing (${approvalMissingNow.slice(0, 2).join("; ")}${approvalMissingNow.length > 2 ? "; …" : ""}). Return it to Draft and say what to add` }
+    : baseResponsibility;
   const canEndorse = identity.role === "technician" && identity.userId !== order.assigned_technician_id && identity.userId !== order.requested_by && ["draft", "completed"].includes(status)
     && (!secondTechnicianId || isNamedT2);
   const actualTimes = { started: (order as { actual_work_started_at?: string | null }).actual_work_started_at ?? null, ended: (order as { actual_work_ended_at?: string | null }).actual_work_ended_at ?? null };
@@ -598,7 +603,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
       <Link href="/work-orders" className="text-sm font-medium text-blue-700 hover:underline">← All work orders</Link>
-      <HelpContext id={id} reference={order.work_order_number ?? "Work Order"} status={status} inHouse={Boolean(order.in_house_work)} />
+      <HelpContext id={id} reference={order.work_order_number ?? "Work Order"} status={status} inHouse={Boolean(order.in_house_work)} missing={draftMissing.map(String)} />
 
       <WorkOrderDecisionHeader
         reference={order.work_order_number}
@@ -615,6 +620,7 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
           viewerRole: operationalLabel(identity.role),
           viewerResponsible: isPreparer(context) || order.assigned_technician_id === identity.userId,
           draftToFinish: status === "draft" && isPreparer(context) && approvalReadiness?.ready === false,
+          waitingFor: nextResponsibility && !nextResponsibility.viewerIsResponsible ? `${nextResponsibility.who} (${nextResponsibility.role}) to ${nextResponsibility.action}` : null,
         }}
       />
 
@@ -656,7 +662,8 @@ export default async function WorkOrderDetailPage({ params, searchParams }: { pa
         </dl>
       </section>
 
-      <SlaCountdown clock={slaClock} status={status} finishedAt={(order as { completed_at?: string | null }).completed_at ?? null} />
+      {/* M38: planned maintenance and the Daily round are measured against their due date, not a reaction SLA. */}
+      {!order.pm_occurrence_id && !order.daily_round_date && <SlaCountdown clock={slaClock} status={status} finishedAt={(order as { completed_at?: string | null }).completed_at ?? null} />}
 
       {upcomingCheck && <div role="note" className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
         <span className="block font-black">{isNamedT2 ? `You are Technician 2 (independent checker) — work with Technician 1${responsibilityContext.technician1Name ? ` (${responsibilityContext.technician1Name})` : ""}` : "You may be the independent checker for this Work Order"}</span>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FoundArea, FoundPlace } from "@/lib/help/places";
+import WorkOrderTour from "@/components/help/work-order-tour";
+import { asksForGuidance, workOrderTour } from "@/lib/help/work-order-tour";
 import type { UserRole } from "@/lib/auth";
 import { guideForPath, relatedFaqs, searchHelp, stageAdvice, stepsFor, teamFaqs, type Faq, type TeamAnswer } from "@/lib/help/guide-content";
 import { subscribeHelpContext, type HelpWorkOrderContext } from "@/components/help/help-context";
@@ -55,9 +57,18 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
       if (response.ok) setPlaces(await response.json());
     } catch { /* places are a best-effort extra */ }
   }
+  // UAT 21 Nov 2026: a step-by-step walk through the Work Order on screen, and "what should I do now?" answered from it.
+  const [tour, setTour] = useState(false);
+  const [guidance, setGuidance] = useState(false);
+  const [firstTip, setFirstTip] = useState(false);
+  function startTour() {
+    setOpen(false); setFirstTip(false); setTour(true);
+    try { window.localStorage.setItem("fmw-ollie-tour-seen", "1"); } catch { /* per-device convenience only */ }
+  }
   function ask() {
     if (query.trim().length < 2) return;
     setAsked(true);
+    setGuidance(Boolean(workOrder) && asksForGuidance(query));
     void findPlaces();
     if (aiEnabled) void askAi();
     else void keepQuestion(results.length ? "prepared" : "none", results[0]?.id ?? null);
@@ -94,6 +105,13 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
   }
 
   useEffect(() => subscribeHelpContext(setWorkOrder), []);
+  // First time a Technician opens a Work Order on this device, Ollie offers the walk-through.
+  useEffect(() => {
+    if (!workOrder || role !== "technician") { setFirstTip(false); return; }
+    let seen = false;
+    try { seen = window.localStorage.getItem("fmw-ollie-tour-seen") === "1"; } catch { seen = true; }
+    setFirstTip(!seen);
+  }, [workOrder, role]);
 
   // D-58: sounds and spoken English (this device only). After sound has been off for a day, offer to turn it on.
   const [prefs, setPrefs] = useState<OlliePrefs>({ sound: true, voice: false, offSince: null, remindedAt: null });
@@ -147,6 +165,16 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
           </div>
         </div>
       )}
+      {tour && workOrder && <WorkOrderTour steps={workOrderTour(workOrder.status, role, workOrder.inHouse)} name={name} onClose={() => setTour(false)} />}
+      {firstTip && !open && !tour && !remind && (
+        <div role="status" className="fixed bottom-20 right-4 z-40 w-72 rounded-2xl border border-violet-300 bg-violet-50 p-3 text-sm shadow-lg print:hidden">
+          <p className="font-semibold text-violet-950">First time on a Work Order? I can walk you through this one, step by step.</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={startTour} className="rounded-lg bg-violet-700 px-3 py-1.5 font-semibold text-white">Show me</button>
+            <button type="button" onClick={() => { setFirstTip(false); try { window.localStorage.setItem("fmw-ollie-tour-seen", "1"); } catch { /* ignore */ } }} className="rounded-lg border border-violet-400 px-3 py-1.5 font-semibold text-violet-900">No thanks</button>
+          </div>
+        </div>
+      )}
       <button
         type="button"
         onClick={() => {
@@ -188,7 +216,12 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                 <p className="mt-1 text-slate-700">{stage.meaning}</p>
                 <p className="mt-2 font-semibold text-slate-900">What you do next</p>
                 <p className="text-slate-800">{stage.advice}</p>
+                {(workOrder.missing ?? []).length > 0 && <>
+                  <p className="mt-2 font-semibold text-slate-900">Still missing on this Work Order</p>
+                  <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-slate-800">{(workOrder.missing ?? []).map((item) => <li key={item}>{item}</li>)}</ol>
+                </>}
                 {canSpeak() && <button type="button" onClick={() => speak(`${workOrder.reference} is ${stage.label}. ${stage.advice}`, true)} className="mt-1 rounded border border-amber-400 px-2 py-0.5 text-xs font-semibold text-amber-900">🔊 Read aloud</button>}
+                <button type="button" onClick={startTour} className="mt-2 block w-full rounded-lg bg-violet-700 px-3 py-2 font-semibold text-white hover:bg-violet-800">Walk me through this Work Order, step by step</button>
               </section>
             )}
 
@@ -219,6 +252,7 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                   setQuestionId(null);
                   setRated(null);
                   setPlaces(null);
+                  setGuidance(false);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -268,7 +302,15 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
               {asked && query.trim() && answers.length === 0 && !aiEnabled && !(places && (places.places.length > 0 || places.areas.length > 0)) && (
                 <p className="mt-2 rounded-lg bg-slate-50 p-2 text-slate-700">{name} has no prepared answer for that yet. Try a shorter question with key words (for example &quot;incident&quot;, &quot;quotation&quot;, &quot;approve&quot;), or ask your Facility Administrator. {name} answers any question in your own words once the AI assistant is switched on.</p>
               )}
-              {answers.length > 0 && (
+              {asked && guidance && stage && workOrder && (
+                <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">On {workOrder.reference} ({stage.label})</p>
+                  <p className="mt-1 text-slate-800">{stage.advice}</p>
+                  {(workOrder.missing ?? []).length > 0 && <p className="mt-1 text-slate-800">Still missing: {(workOrder.missing ?? []).join("; ")}.</p>}
+                  <button type="button" onClick={startTour} className="mt-2 rounded-lg bg-violet-700 px-3 py-1.5 text-sm font-semibold text-white">Show me on the page, step by step</button>
+                </div>
+              )}
+              {answers.length > 0 && !(asked && guidance && stage) && (
                 <div className="mt-2">
                   {!query.trim() ? <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Common questions here</p> : <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Prepared answers</p>}
                   <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">

@@ -52,9 +52,10 @@ async function loadAssignableFacilities(identity: { userId: string; role: UserRo
     const { data } = await admin.from("sites").select("id,name").eq("is_active", true).order("name");
     return (data ?? []) as Array<{ id: string; name: string }>;
   }
-  const { data: own } = await admin.from("facility_memberships").select("facility_id")
-    .eq("profile_id", identity.userId).eq("membership_role", "facility_administrator").eq("active", true);
-  const ids = ((own ?? []) as Array<{ facility_id: string }>).map((row) => row.facility_id);
+  // 21 Nov 2026: read as the signed-in person; the service key has no access to facility_memberships.
+  const { data: own } = await (await createClient()).rpc("visible_facility_memberships");
+  const ids = Array.from(new Set(((own ?? []) as Array<{ profile_id: string; facility_id: string; membership_role: string }>)
+    .filter((row) => row.profile_id === identity.userId && row.membership_role === "facility_administrator").map((row) => row.facility_id)));
   if (!ids.length) return [];
   const { data } = await admin.from("sites").select("id,name").eq("is_active", true).in("id", ids).order("name");
   return (data ?? []) as Array<{ id: string; name: string }>;

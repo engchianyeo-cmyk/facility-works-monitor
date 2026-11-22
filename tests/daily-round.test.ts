@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { hhmm, roundLate, roundProgress, type RoundCheck } from "@/lib/daily-round";
+import { hhmm, rangeText, readingNumber, readingStatus, roundLate, roundProgress, type RoundCheck } from "@/lib/daily-round";
 
 const read = (p: string) => readFileSync(p, "utf8");
 const checks: RoundCheck[] = [
@@ -35,5 +35,30 @@ describe("M36 Daily round (owner D-67 D-G)", () => {
     expect(read("components/site-header.tsx")).toContain('href="/daily-round"');
     expect(read("app/work-orders/[id]/page.tsx")).toContain("order.daily_round_date &&");
     expect(read("app/daily-round/setup/page.tsx")).toContain('rpc("daily_round_editor"');
+  });
+});
+
+describe("M38: normal range for a reading (owner, 21 Nov 2026)", () => {
+  const chws = { min: 6, max: 8, unit: "°C" };
+  it("shows the range the Technician judges against", () => {
+    expect(rangeText(chws)).toBe("6 – 8 °C");
+    expect(rangeText({ min: null, max: 500, unit: "ppb" })).toBe("at most 500 ppb");
+    expect(rangeText({ min: 10, max: null, unit: "Pa" })).toBe("at least 10 Pa");
+    expect(rangeText({ min: null, max: null, unit: "A" })).toBeNull();
+  });
+  it("tells whether a typed reading is within, below or above it", () => {
+    expect(readingStatus(chws, "")).toBe("none");
+    expect(readingStatus(chws, "8")).toBe("in");
+    expect(readingStatus(chws, "7,5")).toBe("in");
+    expect(readingStatus(chws, "9.5")).toBe("high");
+    expect(readingStatus(chws, "5")).toBe("low");
+    expect(readingStatus(chws, "cold")).toBe("not-number");
+    expect(readingStatus({ min: null, max: -20 }, "−22")).toBe("in");
+    expect(readingNumber("−20")).toBe(-20);
+  });
+  it("the checklist shows it and asks why when OK is chosen outside it", () => {
+    const ui = readFileSync("components/daily-round/round-checklist.tsx", "utf8");
+    expect(ui).toContain("Normal: {normal}");
+    expect(ui).toContain("Why it is still OK *");
   });
 });

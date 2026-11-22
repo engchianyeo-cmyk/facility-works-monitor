@@ -158,7 +158,9 @@ describe("UAT 18 Nov 2026: users by facility", () => {
   test("adds each user's facilities and the facility list, and the page filters by them", async () => {
     const { readFileSync } = await import("node:fs");
     const route = readFileSync("app/api/admin/users/route.ts", "utf8");
-    expect(route).toContain('from("facility_memberships").select("profile_id, facility_id, effective_from, effective_to")');
+    // 21 Nov 2026 (D-72): read as the signed-in person; the service key cannot read facility_memberships.
+    expect(route).toContain('supabase.rpc("visible_facility_memberships")');
+    expect(route).not.toContain('from("facility_memberships")');
     expect(route).toContain("facilities: scope.facilities");
     const page = readFileSync("components/user-management.tsx", "utf8");
     expect(page).toContain('aria-label="Filter users by facility"');

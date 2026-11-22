@@ -14,13 +14,14 @@ export async function memberFacilities(supabase: Supabase) {
 
 export async function loadChecklist(supabase: Supabase, facilityId: string, includeInactive = false): Promise<RoundCheck[]> {
   const { data } = await supabase.from("daily_round_checks")
-    .select("id,title,equipment,position,active,items:daily_round_items(id,label,reading_unit,position,active)")
+    .select("id,title,equipment,position,active,items:daily_round_items(id,label,reading_unit,reading_min,reading_max,reading_guide,position,active)")
     .eq("facility_id", facilityId).order("position").order("title");
-  return ((data ?? []) as Array<{ id: string; title: string; equipment: string | null; position: number; active: boolean; items: Array<{ id: string; label: string; reading_unit: string | null; position: number; active: boolean }> }>)
+  return ((data ?? []) as Array<{ id: string; title: string; equipment: string | null; position: number; active: boolean; items: Array<{ id: string; label: string; reading_unit: string | null; reading_min: number | string | null; reading_max: number | string | null; reading_guide: string | null; position: number; active: boolean }> }>)
     .filter((c) => includeInactive || c.active)
     .map((c) => ({ id: c.id, title: c.title, equipment: c.equipment, position: c.position, active: c.active,
       items: c.items.filter((i) => includeInactive || i.active).sort((a, b) => a.position - b.position || a.label.localeCompare(b.label))
-        .map((i) => ({ id: i.id, label: i.label, unit: i.reading_unit, position: i.position, active: i.active })) }));
+        .map((i) => ({ id: i.id, label: i.label, unit: i.reading_unit, position: i.position, active: i.active,
+          min: i.reading_min == null ? null : Number(i.reading_min), max: i.reading_max == null ? null : Number(i.reading_max), guide: i.reading_guide })) }));
 }
 
 export async function loadRoundSettings(supabase: Supabase, facilityId: string): Promise<RoundSettings> {

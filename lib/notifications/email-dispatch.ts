@@ -129,8 +129,8 @@ export async function sendDailyFinanceReminders(settings: SmtpSettings, admin: A
   if (!items.length) return 0;
 
   // D-54 (15 Nov 2026): Finance belongs to facilities; each person's reminder lists only their facilities' payments.
-  const { data: memberships } = await admin.from("facility_memberships").select("profile_id,facility_id")
-    .eq("membership_role", "finance").eq("active", true).in("profile_id", waiting.map((p) => p.id));
+  // 21 Nov 2026: the service key has no access to facility_memberships; finance_reminder_facilities() gives only this.
+  const { data: memberships } = await admin.rpc("finance_reminder_facilities", { p_profile_ids: waiting.map((p) => p.id) });
   const facilitiesOf = new Map<string, Set<string>>();
   for (const row of (memberships ?? []) as Array<{ profile_id: string; facility_id: string }>) {
     if (!facilitiesOf.has(row.profile_id)) facilitiesOf.set(row.profile_id, new Set());

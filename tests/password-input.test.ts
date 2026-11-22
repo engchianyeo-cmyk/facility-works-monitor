@@ -16,4 +16,10 @@ describe("password boxes with show / hide", () => {
     expect(change).toContain("<PasswordInput id=\"password\"");
     expect(change).toContain("<PasswordInput id=\"confirmation\"");
   });
+  it("is used for the temporary password when creating a user, and no plain password box is left (21 Nov 2026)", () => {
+    expect(readFileSync("components/direct-user-provisioning.tsx", "utf8")).toContain('id="temporary-password"');
+    for (const file of ["components/direct-user-provisioning.tsx", "components/auth-form.tsx", "components/password-change-form.tsx", "components/user-management.tsx"]) {
+      expect(readFileSync(file, "utf8")).not.toContain('type="password"');
+    }
+  });
 });

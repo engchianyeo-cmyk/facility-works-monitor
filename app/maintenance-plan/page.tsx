@@ -48,7 +48,12 @@ export default async function MaintenancePlanPage() {
   for (const [, list] of technicians) for (const t of list) names.set(t.id, t.display_name);
   const missing = [...new Set(tasks.map(t => t.technicianId).filter((v): v is string => Boolean(v) && !names.has(v as string)))];
   if (missing.length) {
-    const { data: people } = await supabase.from("profiles").select("id,display_name").in("id", missing);
+    // 21 Nov 2026 (owner): a Technician could not see who a colleague's task belongs to ("Assigned"). Staff of a
+    // facility see each other's names (as on Our team) through visible_facility_memberships().
+    const { data: staff } = await supabase.rpc("visible_facility_memberships");
+    for (const p of (staff ?? []) as Array<{ profile_id: string; display_name: string | null }>) if (p.display_name && !names.has(p.profile_id)) names.set(p.profile_id, p.display_name);
+    const still = missing.filter((id) => !names.has(id));
+    const { data: people } = still.length ? await supabase.from("profiles").select("id,display_name").in("id", still) : { data: [] };
     for (const p of people ?? []) names.set(p.id, p.display_name);
   }
   return (

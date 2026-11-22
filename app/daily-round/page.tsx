@@ -33,7 +33,7 @@ export default async function DailyRoundPage({ searchParams }: { searchParams: S
   ]);
   const names = new Map(((people ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
   const name = (id: string | null | undefined) => (!id ? "Not assigned" : id === identity.userId ? "You" : names.get(id) ?? "Assigned Technician");
-  const { data: results } = round ? await supabase.from("daily_round_results").select("item_id,ok,reading,note,recorded_at").eq("work_order_id", round.id) : { data: [] };
+  const { data: results } = round ? await supabase.from("daily_round_results").select("item_id,ok,reading,note,recorded_at,out_of_range").eq("work_order_id", round.id) : { data: [] };
   const { data: recorder } = round ? await supabase.rpc("daily_round_recorder", { p_work_order_id: round.id }) : { data: false };
   const progress = roundProgress(checks, (results ?? []) as RoundResult[]);
   const closed = Boolean(round && ["closed", "cancelled"].includes(round.status));

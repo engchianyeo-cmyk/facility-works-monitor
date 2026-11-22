@@ -41,5 +41,6 @@ describe("D-50 / D-53 / D-54 / D-55: facilities, Facility Administrators and rem
 
   it("emails each Finance person only their facilities' payments", () => {
     expect(read("lib/notifications/email-dispatch.ts")).toContain("personItems");
+    expect(read("lib/notifications/email-dispatch.ts")).toContain('admin.rpc("finance_reminder_facilities"');
   });
 });

@@ -18,6 +18,14 @@ function isUserRole(value: unknown): value is AdminUserRole {
   return ADMIN_USER_ROLES.includes(value as AdminUserRole);
 }
 
+type VisibleMembership = { profile_id: string; facility_id: string; membership_role: string };
+async function visibleMemberships(): Promise<VisibleMembership[]> {
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("visible_facility_memberships");
+  return (data ?? []) as VisibleMembership[];
+}
+
 // UAT 18 Nov 2026: filter users by facility. Each user's current facilities (active memberships) and the facility list.
 type FacilityRef = { id: string; name: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,20 +39,16 @@ async function facilitiesFor(client: any, profileIds: string[], facilityIds?: st
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function facilitiesLookup(client: any, profileIds: string[], facilityIds?: string[]) {
-  const now = Date.now();
   let siteQuery = client.from("sites").select("id, name").eq("is_active", true).order("name");
   if (facilityIds) siteQuery = siteQuery.in("id", facilityIds.length ? facilityIds : ["00000000-0000-0000-0000-000000000000"]);
-  const [{ data: sites }, { data: rows }] = await Promise.all([
-    siteQuery,
-    profileIds.length
-      ? client.from("facility_memberships").select("profile_id, facility_id, effective_from, effective_to").in("profile_id", profileIds).eq("active", true)
-      : Promise.resolve({ data: [] }),
-  ]);
+  // 21 Nov 2026: memberships are read as the signed-in person (the service key has no access to facility_memberships).
+  const wanted = new Set(profileIds);
+  const [{ data: sites }, rows] = await Promise.all([siteQuery, visibleMemberships()]);
   const siteList = (sites ?? []) as FacilityRef[];
   const names = new Map(siteList.map((site) => [site.id, site.name]));
   const byProfile = new Map<string, FacilityRef[]>();
-  for (const row of (rows ?? []) as Array<{ profile_id: string; facility_id: string; effective_from: string | null; effective_to: string | null }>) {
-    if ((row.effective_from && Date.parse(row.effective_from) > now) || (row.effective_to && Date.parse(row.effective_to) <= now)) continue;
+  for (const row of rows) {
+    if (!wanted.has(row.profile_id)) continue;
     const name = names.get(row.facility_id);
     if (!name) continue;
     const list = byProfile.get(row.profile_id) ?? [];
@@ -200,13 +204,9 @@ async function facilityStaffDirectory(callerId: string) {
     return NextResponse.json({ users: [], audit: [], departments: [], provisioning_configured: false, auth_directory_available: false });
   }
   const admin = adminModule.createAdminClient();
-  const { data: own } = await admin.from("facility_memberships").select("facility_id")
-    .eq("profile_id", callerId).eq("membership_role", "facility_administrator").eq("active", true);
-  const facilityIds = ((own ?? []) as Array<{ facility_id: string }>).map((row) => row.facility_id);
-  const { data: members } = facilityIds.length
-    ? await admin.from("facility_memberships").select("profile_id").in("facility_id", facilityIds).eq("active", true)
-    : { data: [] };
-  const ids = Array.from(new Set(((members ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id)));
+  const visible = await visibleMemberships();
+  const facilityIds = Array.from(new Set(visible.filter((row) => row.profile_id === callerId && row.membership_role === "facility_administrator").map((row) => row.facility_id)));
+  const ids = Array.from(new Set(visible.filter((row) => facilityIds.includes(row.facility_id)).map((row) => row.profile_id)));
   const [{ data: profiles, error }, { data: departments }] = await Promise.all([
     ids.length
       ? admin.from("profiles").select("id, display_name, email, department, department_id, trade_discipline, contact_number, role, is_active, deleted_at, password_change_required, created_at, updated_at, last_active_at, last_seen_route")

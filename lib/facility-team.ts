@@ -1,10 +1,13 @@
 import "server-only";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * UAT 18 Nov 2026 (D-64): every member of a facility sees that facility's staffing structure. The server checks the
  * viewer's own active membership (or Super-Administrator) before reading; only name, role, trade and work contact
  * number are shown.
+ * 21 Nov 2026: memberships are read through visible_facility_memberships() as the signed-in person — the service key
+ * has no access to facility_memberships, which is why the page showed nobody.
  */
 export type TeamPerson = { id: string; name: string; trade: string | null; contact: string | null; you: boolean };
 export type TeamTier = { role: string; title: string; duty: string; people: TeamPerson[] };
@@ -23,27 +26,23 @@ export const TEAM_ROLES = {
 const CHAIN = ["facility_administrator", "facility_manager", "supervisor", "technician"] as const;
 const SIDE = ["approver", "finance"] as const;
 
-type Membership = { facility_id: string; profile_id: string; membership_role: string; effective_from: string | null; effective_to: string | null };
+type Membership = { facility_id: string; profile_id: string; membership_role: string };
 type Profile = { id: string; display_name: string; trade_discipline: string | null; contact_number: string | null; role: string; is_active: boolean; deleted_at: string | null };
-
-function current(row: Membership, now: number) {
-  return !(row.effective_from && Date.parse(row.effective_from) > now) && !(row.effective_to && Date.parse(row.effective_to) <= now);
-}
 
 export async function loadFacilityTeams(viewer: { userId: string; role: string }): Promise<{ teams: FacilityTeam[]; available: boolean; superAdmins: TeamPerson[] }> {
   if (!isAdminConfigured()) return { teams: [], available: false, superAdmins: [] };
   const admin = createAdminClient();
-  const now = Date.now();
-  const { data: own } = await admin.from("facility_memberships").select("facility_id, profile_id, membership_role, effective_from, effective_to")
-    .eq("profile_id", viewer.userId).eq("active", true);
-  const mine = ((own ?? []) as Membership[]).filter((row) => current(row, now)).map((row) => row.facility_id);
+  const supabase = await createClient();
+  // Current memberships only (the function checks dates), for the facilities the viewer is on staff of.
+  const { data: visible } = await supabase.rpc("visible_facility_memberships");
+  const all = (visible ?? []) as Membership[];
+  const mine = [...new Set(all.filter((row) => row.profile_id === viewer.userId).map((row) => row.facility_id))];
   const siteQuery = admin.from("sites").select("id, name, address").eq("is_active", true).order("name");
   const { data: sites } = viewer.role === "administrator" ? await siteQuery : mine.length ? await siteQuery.in("id", mine) : { data: [] };
   const facilityList = (sites ?? []) as Array<{ id: string; name: string; address: string | null }>;
   if (!facilityList.length) return { teams: [], available: true, superAdmins: [] };
-  const { data: rows } = await admin.from("facility_memberships").select("facility_id, profile_id, membership_role, effective_from, effective_to")
-    .in("facility_id", facilityList.map((site) => site.id)).eq("active", true);
-  const members = ((rows ?? []) as Membership[]).filter((row) => current(row, now));
+  const shown = new Set(facilityList.map((site) => site.id));
+  const members = all.filter((row) => shown.has(row.facility_id));
   const ids = [...new Set(members.map((row) => row.profile_id))];
   const [{ data: people }, { data: supers }] = await Promise.all([
     ids.length ? admin.from("profiles").select("id, display_name, trade_discipline, contact_number, role, is_active, deleted_at").in("id", ids) : Promise.resolve({ data: [] }),

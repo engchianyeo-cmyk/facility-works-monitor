@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import PasswordInput from "@/components/password-input";
 
 const ROLES = [
   "reviewer",
@@ -343,26 +344,22 @@ export default function DirectUserProvisioning() {
           />
         </label>
 
-        <label className="text-sm font-medium text-slate-700">
-          Temporary password
-          <input
-            required
-            type="password"
+        <div className="text-sm font-medium text-slate-700">
+          <label htmlFor="temporary-password">Temporary password</label>
+          {/* 21 Nov 2026 (owner): the eye button shows what was typed, so the person creating the account can check it. */}
+          <PasswordInput
+            id="temporary-password"
+            name="temporary_password"
             minLength={12}
             autoComplete="new-password"
             value={form.temporary_password}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                temporary_password: event.target.value,
-              })
-            }
+            onChange={(value) => setForm({ ...form, temporary_password: value })}
             className={inputClass}
           />
           <span className="mt-1 block text-xs text-slate-500">
             Minimum 12 characters.
           </span>
-        </label>
+        </div>
 
         <div className="flex items-end sm:col-span-2 lg:col-span-3">
           <button

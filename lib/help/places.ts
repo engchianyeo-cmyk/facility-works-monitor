@@ -32,14 +32,22 @@ function tokens(query: string): string[] {
   return query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(" ").filter(Boolean);
 }
 
+/** App words that never mean a place ("work order" must not find the "Workshop" or a "network" UPS). */
+const APP_WORDS = new Set(["work", "order", "orders", "new", "need", "you", "guide", "through", "help", "step", "steps", "how", "next", "now",
+  "start", "begin", "first", "time", "app", "fmworks", "ollie", "technician", "approver", "supervisor", "approve", "submit", "drawing", "photo", "quotation", "page"]);
+/** Only a question about a place, or one using a place word Ollie knows (morphine, vaccine, lift…), searches the facility. */
+const PLACE_INTENT = /\b(where|which room|room|rooms|store|storage|keep|kept|located|location|locate|find|is there|are there|area|vault|nearest)\b/i;
+
 /** The words to look for in equipment names, locations and areas (at most 6, safe for a database pattern). */
 export function placeTerms(query: string): string[] {
   const raw = tokens(query.replace(/first aid/gi, "firstaid"));
+  const known = raw.some((word) => SYNONYMS.some((entry) => entry.words.includes(word)));
+  if (!known && !PLACE_INTENT.test(query)) return [];
   const out: string[] = [];
   for (const word of raw) {
     const group = SYNONYMS.find((entry) => entry.words.includes(word));
     if (group) out.push(...group.search);
-    else if (word.length > 2 && !GENERIC.has(word)) out.push(word);
+    else if (word.length > 2 && !GENERIC.has(word) && !APP_WORDS.has(word)) out.push(word);
   }
   return [...new Set(out.map((term) => term.replace(/[^a-z0-9 -]/g, "").trim()).filter((term) => term.length > 1))].slice(0, 6);
 }

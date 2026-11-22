@@ -11,7 +11,7 @@ type Props = {
   incidentHref: string | null;
   nextAction: string | null;
   /** D-12: who may change this Work Order, named so every viewer can see it. */
-  responsibility?: { technician: string | null; viewer: string; viewerRole: string; viewerResponsible: boolean; draftToFinish: boolean };
+  responsibility?: { technician: string | null; viewer: string; viewerRole: string; viewerResponsible: boolean; draftToFinish: boolean; waitingFor?: string | null };
 };
 
 const EXCEPTION_STYLES: Record<string, string> = {
@@ -110,7 +110,15 @@ export default function WorkOrderDecisionHeader({
             <p className="mt-2 font-black">{nextAction
               ?? (responsibility?.draftToFinish ? "Finish the next steps below, then submit for approval"
                 : responsibility && !responsibility.viewerResponsible ? "No action for you on this Work Order"
+                : responsibility?.waitingFor ? `Waiting for ${responsibility.waitingFor}`
                 : "No action needed from you right now")}</p>
+            {/* Owner, 22 Nov 2026: the assigned Technician must know why there is nothing to press and what comes next. */}
+            {!nextAction && responsibility?.viewerResponsible && responsibility.waitingFor && (
+              <div className="mt-2 rounded-lg border border-blue-300 bg-white p-3 text-sm" data-testid="assigned-waiting">
+                <p className="font-bold">You are the assigned Technician — nothing to press yet.</p>
+                <p className="mt-1 text-slate-700">Your next button (for example <span className="font-semibold">Start the work</span>) appears here as soon as this step is done. Meanwhile, read the scope, get the tools, parts and access ready, and check the drawings for the location.</p>
+              </div>
+            )}
             {responsibility && (
               <div className="mt-2 rounded-lg border border-blue-200 bg-white p-3 text-sm" data-testid="work-order-responsibility">
                 <p><span className="font-bold">Assigned Technician:</span> {responsibility.technician ?? "Not yet assigned"}</p>

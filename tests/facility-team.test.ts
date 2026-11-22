@@ -7,7 +7,9 @@ describe("D-64 facility staffing structure", () => {
   it("shows a facility only to its own staff, or the Super-Administrator", () => {
     const lib = read("lib/facility-team.ts");
     expect(lib).toContain('import "server-only"');
-    expect(lib).toContain('.eq("profile_id", viewer.userId).eq("active", true)');
+    // 21 Nov 2026 (D-72): the service key cannot read facility_memberships; read as the signed-in person.
+    expect(lib).toContain('supabase.rpc("visible_facility_memberships")');
+    expect(lib).not.toContain('from("facility_memberships")');
     expect(lib).toContain('viewer.role === "administrator" ? await siteQuery : mine.length ? await siteQuery.in("id", mine)');
     expect(lib).not.toMatch(/select\([^)]*email/);
   });
