@@ -166,7 +166,36 @@ export async function DELETE(request: Request, context: RouteContext) {
  * The database replaces the name, email and contact number with "Former user NNNN" in the profile and the history;
  * then the sign-in is given a placeholder email (which frees the real one), a random password and a permanent ban.
  */
+/**
+ * M41a (owner, 23 Nov 2026): the Super-Administrator (or a Facility Administrator, for their own facility's staff) sets
+ * a temporary password; the person must choose a new one at the next sign-in. The database checks the authority and
+ * records who did it and why; the password goes only to the sign-in service and is never stored or logged by FMWorks.
+ */
+async function setTemporaryPassword(id: string, body: Record<string, unknown>) {
+  const caller = await getCurrentIdentity();
+  if (!caller || !["administrator", "facility_administrator"].includes(caller.role)) {
+    return NextResponse.json({ error: "Only the Super-Administrator or a Facility Administrator may reset a password." }, { status: 403 });
+  }
+  const password = String(body.temporary_password ?? "");
+  if (password.length < 12 || password.length > 72) return NextResponse.json({ error: "The temporary password must have 12 to 72 characters." }, { status: 400 });
+  if (!isAdminConfigured()) return NextResponse.json({ error: "Password reset requires configured privileged Auth access." }, { status: 503 });
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_require_password_change", { p_target_id: id, p_reason: String(body.reason ?? "") });
+  const result = data as { ok?: boolean; message?: string; display_name?: string } | null;
+  if (error || !result?.ok) return NextResponse.json({ error: result?.message ?? "The password was not reset." }, { status: 409 });
+  const { error: authError } = await createAdminClient().auth.admin.updateUserById(id, { password });
+  if (authError) return NextResponse.json({ error: "The sign-in service did not accept the new password. Try another (at least 12 characters)." }, { status: 409 });
+  return NextResponse.json({ success: true, message: `Temporary password set for ${result.display_name ?? "the person"}. They must choose a new password when they next sign in.` });
+}
+
 export async function POST(request: Request, context: RouteContext) {
+  {
+    const peek = await request.clone().json().catch(() => null) as Record<string, unknown> | null;
+    if (peek?.action === "set_temporary_password") {
+      try { return await setTemporaryPassword((await context.params).id, peek); }
+      catch { return NextResponse.json({ error: "Unable to reset the password." }, { status: 500 }); }
+    }
+  }
   const identity = await requireAdministrator();
   if (!identity) return NextResponse.json({ error: "Only the Super-Administrator may remove a person's details." }, { status: 403 });
   try {

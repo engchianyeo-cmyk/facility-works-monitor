@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { operationalLabel } from "@/lib/product-terminology";
+import PasswordInput from "@/components/password-input";
 
 const ROLES = [
   "reviewer",
@@ -94,6 +95,10 @@ export default function UserManagement({
   const [sortOrder, setSortOrder] = useState("last_activity");
   const [editing, setEditing] = useState<Record<string, ManagedUser>>({});
   const [activityUserId, setActivityUserId] = useState<string | null>(null);
+  // M41a (owner, 23 Nov 2026): set a temporary password for someone who cannot sign in.
+  const [resetUserId, setResetUserId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetReason, setResetReason] = useState("");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [provisioningConfigured, setProvisioningConfigured] = useState(false);
   const [facilityScope, setFacilityScope] = useState(false);
@@ -305,6 +310,28 @@ export default function UserManagement({
           ? deleteError.message
           : "Permanent deletion failed.",
       );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function setTemporaryPassword(user: ManagedUser) {
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_temporary_password", temporary_password: resetPassword, reason: resetReason }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "The password was not reset.");
+      setMessage(result.message ?? "Temporary password set.");
+      setResetUserId(null); setResetPassword(""); setResetReason("");
+      await loadUsers();
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "The password was not reset.");
     } finally {
       setSubmitting(false);
     }
@@ -660,6 +687,16 @@ export default function UserManagement({
                           >
                             Activity ({userAudit.length})
                           </button>
+                          {!isCurrent && user.role !== "administrator" && (
+                            <button
+                              type="button"
+                              disabled={submitting || !provisioningConfigured}
+                              onClick={() => { setResetUserId(resetUserId === user.id ? null : user.id); setResetPassword(""); setResetReason(""); }}
+                              className="block w-full rounded-md border border-blue-300 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50"
+                            >
+                              Set temporary password
+                            </button>
+                          )}
                           {!isCurrent && !facilityScope && (
                             <>
                               <button
@@ -695,6 +732,25 @@ export default function UserManagement({
                           )}
                         </td>
                       </tr>
+                      {resetUserId === user.id && (
+                        <tr>
+                          <td colSpan={9} className="bg-blue-50 px-5 py-4">
+                            <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => { event.preventDefault(); void setTemporaryPassword(user); }}>
+                              <div className="text-sm font-medium text-slate-700">
+                                <label htmlFor={`temp-password-${user.id}`}>Temporary password for {user.display_name}</label>
+                                <PasswordInput id={`temp-password-${user.id}`} name="temporary_password" autoComplete="new-password" minLength={12}
+                                  value={resetPassword} onChange={setResetPassword} className="mt-1 w-72 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+                              </div>
+                              <label className="text-sm font-medium text-slate-700">Reason
+                                <input value={resetReason} onChange={(event) => setResetReason(event.target.value)} placeholder="e.g. forgot password" className="mt-1 block w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+                              </label>
+                              <button type="submit" disabled={submitting || resetPassword.length < 12 || resetReason.trim().length < 3} className="min-h-10 rounded-lg bg-blue-700 px-4 text-sm font-semibold text-white disabled:opacity-50">Set password</button>
+                              <button type="button" onClick={() => setResetUserId(null)} className="min-h-10 px-2 text-sm font-semibold text-slate-600 underline">Cancel</button>
+                              <p className="w-full text-xs text-slate-600">At least 12 characters. Give it to the person yourself; they must choose a new password when they next sign in. FMWorks records that you reset it and why, never the password.</p>
+                            </form>
+                          </td>
+                        </tr>
+                      )}
                       {activityUserId === user.id && (
                         <tr>
                           <td colSpan={9} className="bg-slate-50 px-5 py-4">
