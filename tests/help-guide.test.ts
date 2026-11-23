@@ -69,7 +69,9 @@ describe("D-58 built-in Help guide", () => {
     expect(panel).toContain('fetch("/api/assistant"');
     expect(panel).toContain('fetch("/api/assistant/questions"');
     expect(panel).toContain('fetch("/api/assistant/answers"');
-    expect(panel.match(/fetch\(/g)?.length).toBe(5);
+    // 23 Nov 2026: the sixth is Ollie's staff lookup (own facilities only), still inside FMWorks.
+    expect(panel).toContain("fetch(`/api/assistant/people?q=");
+    expect(panel.match(/fetch\(/g)?.length).toBe(6);
     expect(panel).toContain("if (!aiEnabled");
   });
 });

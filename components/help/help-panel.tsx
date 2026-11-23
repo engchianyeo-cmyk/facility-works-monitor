@@ -57,6 +57,17 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
       if (response.ok) setPlaces(await response.json());
     } catch { /* places are a best-effort extra */ }
   }
+  // Owner, 23 Nov 2026: "who are the users in Facility 2?" — the facility's staff (and who is on call), as permitted.
+  type PeopleAnswer = { intent: { roles: string[]; onCall: boolean } | null; facilities: Array<{ name: string; people: Array<{ name: string; role: string; trade: string | null; phone: string | null }>; onCall: Array<{ name: string; order: number }> }> };
+  const [people, setPeople] = useState<PeopleAnswer | null>(null);
+  async function findPeople() {
+    setPeople(null);
+    try {
+      const response = await fetch(`/api/assistant/people?q=${encodeURIComponent(query.trim())}`, { cache: "no-store" });
+      if (response.ok) setPeople(await response.json());
+    } catch { /* people are a best-effort extra */ }
+  }
+  const peopleFound = Boolean(people?.intent && people.facilities.length > 0);
   // UAT 21 Nov 2026: a step-by-step walk through the Work Order on screen, and "what should I do now?" answered from it.
   const [tour, setTour] = useState(false);
   const [guidance, setGuidance] = useState(false);
@@ -70,6 +81,7 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
     setAsked(true);
     setGuidance(Boolean(workOrder) && asksForGuidance(query));
     void findPlaces();
+    void findPeople();
     if (aiEnabled) void askAi();
     else void keepQuestion(results.length ? "prepared" : "none", results[0]?.id ?? null);
   }
@@ -288,6 +300,25 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                   {canSpeak() && <button type="button" onClick={() => speak(aiAnswer, true)} className="mt-1 rounded border border-violet-300 px-2 py-0.5 text-xs font-semibold text-violet-900">🔊 Read aloud</button>}
                 </div>
               )}
+              {asked && peopleFound && people && (
+                <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-3" data-testid="ollie-people">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-sky-800">{people.intent?.onCall ? "On call and staff" : "Staff"} at your facilities</p>
+                  {people.facilities.map((facility) => (
+                    <div key={facility.name} className="mt-2">
+                      <p className="font-semibold text-slate-900">{facility.name}</p>
+                      {people.intent?.onCall && (facility.onCall.length
+                        ? <p className="text-sm text-slate-800">On call now: {facility.onCall.map((entry) => entry.name).join(", then ")}</p>
+                        : <p className="text-sm text-amber-800">No one on call — see On-call Roster.</p>)}
+                      {facility.people.length ? (
+                        <ul className="mt-1 space-y-0.5 text-sm">
+                          {facility.people.map((person, index) => <li key={`${person.name}-${index}`} className="text-slate-800"><span className="font-semibold">{person.name}</span> · {person.role}{person.trade ? ` (${person.trade})` : ""}{person.phone ? <> · <a href={`tel:${person.phone}`} className="text-blue-700 underline">{person.phone}</a></> : null}</li>)}
+                        </ul>
+                      ) : <p className="text-sm text-slate-600">No {people.intent?.roles.length ? "one in that role" : "staff"} listed.</p>}
+                    </div>
+                  ))}
+                  <p className="mt-2 text-xs text-slate-600">From each facility&apos;s staff list; you see only the facilities you are staff of. Full structure: <a href="/facility-team" className="font-semibold text-blue-700 underline">Our team</a>.</p>
+                </div>
+              )}
               {asked && places && (places.places.length > 0 || places.areas.length > 0) && (
                 <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Found in your facilities</p>
@@ -299,7 +330,7 @@ export default function HelpPanel({ role, aiEnabled = false, name = "Ollie", pic
                   <p className="mt-1 text-xs text-slate-600">From the facility&apos;s equipment and area lists. Check on the facility drawings.</p>
                 </div>
               )}
-              {asked && query.trim() && answers.length === 0 && !aiEnabled && !(places && (places.places.length > 0 || places.areas.length > 0)) && (
+              {asked && query.trim() && answers.length === 0 && !aiEnabled && !peopleFound && !(places && (places.places.length > 0 || places.areas.length > 0)) && (
                 <p className="mt-2 rounded-lg bg-slate-50 p-2 text-slate-700">{name} has no prepared answer for that yet. Try a shorter question with key words (for example &quot;incident&quot;, &quot;quotation&quot;, &quot;approve&quot;), or ask your Facility Administrator. {name} answers any question in your own words once the AI assistant is switched on.</p>
               )}
               {asked && guidance && stage && workOrder && (
