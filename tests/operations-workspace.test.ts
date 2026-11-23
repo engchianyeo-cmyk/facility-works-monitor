@@ -58,7 +58,7 @@ describe("Operations Workspace", () => {
 
   test("limits decision wording to existing authorized roles", () => {
     const workspace = read("components/operations/OperationsWorkspace.tsx");
-    expect(workspace).toContain('["approver", "supervisor", "administrator"].includes(data.role)');
+    expect(workspace).toContain('["approver", "supervisor", "facility_manager", "administrator"].includes(data.role)');
     expect(workspace).toContain('canReview ? "Review decision" : "View work order"');
   });
 

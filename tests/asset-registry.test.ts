@@ -92,7 +92,8 @@ describe("WP-ASSET-001A Asset Registry", () => {
 
   test("uses responsive card structures without horizontal scrolling", () => {
     const registry = read("app/assets/page.tsx"); const detail = read("app/assets/[id]/page.tsx");
-    expect(registry).toContain("md:grid-cols-2"); expect(detail).toContain("sm:grid-cols-2");
+    // M41b (owner, 23 Nov 2026): one line per asset, opened on click, instead of cards.
+    expect(registry).toContain("<details className=\"group\">"); expect(detail).toContain("sm:grid-cols-2");
     expect(registry).not.toContain("overflow-x-auto"); expect(detail).not.toContain("overflow-x-auto");
   });
 

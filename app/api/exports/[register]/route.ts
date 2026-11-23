@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 type RouteContext = { params: Promise<{ register: string }> };
 type Row = Record<string, unknown>;
 
-const EXPORT_ROLES = new Set(["approver", "supervisor", "administrator"]);
+const EXPORT_ROLES = new Set(["approver", "supervisor", "facility_manager", "administrator"]);
 const REGISTERS = new Set(["work-orders", "assets", "incidents", "pm-outcomes"]);
 const value = (row: Row, key: string): CsvValue => {
   const item = row[key];

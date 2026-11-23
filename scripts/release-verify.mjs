@@ -231,6 +231,7 @@ async function main() {
   sql("tests/sql/planned_work_ready.test.sql");
   sql("tests/sql/facility_on_call.test.sql");
   sql("tests/sql/admin_password_reset.test.sql");
+  sql("tests/sql/facility_manager_views.test.sql");
   const env = {
     ...process.env,
     ...identities,

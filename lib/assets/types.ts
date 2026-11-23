@@ -53,7 +53,7 @@ export function canConfigureAssetSystems(role: UserRole) {
 }
 
 export function canLinkWorkOrderAsset(role: UserRole) {
-  return ["approver", "supervisor", "administrator"].includes(role);
+  return ["approver", "supervisor", "facility_manager", "administrator"].includes(role);
 }
 
 export function canLinkIncidentAsset(role: UserRole) {

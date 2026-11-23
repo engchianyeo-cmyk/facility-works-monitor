@@ -27,7 +27,7 @@ export default async function SiteSlaPage() {
   const groups = groupRules(rules);
   const agreements = Array.from(new Map(rules.filter((rule) => rule.version?.agreement).map((rule) => [`${rule.version?.agreement?.name}|${rule.version?.version_number}`, rule.version])).values());
   const usedStages = SLA_STAGES.filter((stage) => rules.some((rule) => ruleMinutes(rule, stage.key) !== null));
-  const management = ["approver", "supervisor", "administrator"].includes(identity.role);
+  const management = ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role);
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 sm:p-8">

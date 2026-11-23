@@ -65,7 +65,7 @@ export type OperationsWorkspaceData = {
 };
 
 type View = "today" | "work" | "approvals" | "team" | "schedule" | "exceptions";
-const MANAGER_ROLES: UserRole[] = ["approver", "supervisor", "administrator"];
+const MANAGER_ROLES: UserRole[] = ["approver", "supervisor", "facility_manager", "administrator"];
 const VIEWS: Array<{ id: View; label: string }> = [
   { id: "today", label: "Today" },
   { id: "work", label: "Facility Work" },
@@ -129,7 +129,7 @@ function ApprovalCard({ item, canReview, expanded }: { item: OperationsWorkItem;
 
 export default function OperationsWorkspace({ data }: { data: OperationsWorkspaceData }) {
   const technician = data.role === "technician";
-  const canReview = ["approver", "supervisor", "administrator"].includes(data.role);
+  const canReview = ["approver", "supervisor", "facility_manager", "administrator"].includes(data.role);
   const approvalFirst = canReview;
   const visibleViews = technician
     ? VIEWS.filter((view) => ["today", "work", "schedule"].includes(view.id))

@@ -12,7 +12,7 @@ const EXPORTS = [
 export default async function ExportsPage() {
   const identity = await getCurrentIdentity();
   if (!identity) redirect("/login?next=/exports");
-  if (!["approver", "supervisor", "administrator"].includes(identity.role)) redirect("/operations");
+  if (!["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role)) redirect("/operations");
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6 lg:p-8">

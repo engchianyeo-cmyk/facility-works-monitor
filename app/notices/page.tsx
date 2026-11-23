@@ -12,6 +12,16 @@ import { facilityScope } from "@/lib/facility-scope-server";
 
 export const revalidate = 0;
 
+const NOTICES_FOR_ROLE: Record<string, string> = {
+  facility_manager: "As Facility Manager you are notified when a Work Order needs your approval (within your limit), when work is escalated to you, and about incidents at your facility. Payment matters go to Finance, not here.",
+  supervisor: "As Supervisor you are notified of Work Orders to approve or review, Technicians' completed work to check, and incidents at your facility.",
+  technician: "As Technician you are notified of Work Orders assigned to you, work returned to you to correct, and Work Orders where you are the second Technician to endorse.",
+  approver: "As Approver you are notified of Work Orders and quotations waiting for your approval, and No payment required decisions.",
+  finance: "As Finance you are notified of contractor invoices to confirm, payments due or overdue, and a daily payment reminder. Work progress notices go to the facility team, not to Finance.",
+  facility_administrator: "As Facility Administrator you are notified of matters addressed to you; staff and set-up changes are made under Administration.",
+  administrator: "As Super-Administrator you see notices addressed to you here. To see every notice in the app and whether it was delivered, open All notices.",
+};
+
 // D-38 (7 Nov 2026): every notice sent to the signed-in person, newest first, with what is still waiting for them.
 export default async function MyNoticesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const identity = await getCurrentIdentity();
@@ -75,6 +85,8 @@ export default async function MyNoticesPage({ searchParams }: { searchParams: Pr
       <header>
         <h1 className="text-3xl font-black">My notices</h1>
         <p className="mt-2 text-slate-600">Work Orders waiting for you are at the top, outlined in red; then the latest notice for each open Work Order. Older notices are kept under Earlier notices. Notices that need you to act are also emailed to you (once email is switched on); everything else arrives only here.</p>
+        {/* M41b (owner, 23 Nov 2026): what this person receives here, so an empty list is not mistaken for a fault. */}
+        <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950" data-testid="notices-for-role">{NOTICES_FOR_ROLE[identity.role] ?? "Notices addressed to you."} Nothing here means nothing is waiting for you.</p>
         <div className="mt-4"><FacilityButtons facilities={scope.facilities} current={scope.current} counts={unreadByFacility} countLabel="unread" /></div>
         {identity.role === "administrator" && <p className="mt-2 text-sm"><Link href="/administration/notices" className="font-semibold text-blue-700 underline">All notices and delivery status</Link></p>}
       </header>

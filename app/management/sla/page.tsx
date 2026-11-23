@@ -18,7 +18,7 @@ const STATE: Record<string, string> = { pending: "Not checked yet", approved: "A
 export default async function Page() {
   const i = await getCurrentIdentity();
   if (!i) redirect("/login?next=/management/sla");
-  if (!["approver", "supervisor", "administrator"].includes(i.role)) redirect("/");
+  if (!["approver", "supervisor", "facility_manager", "administrator"].includes(i.role)) redirect("/");
   const s = await createClient();
   const [m, d, p, v] = await Promise.all([
     loadManagementMetrics(s),

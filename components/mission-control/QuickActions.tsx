@@ -36,7 +36,7 @@ export default function QuickActions({ role }: { role: UserRole }) {
             <Link href="/administration/departments" className={secondary}>Departments</Link>
           </>
         )}
-        {["approver", "supervisor", "administrator"].includes(role) && (
+        {["approver", "supervisor", "facility_manager", "administrator"].includes(role) && (
           <Link href="/administration/emergency-roster" className={secondary}>On-call Roster</Link>
         )}
       </nav>

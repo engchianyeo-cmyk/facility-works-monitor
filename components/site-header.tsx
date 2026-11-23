@@ -90,7 +90,7 @@ export default async function SiteHeader() {
           {contractorAdmin && <Link href="/administration/contractors" className="rounded-lg px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50">Contractors & Rates</Link>}
           {management && <Link href="/exports" className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Exports</Link>}
           {management && <Link href="/management/sla" className="rounded-lg px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">SLA</Link>}
-          {management && <Link href="/management/staffing" className="rounded-lg px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">Staffing</Link>}
+          {/* M41b (owner, 23 Nov 2026): the Staffing page is being retired (D-78); its link is hidden. */}
           {identity ? (
             <>
               {identity.role === "facility_administrator" && (

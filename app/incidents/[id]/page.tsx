@@ -48,7 +48,7 @@ export default async function IncidentDetail({ params }: { params: Promise<{ id:
   const assignmentOptions = (optionResult.data ?? []) as { target_type: string; target_id: string; display_name: string }[];
   const responderName = projection?.responder_display_name ?? projection?.team_name ?? incident.assigned_technician?.display_name ?? incident.assigned_team?.name ?? (incident.assigned_technician_id ? "Assigned technician" : incident.assigned_team_id ? "Assigned team" : "Unassigned");
   const responder = <>{responderName}{assignmentOptions.length > 0 && active && <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4"><IncidentAssignment incidentId={id} options={assignmentOptions} /></div>}</>;
-  const canCreateCorrective = ["safe", "recovery"].includes(incident.status) && ["approver", "supervisor", "administrator"].includes(identity.role);
+  const canCreateCorrective = ["safe", "recovery"].includes(incident.status) && ["approver", "supervisor", "facility_manager", "administrator"].includes(identity.role);
   const assetLinkAllowed = active && canLinkIncidentAsset(identity.role);
   const assetOptionResult = assetLinkAllowed ? await supabase.from("assets").select("id,asset_tag,name,asset_type,criticality,lifecycle_status,site,location,system:asset_systems(name,system_code)").neq("lifecycle_status", "decommissioned").order("asset_tag") : { data: [], error: null };
   const assetOptions = (assetOptionResult.error ? [] : assetOptionResult.data ?? []) as unknown as AssetSummary[];
